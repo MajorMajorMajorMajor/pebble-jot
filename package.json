@@ -1,0 +1,24 @@
+{
+    "author": "stas.stas@gmail.com",
+    "dependencies": {},
+    "keywords": [],
+    "name": "messagease-test",
+    "pebble": {
+        "displayName": "messagease-test",
+        "enableMultiJS": true,
+        "messageKeys": [],
+        "projectType": "native",
+        "resources": {
+            "media": []
+        },
+        "sdkVersion": "3",
+        "targetPlatforms": [
+            "emery"
+        ],
+        "uuid": "6c60647c-133d-440a-be06-1ac286c7f710",
+        "watchapp": {
+            "watchface": false
+        }
+    },
+    "version": "1.0.0"
+}
