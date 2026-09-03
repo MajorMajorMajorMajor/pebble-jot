@@ -1,24 +1,32 @@
 {
-    "author": "stas.stas@gmail.com",
-    "dependencies": {},
-    "keywords": [],
-    "name": "messagease-test",
-    "pebble": {
-        "displayName": "messagease-test",
-        "enableMultiJS": true,
-        "messageKeys": [],
-        "projectType": "native",
-        "resources": {
-            "media": []
-        },
-        "sdkVersion": "3",
-        "targetPlatforms": [
-            "emery"
-        ],
-        "uuid": "6c60647c-133d-440a-be06-1ac286c7f710",
-        "watchapp": {
-            "watchface": false
-        }
+  "name": "messagease-test2",
+  "author": "MakeAwesomeHappen",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "messagease-test2",
+    "uuid": "b1bfef07-497f-4f18-8740-6f606b59a4e4",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk",
+      "diorite",
+      "emery",
+      "flint",
+      "gabbro"
+    ],
+    "watchapp": {
+      "watchface": false
     },
-    "version": "1.0.0"
+    "messageKeys": [
+      "dummy"
+    ],
+    "resources": {
+      "media": []
+    }
+  }
 }
