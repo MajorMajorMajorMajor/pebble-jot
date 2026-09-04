@@ -9,7 +9,13 @@ typedef struct {
   GSize cell_size;  
 } UIDimensions;
 
-static char *keylabel_0 = "A";
+typedef struct {
+  char* center_label;
+} Button;
+
+static Button s_button0 = {
+  .center_label = "X"
+};
 
 UIDimensions prv_compute_ui_dimensions(GSize size) {
   int textbox_height = 20;
@@ -33,8 +39,10 @@ UIDimensions prv_compute_ui_dimensions(GSize size) {
   };
 }
 
+static UIDimensions s_ui_dimensions;
+
 enum { NUMBER_OF_KEYS = 16 };
-static TextLayer *s_keys[NUMBER_OF_KEYS];
+static Layer *s_keys[NUMBER_OF_KEYS];
 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
   text_layer_set_text(s_textbox, "Select");
@@ -54,11 +62,34 @@ static void prv_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler);
 }
 
+static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
+  Button *button = layer_get_data(layer);
+  // UIDimensions ui = s_ui_dimensions;
+  
+
+  char *text = button->center_label;
+  const GFont font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM);
+  GRect box = grect_crop(layer_get_bounds(layer), 1);
+  GTextOverflowMode overflow_mode = GTextOverflowModeWordWrap;
+  GTextAlignment alignment = GTextAlignmentCenter;
+  GTextAttributes *text_attributes = graphics_text_attributes_create();
+  
+  graphics_context_set_fill_color(ctx, GColorRichBrilliantLavender);
+  graphics_fill_rect(ctx, box, 4, GCornersAll);
+  
+  graphics_context_set_text_color(ctx, GColorBlack);
+  graphics_draw_text(ctx, text, font, box, overflow_mode, alignment, text_attributes);
+  
+
+  return;
+}
+
 static void prv_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
   UIDimensions ui = prv_compute_ui_dimensions(bounds.size);
+  s_ui_dimensions = ui;
 
   // Textbox
   s_textbox = text_layer_create((GRect){{0, 0}, ui.textbox_size});
@@ -67,31 +98,37 @@ static void prv_window_load(Window *window) {
   
   layer_add_child(window_layer, text_layer_get_layer(s_textbox));
 
-  // Key 1
-  int i = 0;
-  {
+  for (int i = 0; i < NUMBER_OF_KEYS; i++) {
+    int row = i / 4;
+    int col = i % 4;
+
     GPoint origin = {
-      .x = i * ui.cell_size.w, 
-      .y = ui.textbox_size.h + (i * ui.cell_size.h)
+      .x = col * ui.cell_size.w, 
+      .y = ui.textbox_size.h + (row * ui.cell_size.h)
     };
-    TextLayer *key = text_layer_create((GRect){origin, ui.cell_size});
-    s_keys[i] = key;
+    Layer *key_layer = layer_create_with_data((GRect){origin, ui.cell_size}, sizeof(Button));
+    s_keys[i] = key_layer;
 
+    Button *button = layer_get_data(key_layer);
+    *button = s_button0;
 
-    text_layer_set_text(key, keylabel_0);
-    text_layer_set_background_color(key, GColorVividCerulean);
-    text_layer_set_text_alignment(key, GTextAlignmentCenter);
+    layer_set_update_proc(key_layer, prv_update_key_layer);
 
-    layer_add_child(window_layer, text_layer_get_layer(key));
+    // text_layer_set_text(key_layer, keylabel_0);
+    // text_layer_set_background_color(key_layer, GColorVividCerulean);
+    // text_layer_set_text_alignment(key_layer, GTextAlignmentCenter);
+
+    layer_add_child(window_layer, key_layer);
 
   }
 }
+
 
 static void prv_window_unload(Window *window) {
   text_layer_destroy(s_textbox);
   
   for (int i = 0; i < NUMBER_OF_KEYS; i++) {    
-    text_layer_destroy(s_keys[i]);
+    layer_destroy(s_keys[i]);
   }  
 }
 
