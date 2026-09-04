@@ -95,6 +95,21 @@ static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
   return;
 }
 
+static void prv_touch_handler(const *TouchEvent event, void *context) {
+  switch(event->type) {
+    case TouchEvent_Touchdown:
+      text_layer_set_text(s_textbox, snprintf
+  }
+}
+// initialize touch
+static void prv_touch_init() {
+  // check if touch is enabled
+  if (!touch_service_is_enabled()) {
+    text_layer_set_text(s_textbox, "Please enable touch in settings in order to use the touchscreen keyboard.");
+  }
+}
+
+
 static void prv_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
