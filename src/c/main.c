@@ -109,9 +109,7 @@ static void prv_window_load(Window *window) {
   
   layer_add_child(window_layer, text_layer_get_layer(s_textbox));
 
-  for (int i = 0; i < NUMBER_OF_KEYS; i++) {
-    Key key = s_keys[i];
-
+  for (int i = 0; i < NUMBER_OF_KEYS; i++) {    
     int row = i / 4;
     int col = i % 4;
 
@@ -120,11 +118,11 @@ static void prv_window_load(Window *window) {
       .y = ui.textbox_size.h + (row * ui.cell_size.h)
     };
     Layer *key_layer = layer_create_with_data((GRect){origin, ui.cell_size}, sizeof(Key));
-    key.layer = key_layer;
-    key.center_label = s_keys[0].center_label;  // @TODO: Define actual labels for all the keys
+    s_keys[i].layer = key_layer;
+    s_keys[i].center_label = s_keys[0].center_label;  // @TODO: Define actual labels for all the keys
 
     Key *layer_data = layer_get_data(key_layer);
-    *layer_data = key; // write a copy of the key data to the layer
+    *layer_data = s_keys[i]; // write a copy of the key data to the layer
 
     layer_set_update_proc(key_layer, prv_update_key_layer);
 
