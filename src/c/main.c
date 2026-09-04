@@ -1,18 +1,51 @@
 #include <pebble.h>
 
+
 static Window *s_window;
-static TextLayer *s_text_layer;
+static TextLayer *s_textbox;
+
+typedef struct {
+  GSize textbox_size;
+  GSize key_size;  
+} UIDimensions;
+
+static char *keylabel_0 = "A";
+
+UIDimensions prv_compute_ui_dimensions(GSize size) {
+  int textbox_height = 20;
+
+  int key_width = size.w / 4;
+  int key_height = (size.h - textbox_height) / 4;
+
+  GSize textbox_size = {
+    .w = size.w, 
+    .h = textbox_height 
+  };
+
+  GSize key_size = {
+    .w = key_width,
+    .h = key_height
+  };
+
+  return (UIDimensions) {
+    .textbox_size = textbox_size,
+    .key_size = key_size
+  };
+}
+
+enum { NUMBER_OF_KEYS = 16 };
+static TextLayer *s_keys[NUMBER_OF_KEYS];
 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  text_layer_set_text(s_text_layer, "Select");
+  text_layer_set_text(s_textbox, "Select");
 }
 
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  text_layer_set_text(s_text_layer, "Up");
+  text_layer_set_text(s_textbox, "Up");
 }
 
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  text_layer_set_text(s_text_layer, "Down");
+  text_layer_set_text(s_textbox, "Down");
 }
 
 static void prv_click_config_provider(void *context) {
@@ -25,14 +58,41 @@ static void prv_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
-  s_text_layer = text_layer_create(GRect(0, 72, bounds.size.w, 20));
-  text_layer_set_text(s_text_layer, "Press a button");
-  text_layer_set_text_alignment(s_text_layer, GTextAlignmentCenter);
-  layer_add_child(window_layer, text_layer_get_layer(s_text_layer));
+  UIDimensions ui = prv_compute_ui_dimensions(bounds.size);
+
+  // Textbox
+  s_textbox = text_layer_create((GRect){{0, 0}, ui.textbox_size});
+  text_layer_set_text(s_textbox, "Input text");
+  text_layer_set_text_alignment(s_textbox, GTextAlignmentLeft);
+  
+  layer_add_child(window_layer, text_layer_get_layer(s_textbox));
+
+  // Key 1
+  int i = 0;
+  {
+    GPoint origin = {
+      .x = i * ui.key_size.w, 
+      .y = ui.textbox_size.h + (i * ui.key_size.h)
+    };
+    TextLayer *key = text_layer_create((GRect){origin, ui.key_size});
+    s_keys[i] = key;
+
+
+    text_layer_set_text(key, keylabel_0);
+    text_layer_set_background_color(key, GColorVividCerulean);
+    text_layer_set_text_alignment(key, GTextAlignmentCenter);
+
+    layer_add_child(window_layer, text_layer_get_layer(key));
+
+  }
 }
 
 static void prv_window_unload(Window *window) {
-  text_layer_destroy(s_text_layer);
+  text_layer_destroy(s_textbox);
+  
+  for (int i = 0; i < NUMBER_OF_KEYS; i++) {    
+    text_layer_destroy(s_keys[i]);
+  }  
 }
 
 static void prv_init(void) {
