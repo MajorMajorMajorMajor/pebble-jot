@@ -6,7 +6,7 @@ static TextLayer *s_textbox;
 
 typedef struct {
   GSize textbox_size;
-  GSize key_size;  
+  GSize cell_size;  
 } UIDimensions;
 
 static char *keylabel_0 = "A";
@@ -14,22 +14,22 @@ static char *keylabel_0 = "A";
 UIDimensions prv_compute_ui_dimensions(GSize size) {
   int textbox_height = 20;
 
-  int key_width = size.w / 4;
-  int key_height = (size.h - textbox_height) / 4;
+  int cell_width = size.w / 4;
+  int cell_height = (size.h - textbox_height) / 4;
 
   GSize textbox_size = {
     .w = size.w, 
     .h = textbox_height 
   };
 
-  GSize key_size = {
-    .w = key_width,
-    .h = key_height
+  GSize cell_size = {
+    .w = cell_width,
+    .h = cell_height
   };
 
   return (UIDimensions) {
     .textbox_size = textbox_size,
-    .key_size = key_size
+    .cell_size = cell_size
   };
 }
 
@@ -71,10 +71,10 @@ static void prv_window_load(Window *window) {
   int i = 0;
   {
     GPoint origin = {
-      .x = i * ui.key_size.w, 
-      .y = ui.textbox_size.h + (i * ui.key_size.h)
+      .x = i * ui.cell_size.w, 
+      .y = ui.textbox_size.h + (i * ui.cell_size.h)
     };
-    TextLayer *key = text_layer_create((GRect){origin, ui.key_size});
+    TextLayer *key = text_layer_create((GRect){origin, ui.cell_size});
     s_keys[i] = key;
 
 
