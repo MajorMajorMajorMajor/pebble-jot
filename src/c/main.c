@@ -1,6 +1,5 @@
 #include <pebble.h>
 
-
 static Window *s_window;
 static TextLayer *s_textbox;
 
@@ -10,12 +9,18 @@ typedef struct {
 } UIDimensions;
 
 typedef struct {
-  char* center_label;
-} Button;
+  Layer *layer;
+  char *center_label;
+} Key;
 
-static Button s_button0 = {
-  .center_label = "X"
-};
+enum { NUMBER_OF_KEYS = 16 };
+static Key s_keys[NUMBER_OF_KEYS];
+
+void prv_init_keys() {
+  s_keys[0] = (Key) {  
+    .center_label = "X"
+  };
+}
 
 UIDimensions prv_compute_ui_dimensions(GSize size) {
   int textbox_height = 20;
@@ -41,9 +46,6 @@ UIDimensions prv_compute_ui_dimensions(GSize size) {
 
 static UIDimensions s_ui_dimensions;
 
-enum { NUMBER_OF_KEYS = 16 };
-static Layer *s_keys[NUMBER_OF_KEYS];
-
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
   text_layer_set_text(s_textbox, "Select");
 }
@@ -63,19 +65,22 @@ static void prv_click_config_provider(void *context) {
 }
 
 static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
-  Button *button = layer_get_data(layer);
-  // UIDimensions ui = s_ui_dimensions;
+  Key *key = layer_get_data(layer);
   
-
-  char *text = button->center_label;
-  const GFont font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM);
+  // make a 1-pixel margin
   GRect box = grect_crop(layer_get_bounds(layer), 1);
+
+  // draw a rounded rectangle for the button
+  graphics_context_set_fill_color(ctx, GColorRichBrilliantLavender);
+  graphics_fill_rect(ctx, box, 4, GCornersAll);
+
+  // draw the center label text
+  char *text = key->center_label;
+  const GFont font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM); // @ TODO: Make the font and colors configurable
+  
   GTextOverflowMode overflow_mode = GTextOverflowModeWordWrap;
   GTextAlignment alignment = GTextAlignmentCenter;
   GTextAttributes *text_attributes = graphics_text_attributes_create();
-  
-  graphics_context_set_fill_color(ctx, GColorRichBrilliantLavender);
-  graphics_fill_rect(ctx, box, 4, GCornersAll);
   
   graphics_context_set_text_color(ctx, GColorBlack);
   graphics_draw_text(ctx, text, font, box, overflow_mode, alignment, text_attributes);
@@ -99,6 +104,8 @@ static void prv_window_load(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(s_textbox));
 
   for (int i = 0; i < NUMBER_OF_KEYS; i++) {
+    Key key = s_keys[i];
+
     int row = i / 4;
     int col = i % 4;
 
@@ -106,11 +113,12 @@ static void prv_window_load(Window *window) {
       .x = col * ui.cell_size.w, 
       .y = ui.textbox_size.h + (row * ui.cell_size.h)
     };
-    Layer *key_layer = layer_create_with_data((GRect){origin, ui.cell_size}, sizeof(Button));
-    s_keys[i] = key_layer;
+    Layer *key_layer = layer_create_with_data((GRect){origin, ui.cell_size}, sizeof(Key));
+    key.layer = key_layer;
+    key.center_label = s_keys[0].center_label;  // @TODO: Define actual labels for all the keys
 
-    Button *button = layer_get_data(key_layer);
-    *button = s_button0;
+    Key *layer_data = layer_get_data(key_layer);
+    *layer_data = key; // write a copy of the key data to the layer
 
     layer_set_update_proc(key_layer, prv_update_key_layer);
 
@@ -128,11 +136,14 @@ static void prv_window_unload(Window *window) {
   text_layer_destroy(s_textbox);
   
   for (int i = 0; i < NUMBER_OF_KEYS; i++) {    
-    layer_destroy(s_keys[i]);
+    layer_destroy(s_keys[i].layer);
   }  
 }
 
 static void prv_init(void) {
+  // initialize static data
+  prv_init_keys();
+
   s_window = window_create();
   window_set_click_config_provider(s_window, prv_click_config_provider);
   window_set_window_handlers(s_window, (WindowHandlers) {
