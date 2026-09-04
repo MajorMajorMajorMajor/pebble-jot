@@ -18,7 +18,7 @@ static Key s_keys[NUMBER_OF_KEYS];
 
 void prv_init_keys() {
   s_keys[0] = (Key) {  
-    .center_label = "X"
+    .center_label = "a"
   };
 }
 
@@ -68,7 +68,8 @@ static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
   Key *key = layer_get_data(layer);
   
   // make a 1-pixel margin
-  GRect box = grect_crop(layer_get_bounds(layer), 1);
+  GRect bounds = layer_get_bounds(layer);
+  GRect box = grect_crop(bounds, 1);
 
   // draw a rounded rectangle for the button
   graphics_context_set_fill_color(ctx, GColorRichBrilliantLavender);
@@ -76,14 +77,20 @@ static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
 
   // draw the center label text
   char *text = key->center_label;
+  // const GFont font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK); // @ TODO: Make the font and colors configurable
   const GFont font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM); // @ TODO: Make the font and colors configurable
   
   GTextOverflowMode overflow_mode = GTextOverflowModeWordWrap;
   GTextAlignment alignment = GTextAlignmentCenter;
   GTextAttributes *text_attributes = graphics_text_attributes_create();
   
+
+  GSize text_size = graphics_text_layout_get_content_size(text, font, box, overflow_mode, alignment);  
+  int inset_top = (bounds.size.h - text_size.h)/3;
+  GRect box_vcenter = grect_inset(bounds, GEdgeInsets(inset_top));
+
   graphics_context_set_text_color(ctx, GColorBlack);
-  graphics_draw_text(ctx, text, font, box, overflow_mode, alignment, text_attributes);
+  graphics_draw_text(ctx, text, font, box_vcenter, overflow_mode, alignment, text_attributes);
   
 
   return;
