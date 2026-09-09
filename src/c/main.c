@@ -1,15 +1,9 @@
 // vim: set sw=2 ts=2 et:
 #include <pebble.h>
+#include "alert.h"
+
 
 static Window *s_window;
-
-// text
-static TextLayer *s_textbox;
-static char s_text[200];
-static void prv_set_text(const char *new_text) {  
-  snprintf(s_text, sizeof s_text, "%s", new_text);
-  layer_mark_dirty((Layer*)s_textbox);
-}
 
 // ui
 typedef struct UIDimensions{
@@ -56,15 +50,15 @@ UIDimensions prv_compute_ui_dimensions(GSize size) {
 static UIDimensions s_ui_dimensions;
 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  prv_set_text("Select");
+  alert_set_text("Select");
 }
 
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  prv_set_text("Up");
+  alert_set_text("Up");
 }
 
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  prv_set_text("Down");
+  alert_set_text("Down");
 }
 
 static void prv_click_config_provider(void *context) {
@@ -109,16 +103,16 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
     case TouchEvent_Touchdown: { 
       char text[64];
       snprintf(text, sizeof text, "Touchdown detected at (%d, %d)", event->x, event->y);
-      prv_set_text(text);
+      alert_set_text(text);
       break;
     }      
     case TouchEvent_Liftoff: {
-      prv_set_text("Lift-off");
+      alert_set_text("Lift-off");
       break;
     }
 
     case TouchEvent_PositionUpdate: {
-      prv_set_text("New position");
+      alert_set_text("New position");
       break;
     }
 
@@ -129,7 +123,7 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
 static void prv_touch_init() {
   // check if touch is enabled
   if (!touch_service_is_enabled()) {
-    prv_set_text("Please enable touch in settings in order to use the touchscreen keyboard.");
+    alert_set_text("Please enable touch in settings in order to use the touchscreen keyboard.");
     return;
   }
 
@@ -149,13 +143,13 @@ static void prv_window_load(Window *window) {
   s_ui_dimensions = ui;
 
   // Textbox  
-  s_textbox = text_layer_create((GRect){{0, 0}, ui.textbox_size});
-  text_layer_set_text(s_textbox, s_text);
-  text_layer_set_text_alignment(s_textbox, GTextAlignmentLeft);
-  
-  prv_set_text("Input text");
+  GRect alert_frame = {
+    .origin = {0, 0},
+    .size = ui.textbox_size
+  };
 
-  layer_add_child(window_layer, text_layer_get_layer(s_textbox));
+  alert_ui_init(window_layer, alert_frame);
+  alert_set_text("Input text");  
 
   for (int i = 0; i < NUMBER_OF_KEYS; i++) {    
     int row = i / 4;
@@ -188,7 +182,7 @@ static void prv_window_load(Window *window) {
 
 
 static void prv_window_unload(Window *window) {
-  text_layer_destroy(s_textbox);
+  alert_ui_deinit();
   
   for (int i = 0; i < NUMBER_OF_KEYS; i++) {    
     layer_destroy(s_keys[i].layer);
