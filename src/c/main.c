@@ -2,6 +2,7 @@
 #include <pebble.h>
 #include "alert.h"
 #include "layout.h"
+#include "touch.h"
 
 
 static Window *s_window;
@@ -36,7 +37,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context)
 static void prv_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
-  window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler);
+  window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler); 
 }
 
 static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
@@ -69,43 +70,6 @@ static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
 
   return;
 }
-
-static void prv_touch_handler(const TouchEvent *event, void *context) {
-  switch(event->type) {
-    case TouchEvent_Touchdown: { 
-      char text[64];
-      snprintf(text, sizeof text, "Touchdown detected at (%d, %d)", event->x, event->y);
-      alert_set_text(text);
-      break;
-    }      
-    case TouchEvent_Liftoff: {
-      alert_set_text("Lift-off");
-      break;
-    }
-
-    case TouchEvent_PositionUpdate: {
-      alert_set_text("New position");
-      break;
-    }
-
-  }  
-}
-
-// initialize touch
-static void prv_touch_init() {
-  // check if touch is enabled
-  if (!touch_service_is_enabled()) {
-    alert_set_text("Please enable touch in settings in order to use the touchscreen keyboard.");
-    return;
-  }
-
-  touch_service_subscribe(prv_touch_handler, NULL);
-}
-
-static void prv_touch_deinit() {
-    touch_service_unsubscribe();
-}
-
 
 static void prv_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
@@ -147,8 +111,8 @@ static void prv_window_load(Window *window) {
 
   }
 
-  // initialize touch
-  prv_touch_init();
+  // In touch.c
+  touch_init();
 }
 
 
@@ -159,7 +123,8 @@ static void prv_window_unload(Window *window) {
     layer_destroy(s_keys[i].layer);
   }  
 
-  prv_touch_deinit();
+  // In touch.c
+  touch_deinit();
 
 }
 
