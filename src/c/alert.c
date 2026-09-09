@@ -4,7 +4,7 @@
 
 // text
 static TextLayer *s_textbox;
-static char s_text[200];
+static char s_text[ALERT_MAX_LENGTH];
 
 void alert_set_text(const char *new_text) {  
   snprintf(s_text, sizeof s_text, "%s", new_text);

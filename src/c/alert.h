@@ -3,6 +3,9 @@
 
 #include <pebble.h>
 
+enum {
+    ALERT_MAX_LENGTH = 200
+};
 void alert_set_text(const char *new_text);
 
 TextLayer* alert_ui_init(Layer *parent_layer, GRect frame);
