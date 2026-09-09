@@ -1,15 +1,10 @@
 // vim: set sw=2 ts=2 et:
 #include <pebble.h>
 #include "alert.h"
+#include "layout.h"
 
 
 static Window *s_window;
-
-// ui
-typedef struct UIDimensions{
-  GSize textbox_size;
-  GSize cell_size;  
-} UIDimensions;
 
 typedef struct Key {
   Layer *layer;
@@ -25,29 +20,6 @@ void prv_init_keys() {
   };
 }
 
-UIDimensions prv_compute_ui_dimensions(GSize size) {
-  int textbox_height = 20;
-
-  int cell_width = size.w / 4;
-  int cell_height = (size.h - textbox_height) / 4;
-
-  GSize textbox_size = {
-    .w = size.w, 
-    .h = textbox_height 
-  };
-
-  GSize cell_size = {
-    .w = cell_width,
-    .h = cell_height
-  };
-
-  return (UIDimensions) {
-    .textbox_size = textbox_size,
-    .cell_size = cell_size
-  };
-}
-
-static UIDimensions s_ui_dimensions;
 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
   alert_set_text("Select");
@@ -139,9 +111,8 @@ static void prv_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
-  UIDimensions ui = prv_compute_ui_dimensions(bounds.size);
-  s_ui_dimensions = ui;
-
+  UIDimensions ui = layout_compute_ui_dimensions(bounds.size);
+  
   // Textbox  
   GRect alert_frame = {
     .origin = {0, 0},
