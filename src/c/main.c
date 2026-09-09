@@ -2,19 +2,27 @@
 #include <pebble.h>
 
 static Window *s_window;
-static TextLayer *s_textbox;
 
-typedef struct {
+// text
+static TextLayer *s_textbox;
+static char s_text[200];
+static void prv_set_text(const char *new_text) {  
+  snprintf(s_text, sizeof s_text, "%s", new_text);
+  layer_mark_dirty((Layer*)s_textbox);
+}
+
+// ui
+typedef struct UIDimensions{
   GSize textbox_size;
   GSize cell_size;  
 } UIDimensions;
 
-typedef struct {
+typedef struct Key {
   Layer *layer;
   char *center_label;
 } Key;
 
-enum { NUMBER_OF_KEYS = 16 };
+enum params{ NUMBER_OF_KEYS = 16 };
 static Key s_keys[NUMBER_OF_KEYS];
 
 void prv_init_keys() {
@@ -48,15 +56,15 @@ UIDimensions prv_compute_ui_dimensions(GSize size) {
 static UIDimensions s_ui_dimensions;
 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  text_layer_set_text(s_textbox, "Select");
+  prv_set_text("Select");
 }
 
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  text_layer_set_text(s_textbox, "Up");
+  prv_set_text("Up");
 }
 
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  text_layer_set_text(s_textbox, "Down");
+  prv_set_text("Down");
 }
 
 static void prv_click_config_provider(void *context) {
@@ -96,18 +104,40 @@ static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
   return;
 }
 
-static void prv_touch_handler(const *TouchEvent event, void *context) {
+static void prv_touch_handler(const TouchEvent *event, void *context) {
   switch(event->type) {
-    case TouchEvent_Touchdown:
-      text_layer_set_text(s_textbox, snprintf
-  }
+    case TouchEvent_Touchdown: { 
+      char text[64];
+      snprintf(text, sizeof text, "Touchdown detected at (%d, %d)", event->x, event->y);
+      prv_set_text(text);
+      break;
+    }      
+    case TouchEvent_Liftoff: {
+      prv_set_text("Lift-off");
+      break;
+    }
+
+    case TouchEvent_PositionUpdate: {
+      prv_set_text("New position");
+      break;
+    }
+
+  }  
 }
+
 // initialize touch
 static void prv_touch_init() {
   // check if touch is enabled
   if (!touch_service_is_enabled()) {
-    text_layer_set_text(s_textbox, "Please enable touch in settings in order to use the touchscreen keyboard.");
+    prv_set_text("Please enable touch in settings in order to use the touchscreen keyboard.");
+    return;
   }
+
+  touch_service_subscribe(prv_touch_handler, NULL);
+}
+
+static void prv_touch_deinit() {
+    touch_service_unsubscribe();
 }
 
 
@@ -118,11 +148,13 @@ static void prv_window_load(Window *window) {
   UIDimensions ui = prv_compute_ui_dimensions(bounds.size);
   s_ui_dimensions = ui;
 
-  // Textbox
+  // Textbox  
   s_textbox = text_layer_create((GRect){{0, 0}, ui.textbox_size});
-  text_layer_set_text(s_textbox, "Input text");
+  text_layer_set_text(s_textbox, s_text);
   text_layer_set_text_alignment(s_textbox, GTextAlignmentLeft);
   
+  prv_set_text("Input text");
+
   layer_add_child(window_layer, text_layer_get_layer(s_textbox));
 
   for (int i = 0; i < NUMBER_OF_KEYS; i++) {    
@@ -149,6 +181,9 @@ static void prv_window_load(Window *window) {
     layer_add_child(window_layer, key_layer);
 
   }
+
+  // initialize touch
+  prv_touch_init();
 }
 
 
@@ -158,6 +193,9 @@ static void prv_window_unload(Window *window) {
   for (int i = 0; i < NUMBER_OF_KEYS; i++) {    
     layer_destroy(s_keys[i].layer);
   }  
+
+  prv_touch_deinit();
+
 }
 
 static void prv_init(void) {
