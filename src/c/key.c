@@ -1,5 +1,5 @@
 #include "key.h"
-#include "layout.h"
+#include "ui.h"
 
 enum params{ NUMBER_OF_KEYS = 16 };
 static Key s_keys[NUMBER_OF_KEYS];

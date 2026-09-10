@@ -1,7 +1,7 @@
 #pragma once
 
 #include <pebble.h>
-#include "layout.h"
+#include "ui.h"
 
 // types
 typedef struct Key {
