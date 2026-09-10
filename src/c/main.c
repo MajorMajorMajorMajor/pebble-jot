@@ -3,6 +3,7 @@
 #include "alert.h"
 #include "layout.h"
 #include "touch.h"
+#include "click.h"
 
 
 static Window *s_window;
@@ -21,24 +22,6 @@ void prv_init_keys() {
   };
 }
 
-
-static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  alert_set_text("Select");
-}
-
-static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  alert_set_text("Up");
-}
-
-static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  alert_set_text("Down");
-}
-
-static void prv_click_config_provider(void *context) {
-  window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
-  window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
-  window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler); 
-}
 
 static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
   Key *key = layer_get_data(layer);
@@ -133,7 +116,7 @@ static void prv_init(void) {
   prv_init_keys();
 
   s_window = window_create();
-  window_set_click_config_provider(s_window, prv_click_config_provider);
+  window_set_click_config_provider(s_window, click_config_provider);
   window_set_window_handlers(s_window, (WindowHandlers) {
     .load = prv_window_load,
     .unload = prv_window_unload,
