@@ -1,6 +1,7 @@
 // vim: set sw=2 ts=2 et:
 #include <pebble.h>
 #include "alert.h"
+#include "ui.h"
 
 // text
 static TextLayer *s_textbox;
@@ -11,10 +12,13 @@ void alert_set_text(const char *new_text) {
   layer_mark_dirty((Layer*)s_textbox);
 }
 
-TextLayer* alert_ui_init(
-  Layer *parent_layer, 
-  GRect frame // location and size
-){
+TextLayer* alert_ui_init( Layer *parent_layer, UIDimensions ui){
+      // Textbox  
+    GRect frame = {
+      .origin = {0, 0},
+      .size = ui.textbox_size
+    };
+    
     s_textbox = text_layer_create(frame); 
     text_layer_set_text(s_textbox, s_text);
     text_layer_set_text_alignment(s_textbox, GTextAlignmentLeft);

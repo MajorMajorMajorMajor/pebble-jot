@@ -1,6 +1,6 @@
 #include <pebble.h>
 
-#include "layout.h"
+#include "ui.h"
 #include "alert.h"
 #include "key.h"
 #include "click.h"
@@ -17,16 +17,9 @@ static void prv_window_load(Window *window) {
 
   UIDimensions ui = layout_compute_ui_dimensions(bounds.size);
   
-  // Textbox  
-  GRect alert_frame = {
-    .origin = {0, 0},
-    .size = ui.textbox_size
-  };
 
-  alert_ui_init(window_layer, alert_frame);
-  alert_set_text("Input text");  
-
-  // add and draw keys
+  alert_ui_init(window_layer, ui);
+  
   key_ui_init(window_layer, ui);  
 }
 
