@@ -1,14 +1,12 @@
-#include "key.h"
+#include <pebble.h>
+
+#include "../keyboard/keys.h"
+#include "../keyboard/layout.h"
+
 #include "ui.h"
+#include "key_button.h"
 
-enum params{ NUMBER_OF_KEYS = 16 };
-static Key s_keys[NUMBER_OF_KEYS];
-
-static void prv_init_keys() {
-  s_keys[0] = (Key) {  
-    .center_label = "a"
-  };
-}
+static TextLayer *key_button_layers;
 
 static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
   Key *key = layer_get_data(layer);
@@ -41,11 +39,10 @@ static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
   return;
 }
 
-void key_ui_init(Layer *parent_layer, UIDimensions ui) {
-    // initialize data
-    prv_init_keys();
-
+void key_ui_init(Layer *parent_layer, UIDimensions ui) {  
     // draw it
+    Key *keys = get_keys();
+
     for (int i = 0; i < NUMBER_OF_KEYS; i++) {    
         int row = i / 4;
         int col = i % 4;

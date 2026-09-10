@@ -1,10 +1,9 @@
 #include <pebble.h>
 
 #include "ui.h"
+#include "key_button.h"
 #include "alert.h"
-#include "key.h"
 #include "click.h"
-
 #include "window.h"
 
 
