@@ -3,7 +3,6 @@
 #include "layout.h"
 #include "alert.h"
 #include "key.h"
-#include "touch.h"
 #include "click.h"
 
 #include "window.h"
@@ -28,21 +27,13 @@ static void prv_window_load(Window *window) {
   alert_set_text("Input text");  
 
   // add and draw keys
-  key_ui_init(window_layer, ui);
-  
-  // In touch.c
-  touch_init();
+  key_ui_init(window_layer, ui);  
 }
 
 
 static void prv_window_unload(Window *window) {
   alert_ui_deinit();
-  
   key_ui_deinit();
-
-  // In touch.c
-  touch_deinit();
-
 }
 
 void window_init(void) {
