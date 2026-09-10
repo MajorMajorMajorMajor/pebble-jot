@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include "click.h"
 #include "alert.h"
 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {

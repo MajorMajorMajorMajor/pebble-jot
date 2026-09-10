@@ -1,7 +1,7 @@
 // vim: set sw=2 ts=2 et:
 #include <pebble.h>
-#include "window.h"
-#include "touch.h"
+#include "ui/window.h"
+#include "ui/touch.h"
 
 int main(void) {
   // initialize systems
