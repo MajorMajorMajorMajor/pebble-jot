@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stddef.h>
-#include "keys.h"
+#include "key.h"
 
 typedef struct {
     KeyId key_id;
@@ -25,4 +25,4 @@ typedef enum {
 } LayoutId;
 
 
-const Layout *get_layout(LayoutId layout_id);
+const Layout* get_layout(LayoutId layout_id);

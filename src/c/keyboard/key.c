@@ -1,4 +1,4 @@
-#include "keys.h"
+#include "key.h"
 
 static const Key s_keys[KEY_COUNT] = {  
   [KEY_ENGLISH_O] = {
@@ -9,6 +9,6 @@ static const Key s_keys[KEY_COUNT] = {
   }  
 };
 
-const Key* get_keys(KeyId key_id){  
+const Key* get_key(KeyId key_id){  
   return &s_keys[key_id];
 }
