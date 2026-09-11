@@ -1,6 +1,6 @@
 #include "keys.h"
 
-static Key keys[] = {  
+static const Key s_keys[KEY_COUNT] = {  
   [KEY_ENGLISH_O] = {
     .label_center = "O"
   },
@@ -9,6 +9,6 @@ static Key keys[] = {
   }  
 };
 
-Key* get_keys(){
-  return keys;
+const Key* get_keys(KeyId key_id){  
+  return &s_keys[key_id];
 }

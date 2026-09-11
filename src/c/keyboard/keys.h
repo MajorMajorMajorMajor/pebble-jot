@@ -7,7 +7,8 @@ typedef struct {
 
 typedef enum {
   KEY_ENGLISH_O,
-  KEY_ENGLISH_N
+  KEY_ENGLISH_N,
+  KEY_COUNT
 } KeyId;
 
-Key* get_keys();
+const Key* get_keys(KeyId key_id);

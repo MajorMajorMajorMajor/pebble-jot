@@ -16,9 +16,7 @@ static void prv_window_load(Window *window) {
 
   UIDimensions ui = layout_compute_ui_dimensions(bounds.size);
   
-
-  alert_ui_init(window_layer, ui);
-  
+  alert_ui_init(window_layer, ui);  
   key_ui_init(window_layer, ui);  
 }
 
