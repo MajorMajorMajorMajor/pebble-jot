@@ -1,6 +1,6 @@
 #include "key.h"
 
-static const Key s_keys[KEY_COUNT] = {  
+const Key key[KEY_COUNT] = {  
   [KEY_ENGLISH_O] = {
     .label_center = "O"
   },
@@ -8,7 +8,3 @@ static const Key s_keys[KEY_COUNT] = {
     .label_center = "N"
   }  
 };
-
-const Key* get_key(KeyId key_id){  
-  return &s_keys[key_id];
-}

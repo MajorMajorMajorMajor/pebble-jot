@@ -20,9 +20,9 @@ typedef struct {
 
 typedef enum {
     LAYOUT_ENGLISH_ABC,
-    LAYOUT_ENGLISH_123,
+    //LAYOUT_ENGLISH_123,
     LAYOUT_COUNT
 } LayoutId;
 
 
-const Layout* get_layout(LayoutId layout_id);
+extern const Layout layout[LAYOUT_COUNT];
