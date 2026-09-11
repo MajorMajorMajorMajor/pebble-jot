@@ -1,6 +1,6 @@
 #include <pebble.h>
 
-#include "../keyboard/keys.h"
+#include "../keyboard/keyboard.h"
 #include "../keyboard/layout.h"
 
 #include "ui.h"
@@ -40,10 +40,13 @@ static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
 }
 
 void key_ui_init(Layer *parent_layer, UIDimensions ui) {  
-    // draw it
-    Key *keys = get_keys();
+    // get the active layout
+    const Layout *layout = keyboard_get_active_layout();
 
-    for (int i = 0; i < NUMBER_OF_KEYS; i++) {    
+    // draw it
+    for (unsigned int i = 0; i < layout->key_count; i++) {
+        const Key *key = get_key(layout->keys[i].key_id);
+
         int row = i / 4;
         int col = i % 4;
 
@@ -53,7 +56,7 @@ void key_ui_init(Layer *parent_layer, UIDimensions ui) {
         };
         Layer *key_layer = layer_create_with_data((GRect){origin, ui.cell_size}, sizeof(Key));
         s_keys[i].layer = key_layer;
-        s_keys[i].center_label = s_keys[0].center_label;  // @TODO: Define actual labels for all the keys
+        s_keys[i].center_label = key->label_center;  // @TODO: Define actual labels for all the keys
 
         Key *layer_data = layer_get_data(key_layer);
         *layer_data = s_keys[i]; // write a copy of the key data to the layer
