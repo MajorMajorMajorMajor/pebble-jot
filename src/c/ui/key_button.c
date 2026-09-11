@@ -1,5 +1,6 @@
 #include <pebble.h>
 
+#include "keyboard/key_label.h"
 #include "keyboard/keyboard.h"
 #include "keyboard/layout.h"
 
@@ -8,18 +9,41 @@
 
 static TextLayer *key_button_layers;
 
-struct KeyButton{const Key *key;
-  Layer *base_layer;  
+struct KeyButton {
+  const Key *key;
+  Layer *base_layer;
+  Layer *label_center;  
 };
+
+
+typedef enum {
+  LABEL_TYPE_TEXT,
+  LABEL_TYPE_IMAGE
+} LabelType;
+
+
+
+
+static void prv_label_create(KeyButton *this, KeyLabelSlot pos, char *label_text){
+  const Layer *base_layer = this->base_layer;
+  GRect frame = layer_get_bounds(base_layer);
+
+  Layer *label_layer = layer_create(frame);
+
+
+
+}
 
 KeyButton *key_button_create(Layer *parent_layer, const Key *key){    
     Layer *base_layer = layer_create(layer_get_bounds(parent_layer));
-
+  
     KeyButton *key_button = malloc(sizeof *key_button);
     *key_button = (KeyButton){
         .base_layer = base_layer,
         .key = key
     };
+
+    prv_label_create(base_layer, )
 
     return key_button;
 }

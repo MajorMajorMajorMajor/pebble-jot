@@ -1,8 +1,10 @@
 // vim: set sw=2 ts=2 et:
 #pragma once
 
+#include "keyboard/key_label.h"
+
 typedef struct {
-  const char* label_center;
+  const KeyLabel labels[KEY_LABEL_COUNT];
 } Key;
 
 typedef enum {
