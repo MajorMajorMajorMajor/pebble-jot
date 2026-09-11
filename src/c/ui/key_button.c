@@ -1,10 +1,10 @@
 #include <pebble.h>
 
-#include "../keyboard/keyboard.h"
-#include "../keyboard/layout.h"
+#include "keyboard/keyboard.h"
+#include "keyboard/layout.h"
 
-#include "ui.h"
-#include "key_button.h"
+#include "ui/ui.h"
+#include "ui/key_button.h"
 
 static TextLayer *key_button_layers;
 
