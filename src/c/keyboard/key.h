@@ -11,4 +11,4 @@ typedef enum {
   KEY_COUNT
 } KeyId;
 
-extern const Key key[KEY_COUNT];
+const Key *get_key(KeyId key_id);
