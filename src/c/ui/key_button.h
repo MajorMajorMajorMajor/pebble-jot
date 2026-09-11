@@ -1,11 +1,11 @@
 #pragma once
 
 #include <pebble.h>
-#include "ui.h"
 
-typedef struct {
-  Layer * text_layer;
-} KeyButton;
+#include "keyboard/key.h"
 
-void key_ui_init(Layer *parent_layer, UIDimensions ui);
-void key_ui_deinit();
+// defined in key_button.c
+typedef struct KeyButton KeyButton;
+
+KeyButton *key_button_create(Layer *parent_layer, const Key *key);
+void key_button_destroy(KeyButton *key_button);

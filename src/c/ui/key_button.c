@@ -8,6 +8,28 @@
 
 static TextLayer *key_button_layers;
 
+struct KeyButton{const Key *key;
+  Layer *base_layer;  
+};
+
+KeyButton *key_button_create(Layer *parent_layer, const Key *key){    
+    Layer *base_layer = layer_create(layer_get_bounds(parent_layer));
+
+    KeyButton *key_button = malloc(sizeof *key_button);
+    *key_button = (KeyButton){
+        .base_layer = base_layer,
+        .key = key
+    };
+
+    return key_button;
+}
+
+void key_button_destroy(KeyButton *key_button){
+    layer_destroy(key_button->base_layer);
+    free(key_button);
+}
+
+
 static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
   Key *key = layer_get_data(layer);
   
