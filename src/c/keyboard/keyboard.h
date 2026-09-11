@@ -5,4 +5,4 @@
 void keyboard_init();
 void keyboard_deinit();
 
-const Layout *keyboard_get_active_layout();
+LayoutId keyboard_get_active_layout_id();

@@ -1,9 +1,9 @@
 #include "layout.h"
 
-static const Layout *s_active_layout;
+static LayoutId s_active_layout_id;
 
 void keyboard_init(){
-  s_active_layout = get_layout(LAYOUT_ENGLISH_ABC);
+  s_active_layout_id = LAYOUT_ENGLISH_ABC;
 }
 
 void keyboard_deinit(){
@@ -11,6 +11,6 @@ void keyboard_deinit(){
   return;
 }
 
-const Layout* keyboard_get_active_layout(){
-  return s_active_layout;
+LayoutId keyboard_get_active_layout_id(){
+  return s_active_layout_id;
 }
