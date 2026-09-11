@@ -21,9 +21,9 @@ static void prv_window_load(Window *window) {
 }
 
 
-static void prv_window_unload(Window *window) {
-  alert_ui_deinit();
+static void prv_window_unload(Window *window) {  
   key_ui_deinit();
+  alert_ui_deinit();
 }
 
 void window_init(void) {
