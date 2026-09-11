@@ -1,10 +1,11 @@
 #include <pebble.h>
 
-#include "ui.h"
-#include "key_button.h"
-#include "alert.h"
-#include "click.h"
-#include "window.h"
+#include "ui/ui.h"
+#include "ui/key_grid.h"
+#include "ui/alert.h"
+#include "ui/click.h"
+
+#include "ui/window.h"
 
 
 static Window *s_window;
@@ -17,12 +18,12 @@ static void prv_window_load(Window *window) {
   UIDimensions ui = layout_compute_ui_dimensions(bounds.size);
   
   alert_ui_init(window_layer, ui);  
-  key_ui_init(window_layer, ui);  
+  key_grid_ui_init(window_layer, ui);  
 }
 
 
 static void prv_window_unload(Window *window) {  
-  key_ui_deinit();
+  key_grid_ui_deinit();
   alert_ui_deinit();
 }
 
