@@ -5,7 +5,7 @@
 static void prv_touch_handler(const TouchEvent *event, void *context) {
   switch(event->type) {
     case TouchEvent_Touchdown: { 
-      char text[64];
+      char text[64] = {0};
       snprintf(text, sizeof text, "Touchdown detected at (%d, %d)", event->x, event->y);
       alert_set_text(text);
       break;
