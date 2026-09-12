@@ -3,3 +3,4 @@ node_modules/
 .lock-waf_linux_build
 .vscode
 compile_commands.json
+.lock-waf_android_build
