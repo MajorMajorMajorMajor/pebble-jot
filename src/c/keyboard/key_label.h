@@ -14,6 +14,7 @@ typedef enum {
 } KeyLabelType;
 
 typedef struct {  
+  KeyLabelSlot slot;
   KeyLabelType type;
   union {
     char *text;
