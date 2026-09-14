@@ -1,7 +1,7 @@
 #include <pebble.h>
 
+#include "keyboard/key.h"
 #include "keyboard/key_label.h"
-#include "keyboard/keyboard.h"
 #include "keyboard/layout.h"
 
 #include "ui/ui.h"
@@ -12,18 +12,13 @@ static TextLayer *key_button_layers;
 struct KeyButton {
   const Key *key;
   Layer *base_layer;
-  Layer *label_center;  
+  Layer *label_layers[KEY_LABEL_COUNT];
 };
 
 
-typedef enum {
-  LABEL_TYPE_IMAGE
-} LabelType;
-
-
-
-
-static void prv_draw_key_label(Layer *layer, GContext ctx) {
+static void prv_label_create(KeyButton *this, KeyLabelSlot pos, char *label_text){
+  const Layer *base_layer = this->base_layer;
+  GRect frame = layer_get_bounds(base_layer);
 
   Layer *label_layer = layer_create(frame);
   // draw the center label text
