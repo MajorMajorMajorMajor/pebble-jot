@@ -16,6 +16,51 @@ struct KeyButton {
 };
 
 
+static void prv_draw_key_label(struct Layer *layer, GContext* ctx){
+  KeyLabel *k = layer_get_data(layer);
+
+  // paranoia; not expecting null pointers here, because layers shouldn't be generated for null labels
+  if(k == NULL){
+    return;
+  }
+
+  // figure out where the label should go
+  GRect bounds = layer_get_bounds(layer);
+  GRect text_frame;
+
+  // @TODO ui/font.h
+  typedef struct UIFont {
+    char *font_key;
+    GFont font;
+    int height_px;
+  } UIFont;
+
+  // @TODO ui/style.h
+  typedef struct UIStyle {
+    UIFont label_center_font;
+    UIFont label_peripheral_font;
+  }
+
+
+  UIFont font;
+
+  font = ui_style.label_center_font;
+
+  switch (k->slot) {
+    case (KEY_LABEL_CENTER) {
+    }
+  }
+
+  // draw the label
+  if(k->type == KEY_LABEL_TEXT) {
+
+  }
+
+}
+
+/******** CUT ***********/
+
+
 static void prv_label_create(KeyButton *this, KeyLabelSlot pos, char *label_text){
   const Layer *base_layer = this->base_layer;
   GRect frame = layer_get_bounds(base_layer);
