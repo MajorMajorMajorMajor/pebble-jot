@@ -3,7 +3,9 @@
 
 #include "ui.h"
 
+static GSize s_window_size;
 
+UIKeyLabelStyle ui_compute_key_label_style(
 
 // static UIDimensions s_ui_dimensions;
 
