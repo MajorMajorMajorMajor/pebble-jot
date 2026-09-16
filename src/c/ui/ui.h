@@ -2,7 +2,15 @@
 
 #include <pebble.h>
 
-#include "keyboard/layout.h"
+
+typedef struct UIStyle {
+  struct {
+    int x;
+  } bar;
+
+} UIStyle;
+
+
 
 typedef struct UIDimensions{
   GSize textbox_size;

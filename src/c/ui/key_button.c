@@ -81,11 +81,34 @@ static void prv_label_create(KeyButton *this, KeyLabelSlot pos, char *label_text
 
   graphics_context_set_text_color(ctx, GColorBlack);
   graphics_draw_text(ctx, text, font, box_vcenter, overflow_mode, alignment, NULL);
-  
+
+
+}
+
+/**
+ *
 
 
 
 
+
+
+
+   Cut line
+
+
+
+
+
+
+
+ */
+
+static void prv_label_create(KeyButton *this, KeyLabelSlot pos, char *label_text){
+  const Layer *base_layer = this->base_layer;
+  GRect frame = layer_get_bounds(base_layer);
+
+  Layer *label_layer = layer_create(frame);
 }
 
 KeyButton *key_button_create(Layer *parent_layer, const Key *key){    
@@ -120,7 +143,22 @@ static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
   graphics_context_set_fill_color(ctx, GColorRichBrilliantLavender);
   graphics_fill_rect(ctx, box, 4, GCornersAll);
 
-  // print label text
+  // print label text  
+  char *text = key->center_label;
+  // const GFont font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK); // @ TODO: Make the font and colors configurable
+  const GFont font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM); // @ TODO: Make the font and colors configurable
+  
+  GTextOverflowMode overflow_mode = GTextOverflowModeWordWrap;
+  GTextAlignment alignment = GTextAlignmentCenter;  
+  
+
+  GSize text_size = graphics_text_layout_get_content_size(text, font, box, overflow_mode, alignment);  
+  int inset_top = (bounds.size.h - text_size.h)/3;
+  GRect box_vcenter = grect_inset(bounds, GEdgeInsets(inset_top));
+
+  graphics_context_set_text_color(ctx, GColorBlack);
+  graphics_draw_text(ctx, text, font, box_vcenter, overflow_mode, alignment, NULL);
+
   return;
 }
 
@@ -153,6 +191,21 @@ void key_ui_init(Layer *parent_layer, UIDimensions ui) {
         // text_layer_set_text_alignment(key_layer, GTextAlignmentCenter);
 
         layer_add_child(parent_layer, key_layer);
+        // draw the center label text
+        char *text = key->center_label;
+        // const GFont font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK); // @ TODO: Make the font and colors configurable
+        const GFont font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM); // @ TODO: Make the font and colors configurable
+        
+        GTextOverflowMode overflow_mode = GTextOverflowModeWordWrap;
+        GTextAlignment alignment = GTextAlignmentCenter;  
+        
+
+        GSize text_size = graphics_text_layout_get_content_size(text, font, box, overflow_mode, alignment);  
+        int inset_top = (bounds.size.h - text_size.h)/3;
+        GRect box_vcenter = grect_inset(bounds, GEdgeInsets(inset_top));
+
+        graphics_context_set_text_color(ctx, GColorBlack);
+        graphics_draw_text(ctx, text, font, box_vcenter, overflow_mode, alignment, NULL);
 
     }
 }
