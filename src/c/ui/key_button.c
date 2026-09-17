@@ -5,6 +5,8 @@
 #include "keyboard/layout.h"
 
 #include "ui/ui.h"
+#include "ui/font.h"
+#include "ui/style.h"
 #include "ui/key_button.h"
 
 static TextLayer *key_button_layers;
@@ -27,20 +29,6 @@ static void prv_draw_key_label(struct Layer *layer, GContext* ctx){
   // figure out where the label should go
   GRect bounds = layer_get_bounds(layer);
   GRect text_frame;
-
-  // @TODO ui/font.h
-  typedef struct UIFont {
-    char *font_key;
-    GFont font;
-    int height_px;
-  } UIFont;
-
-  // @TODO ui/style.h
-  typedef struct UIStyle {
-    UIFont label_center_font;
-    UIFont label_peripheral_font;
-  }
-
 
   UIFont font;
 
