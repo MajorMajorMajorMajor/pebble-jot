@@ -1,7 +1,9 @@
 #include <pebble.h>
 
 typedef struct UIFont {
-  char *font_key;
-  GFont font;
+  const char *font_key;
+  GFont font; // Achtung! GFont is a pointer! (typedef FontInfo* GFont;)
   int height_px;
 } UIFont;
+
+const UIFont *get_ui_font(const char *font_key);
