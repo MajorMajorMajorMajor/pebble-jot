@@ -4,7 +4,7 @@
 
 typedef struct UIFont {
   const char *font_key;
-  GFont font; // Achtung! GFont is a pointer! (typedef FontInfo* GFont;)
+  GFont gfont; // Achtung! GFont is a pointer! (typedef FontInfo* GFont;)
   int height_px;
 } UIFont;
 

@@ -25,8 +25,8 @@ const UIFont *get_ui_font(const char *font_key) {
 
     if (strcmp(ui_font->font_key, font_key) == 0) {
       // initialize font face the first time it's needed
-      if (ui_font->font == NULL) {
-        ui_font->font = fonts_get_system_font(ui_font->font_key);
+      if (ui_font->gfont == NULL) {
+        ui_font->gfont = fonts_get_system_font(ui_font->font_key);
       }      
       return ui_font;
     }
