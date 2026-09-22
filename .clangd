@@ -1,0 +1,5 @@
+CompileFlags:
+  Remove:
+    - -Wno-error=zero-length-bounds
+    - -Wno-error=builtin-declaration-mismatch
+    - -Wno-error=format-truncation
