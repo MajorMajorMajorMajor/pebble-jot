@@ -21,9 +21,9 @@ struct KeyButton {
 static void prv_draw_key_label(struct Layer *layer, GContext* ctx) {
   const UIStyle *style = get_ui_style();
 
-  const KeyLabel *k = layer_get_data(layer);
+  const KeyLabel *key_label = layer_get_data(layer);
   // paranoia; not expecting null pointers here, because layers shouldn't be generated for null labels
-  if (k == NULL) {
+  if (key_label == NULL) {
     return;
   }
 
@@ -32,12 +32,12 @@ static void prv_draw_key_label(struct Layer *layer, GContext* ctx) {
   GRect box = grect_crop(bounds, 1);
 
   // draw the label
-  switch (k->type) {
-    case KEY_LABEL_IMAGE: {
+  switch (key_label->type) {
+    case KEY_LABEL_TYPE_IMAGE: {
       // not implemented yet
       break;
     }
-    case KEY_LABEL_TEXT: { 
+    case KEY_LABEL_TYPE_TEXT: { 
       // font geometry and color
       
       GFont  text_font;
@@ -47,9 +47,9 @@ static void prv_draw_key_label(struct Layer *layer, GContext* ctx) {
       GTextAlignment text_alignment = GTextAlignmentCenter;
       char*  text;
       
-      text = k->text;
+      text = key_label->text;
 
-      switch (k->slot) {
+      switch (key_label->slot) {
         case KEY_LABEL_CENTER: {  
           const UIFont *ui_font;
           ui_font = style->label_center_font;      
@@ -95,119 +95,85 @@ static void prv_draw_key_label(struct Layer *layer, GContext* ctx) {
       graphics_context_set_text_color(ctx, text_color);        
       graphics_draw_text(
         ctx,   
-        k->text, // char *text; durable storage
+        key_label->text, // char *text; durable storage
         
         text_font, // GFont font
         text_frame,  // GRect box
         text_overflow_mode, // GTextOverflowMode overflow_mode
         text_alignment, // GTextAlignment alignment
         NULL // GTextAttributes text_attributes; optional
-    );
+      );
+    }
+    }
   }
 }
 
-/******** CUT ***********/
 
+static void prv_label_create(KeyButton *this, const KeyLabel *key_label){    
+  // create a new label layer, as big as the button's base layer
+  GRect bounds = layer_get_bounds(this->base_layer);
+  Layer *new_layer = layer_create(bounds);
 
-static void prv_label_create(KeyButton *this, KeyLabelSlot pos, char *label_text){
-  const Layer *base_layer = this->base_layer;
-  GRect frame = layer_get_bounds(base_layer);
+  // set the drawing function for it
+  layer_set_update_proc(new_layer, prv_draw_key_label);  
 
-  Layer *label_layer = layer_create(frame);
-  // draw the center label text
-  char *text = key->center_label;
-  // const GFont font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK); // @ TODO: Make the font and colors configurable
-  const GFont font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM); // @ TODO: Make the font and colors configurable
+  // add a reference to it to the key button object
+  KeyLabelSlot label_slot = key_label->slot;
+  this->label_layers[label_slot] = new_layer;
 
-  GTextOverflowMode overflow_mode = GTextOverflowModeWordWrap;
-  GTextAlignment alignment = GTextAlignmentCenter;
-
-
-  GSize text_size = graphics_text_layout_get_content_size(text, font, box, overflow_mode, alignment);
-  int inset_top = (bounds.size.h - text_size.h)/3;
-  GRect box_vcenter = grect_inset(bounds, GEdgeInsets(inset_top));
-
-  graphics_context_set_text_color(ctx, GColorBlack);
-  graphics_draw_text(ctx, text, font, box_vcenter, overflow_mode, alignment, NULL);
-
-
+  // add it to the UI hierarchy
+  layer_add_child(this->base_layer, new_layer);
 }
 
-/**
- *
 
-
-
-
-
-
-
-   Cut line
-
-
-
-
-
-
-
- */
-
-static void prv_label_create(KeyButton *this, KeyLabelSlot pos, char *label_text){
-  const Layer *base_layer = this->base_layer;
-  GRect frame = layer_get_bounds(base_layer);
-
-  Layer *label_layer = layer_create(frame);
+// Maybe we don't need our own destroy method if it turns out that destroying 
+// the base layer would automatically destroy child layers?
+//
+// @TODO: Verify this?
+static void prv_label_destroy(KeyButton *this, const KeyLabel *key_label){
+  KeyLabelSlot label_slot = key_label->slot;
+  
+  Layer* layer = this->label_layers[label_slot];
+  layer_destroy(layer);
 }
+
 
 KeyButton *key_button_create(Layer *parent_layer, const Key *key){
-    Layer *base_layer = layer_create(layer_get_bounds(parent_layer));
-    GRect frame = layer_get_bounds(base_layer);
+    Layer *base_layer = layer_create(layer_get_bounds(parent_layer));    
 
-    KeyButton *key_button = malloc(sizeof *key_button);
-    *key_button = (KeyButton){
+    int i;
+
+    KeyButton *new_key_button = malloc(sizeof *new_key_button);
+    *new_key_button = (KeyButton){
+        .key = key,
         .base_layer = base_layer,
-        .key = key
+        // .label_layers: zero initialized        
     };
+    
+    for (i = 0; i < KEY_LABEL_COUNT; i++) {
+        const KeyLabel *key_label = &key->labels[i];
+        prv_label_create(new_key_button, key_label);
+    }    
 
-    prv_label_create(base_layer, )
-
-    return key_button;
+    return new_key_button;
 }
 
-void key_button_destroy(KeyButton *key_button){
-    layer_destroy(key_button->base_layer);
-    free(key_button);
-}
+void key_button_destroy(KeyButton *this){
+  int i;
+  
+  const Key *key = this->key;
+  
+  // destroy label layers
+  for (i = 0; i < KEY_LABEL_COUNT; i++) {
+      const KeyLabel *key_label = &key->labels[i];
+      prv_label_destroy(this, key_label);
+  }    
 
+  // destroy the base layer
+  layer_destroy(this->base_layer);
 
-static void prv_update_key_layer(struct Layer *layer, GContext* ctx){
-  Key *key = layer_get_data(layer);
-
-  // make a 1-pixel margin
-  GRect bounds = layer_get_bounds(layer);
-  GRect box = grect_crop(bounds, 1);
-
-  // draw a rounded rectangle for the button
-  graphics_context_set_fill_color(ctx, GColorRichBrilliantLavender);
-  graphics_fill_rect(ctx, box, 4, GCornersAll);
-
-  // print label text
-  char *text = key->center_label;
-  // const GFont font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK); // @ TODO: Make the font and colors configurable
-  const GFont font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM); // @ TODO: Make the font and colors configurable
-
-  GTextOverflowMode overflow_mode = GTextOverflowModeWordWrap;
-  GTextAlignment alignment = GTextAlignmentCenter;
-
-
-  GSize text_size = graphics_text_layout_get_content_size(text, font, box, overflow_mode, alignment);
-  int inset_top = (bounds.size.h - text_size.h)/3;
-  GRect box_vcenter = grect_inset(bounds, GEdgeInsets(inset_top));
-
-  graphics_context_set_text_color(ctx, GColorBlack);
-  graphics_draw_text(ctx, text, font, box_vcenter, overflow_mode, alignment, NULL);
-
-  return;
+  // free
+  free(this);
 }
 
 void key_ui_init(Layer *parent_layer, UIDimensions ui) {
