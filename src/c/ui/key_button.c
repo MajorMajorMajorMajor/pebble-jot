@@ -89,8 +89,8 @@ static void prv_draw_key_label(struct Layer *layer, GContext* ctx) {
           break;          
         }
         case KEY_LABEL_COUNT: {
-          assert(0);
-        } // switch(k->slot)
+          // assert(0);
+          break;        
       }                  
       graphics_context_set_text_color(ctx, text_color);        
       graphics_draw_text(
