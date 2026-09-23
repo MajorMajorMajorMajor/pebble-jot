@@ -6,10 +6,13 @@
 #include "ui/key_button.h"
 
 // Create a layer to hold buttons for each key in the layout
-typedef struct {
-  const Layout *key_layout;
-  Layer *layer;
-  KeyButton *ui_key_buttons[]; // array size: key_layout->key_count
+typedef struct {  
+  Layer *layer;  
+  
+  unsigned int key_count;
+  
+  // future name: UIKeyButton?
+  KeyButton *ui_key_buttons[];  // array size: key_layout->key_count
 } KeyGrid;
 
 // one grid per layout
@@ -17,15 +20,15 @@ enum { KEY_GRID_COUNT = LAYOUT_COUNT };
 static KeyGrid s_key_grids[KEY_GRID_COUNT];
 
 // create a key grid
-static void prv_create(const Layer *parent_layer, const Layout *layout) {
-  // Layer
-  GRect frame = layer_get_bounds(parent_layer);
-  Layer *grid_layer = layer_create(frame);
+KeyGrid *key_grid_create(const Layout *layout, GRect frame) {
+  // Layer  
+  Layer *layer = layer_create(frame);
 
-  // divide the frame width evenly among the grid cells
+  // divide the frame size evenly into grid cells
   int cell_width  = (float) frame.size.w / layout->cols;
   int cell_height = (float) frame.size.h / layout->rows;
 
+  KeyButton *ui_key_buttons[layout->key_count] = malloc(sizeof ui_key_buttons);
 
   // Create buttons
   size_t i;
@@ -43,15 +46,7 @@ static void prv_create(const Layer *parent_layer, const Layout *layout) {
     KeyButton kb = key_button_create(key, button_frame);
 
     // s_key_grids
-
-
-
-  };
-
-
-
-  // Add layers to the hierarchy
-  layer_add_child(parent_layer, grid_layer);
+  };  
 }
 
 static void prv_destroy(LayoutId layout_id) {
