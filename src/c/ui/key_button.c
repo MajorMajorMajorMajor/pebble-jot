@@ -128,7 +128,7 @@ static void prv_label_create(KeyButton *this, const KeyLabel *key_label){
 // the base layer would automatically destroy child layers?
 //
 // @TODO: Verify this?
-static void prv_label_destroy(KeyButton *this, const KeyLabel *key_label){
+static void prv_label_destroy(KeyButton *this, const KeyLabel *key_label) {
   KeyLabelSlot label_slot = key_label->slot;
   
   Layer* layer = this->label_layers[label_slot];
@@ -136,18 +136,20 @@ static void prv_label_destroy(KeyButton *this, const KeyLabel *key_label){
 }
 
 
-KeyButton *key_button_create(Layer *parent_layer, const Key *key){
-    Layer *base_layer = layer_create(layer_get_bounds(parent_layer));    
-
+KeyButton *key_button_create(const Key *key, GRect frame) {
     int i;
 
+    Layer *base_layer = layer_create(frame);
+    
     KeyButton *new_key_button = malloc(sizeof *new_key_button);
+
     *new_key_button = (KeyButton){
         .key = key,
         .base_layer = base_layer,
-        // .label_layers: zero initialized        
+        // .label_layers: zero-initialized
     };
     
+    // create labels and populate .label_layers
     for (i = 0; i < KEY_LABEL_COUNT; i++) {
         const KeyLabel *key_label = &key->labels[i];
         prv_label_create(new_key_button, key_label);
