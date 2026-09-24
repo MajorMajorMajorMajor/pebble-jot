@@ -158,12 +158,13 @@ KeyButton *key_button_create(const Key *key, GRect frame) {
     return new_key_button;
 }
 
-void key_button_destroy(KeyButton *this){
-  int i;
+void key_button_destroy(KeyButton *button){  
+  KeyButton *this = button;
   
   const Key *key = this->key;
   
   // destroy label layers
+  int i;
   for (i = 0; i < KEY_LABEL_COUNT; i++) {
       const KeyLabel *key_label = &key->labels[i];
       prv_label_destroy(this, key_label);
@@ -174,4 +175,8 @@ void key_button_destroy(KeyButton *this){
 
   // free
   free(this);
+}
+
+Layer *key_button_get_layer(KeyButton *button) {
+  return button->base_layer;
 }

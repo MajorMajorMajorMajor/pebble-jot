@@ -8,4 +8,5 @@
 typedef struct KeyButton KeyButton;
 
 KeyButton *key_button_create(const Key *key, GRect frame);
-void key_button_destroy(KeyButton *key_button);
+void key_button_destroy(KeyButton *button);
+Layer *key_button_get_layer(KeyButton *button);
