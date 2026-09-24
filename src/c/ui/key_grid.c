@@ -18,16 +18,9 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame) {
   Layer *layer;
   size_t button_count;
   KeyButton **buttons;  
-
-  int cell_width, cell_height; // geometry in pixels
-
+  
   // Layer  
   layer = layer_create(frame);
-
-  // divide the frame size evenly into grid cells
-  cell_width  = (float) frame.size.w / layout->cols;
-  cell_height = (float) frame.size.h / layout->rows;
-
 
   // Create buttons
   button_count = layout->key_count;
@@ -37,17 +30,31 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame) {
   for (i = 0; i < button_count; i++) {
     const LayoutKeyPosition *pos = &layout->keys[i];
 
-    int x = cell_width  * pos->col;
-    int y = cell_height * pos->row;
-    int w = cell_width  * pos->col_span;
-    int h = cell_height * pos->row_span;
+    // divide the frame size evenly into grid cells
+    int x1 = frame.size.w * pos->col / layout->cols;
+    int x2 = frame.size.w * (pos->col + pos->col_span) / layout->cols;
 
-    GRect button_frame = GRect(x, y, w, h);
+    int y1 = frame.size.h * pos->row / layout->rows;
+    int y2 = frame.size.h * (pos->row + pos->row_span) / layout->rows;
+
+    GRect button_frame = GRect(x1, y1, x2 - x1, y2 - y1);
     const Key* key = get_key(pos->key_id);
 
-    buttons[i] = key_button_create(key, button_frame);   
+    buttons[i] = key_button_create(key, button_frame);
+   
+    // if a button failed to create, roll back the creation process
+    if (!buttons[i]) {
+      APP_LOG(APP_LOG_LEVEL_ERROR,  "Failed to create key button %u (key_id=%u)", i, (unsigned)pos->key_id);      
+      for (size_t j = 0; j < i; j++) {
+        key_button_destroy(buttons[j]);
+      }
+
+      free(buttons);
+      layer_destroy(layer);
+      return NULL;
+    }
     
-    // add the buttons to the base layer
+    // add the button to the base layer
     layer_add_child(layer, key_button_get_layer(buttons[i]));
   }
 
@@ -73,15 +80,4 @@ void key_grid_destroy(KeyGrid *grid) {
 
   // destroy the base layer
   layer_destroy(this->layer);
-}
-
-// shows the grid for `layout_id` and hides the rest
-static void prv_show(LayoutId layout_id) {
-  KeyGrid *grid;
-
-  for (LayoutId i = 0; i < LAYOUT_COUNT; i++) {
-    grid = &s_key_grids[i];
-
-    layer_set_hidden(grid->layer, layout_id != i); // hide non-matching layouts
-  }
 }
