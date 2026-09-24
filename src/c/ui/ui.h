@@ -10,3 +10,4 @@ typedef struct UIDimensions{
 
 
 UIDimensions layout_compute_ui_dimensions(GSize size);
+

@@ -1,13 +1,11 @@
 #include <pebble.h>
 #include "keyboard/layout.h"
 
+#include "ui/key_grid.h"
+
 #include "ui.h"
 
 static GSize s_window_size;
-
-UIKeyLabelStyle ui_compute_key_label_style(
-
-// static UIDimensions s_ui_dimensions;
 
 UIDimensions layout_compute_ui_dimensions(GSize size) {
   // Size the textbox
@@ -34,3 +32,13 @@ UIDimensions layout_compute_ui_dimensions(GSize size) {
   };
 }
 
+// shows the grid for `layout_id` and hides the rest
+static void prv_show(LayoutId layout_id) {
+  KeyGrid *grid;
+
+  for (LayoutId i = 0; i < LAYOUT_COUNT; i++) {
+    grid = &s_key_grids[i];
+
+    layer_set_hidden(grid->layer, layout_id != i); // hide non-matching layouts
+  }
+}
