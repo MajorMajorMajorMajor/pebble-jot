@@ -1,6 +1,6 @@
-// #include <assert.h>
-
 #include <pebble.h>
+
+#include "common.h"
 
 #include "keyboard/key.h"
 #include "keyboard/key_label.h"
@@ -87,7 +87,7 @@ static void prv_draw_key_label(struct Layer *layer, GContext* ctx) {
           break;          
         }
         case KEY_LABEL_COUNT: {
-          // assert(0);
+          PEBBLE_ASSERT(0);
           break;        
       }                  
       graphics_context_set_text_color(ctx, text_color);        

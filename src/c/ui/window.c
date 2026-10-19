@@ -1,6 +1,6 @@
-#include <assert.h>
 #include <pebble.h>
 
+#include "common.h"
 #include "keyboard/layout.h"
 
 // #include "ui/ui.h"
@@ -49,7 +49,7 @@ static void prv_window_load(Window *window) {
   const GRect grid_bounds = bounds;  
   const Layout *layout = get_layout(KB_WINDOW_LAYOUT);
   s_window.grid = key_grid_create(layout, grid_bounds);
-  assert(s_window.grid);
+  PEBBLE_ASSERT(s_window.grid);
   
   // Make alert area
   // Cast window_layer from (const Layer *) to (Layer *) because the alert UI modifies 
@@ -68,11 +68,11 @@ static void prv_window_unload(Window *window) {
 
 // Invoked by controlling UI code
 void kb_window_init(void) {
-  assert(!s_window.window); // don't initialize on top of an existing window 
+  PEBBLE_ASSERT(!s_window.window); // don't initialize on top of an existing window 
 
   // Create the window
   Window *window = window_create();  
-  assert(window);
+  PEBBLE_ASSERT(window);
 
   window_set_click_config_provider(window, click_config_provider);
   window_set_window_handlers(window, (WindowHandlers) {
