@@ -1,45 +1,102 @@
+#include <assert.h>
 #include <pebble.h>
 
-#include "ui/ui.h"
+#include "keyboard/layout.h"
+
+// #include "ui/ui.h"
 #include "ui/key_grid.h"
 #include "ui/alert.h"
 #include "ui/click.h"
 
 #include "ui/window.h"
 
+const LayoutId KB_WINDOW_LAYOUT = LAYOUT_ENGLISH_ABC;
 
-static Window *s_window;
+// later, when we have other windows (KeyboardWindow, SettingsWindow, etc.),
+// we can factor out the common code into UIWindow and include a UIWindow here 
+// instead of a Window.
+struct KeyboardWindow {
+  Window *window;
+
+  KeyGrid *grid;
+};
+
+typedef struct KeyboardWindow KeyboardWindow; // defined in window.c
+
+static KeyboardWindow s_window;
+
+// Future logic for showing different key grids
+// shows the grid for `layout_id` and hides the rest
+// static void prv_show(LayoutId layout_id) {
+//   KeyGrid *grid;
+
+//   for (LayoutId i = 0; i < LAYOUT_COUNT; i++) {
+//     grid = &s_key_grids[i];
+
+//     layer_set_hidden(grid->layer, layout_id != i); // hide non-matching layouts
+//   }
+// }
 
 
 static void prv_window_load(Window *window) {
-  Layer *window_layer = window_get_root_layer(window);
-  GRect bounds = layer_get_bounds(window_layer);
-
-  UIDimensions ui = layout_compute_ui_dimensions(bounds.size);
+  const Layer *window_layer = window_get_root_layer(window);
   
-  alert_ui_init(window_layer, ui);  
-  key_grid_ui_init(window_layer, ui);  
+  // Establish dimensions
+  const GRect bounds = layer_get_bounds(window_layer);
+  const UIDimensions ui = layout_compute_ui_dimensions(bounds.size);
+
+  // Make grid
+  const GRect grid_bounds = bounds;  
+  const Layout *layout = get_layout(KB_WINDOW_LAYOUT);
+  s_window.grid = key_grid_create(layout, grid_bounds);
+  assert(s_window.grid);
+  
+  // Make alert area
+  // Cast window_layer from (const Layer *) to (Layer *) because the alert UI modifies 
+  // the root layer directly instead of exposing its own layer for drawing
+  // (for now...)
+  // @TODO: Refactor alert UI
+  alert_ui_init((Layer *)window_layer, ui);   
 }
 
-
+// Pebble OS invokes this when the window is destroyed, or (in the future) 
+// to free resources bound to the window when it is not on screen. 
 static void prv_window_unload(Window *window) {  
-  key_grid_ui_deinit();
+  key_grid_destroy(s_window.grid);  
   alert_ui_deinit();
 }
 
-void window_init(void) {
-  s_window = window_create();
-  window_set_click_config_provider(s_window, click_config_provider);
-  window_set_window_handlers(s_window, (WindowHandlers) {
+// Invoked by controlling UI code
+void kb_window_init(void) {
+  assert(!s_window.window); // don't initialize on top of an existing window 
+
+  // Create the window
+  Window *window = window_create();  
+  assert(window);
+
+  window_set_click_config_provider(window, click_config_provider);
+  window_set_window_handlers(window, (WindowHandlers) {
     .load = prv_window_load,
     .unload = prv_window_unload,
   });
-  const bool animated = true;
+  
+  // Populate static structure
+  s_window = (KeyboardWindow) {
+    .window = window,
+    .grid = NULL
+  };
 
-  window_stack_push(s_window, animated);
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Done initializing, pushed window: %p", s_window);
+  
 }
 
-void window_deinit(void) {
-  window_destroy(s_window);
+// Invoked by controlling UI code to indicate that this window needs to be destroyed
+void kb_window_deinit(void) {
+  prv_window_unload(s_window.window);
+
+  window_destroy(s_window.window);
+  s_window.window = NULL; // 
+}
+
+Window *kb_window_get_window(void) {
+  return s_window.window;
 }

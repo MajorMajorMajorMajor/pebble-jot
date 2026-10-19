@@ -2,7 +2,6 @@
 
 #include <pebble.h>
 
-
 typedef struct UIDimensions{
   GSize textbox_size;
   GSize key_grid_size;
@@ -11,3 +10,5 @@ typedef struct UIDimensions{
 
 UIDimensions layout_compute_ui_dimensions(GSize size);
 
+void ui_init(void);
+void ui_deinit(void);

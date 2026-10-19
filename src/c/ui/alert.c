@@ -12,7 +12,7 @@ void alert_set_text(const char *new_text) {
   layer_mark_dirty((Layer*)s_textbox);
 }
 
-TextLayer* alert_ui_init( Layer *parent_layer, UIDimensions ui){
+const TextLayer* alert_ui_init(Layer *parent_layer, UIDimensions ui){
       // Textbox  
     GRect frame = {
       .origin = {0, 0},

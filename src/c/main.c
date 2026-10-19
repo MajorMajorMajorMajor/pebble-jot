@@ -1,14 +1,18 @@
 // vim: set sw=2 ts=2 et:
 #include <pebble.h>
+
+// keyboard logic
 #include "keyboard/keyboard.h"
-#include "ui/window.h"
+
+// ui controls
+#include "ui/ui.h"
 #include "ui/touch.h"
 
 
 int main(void) {
   // initialize systems
   keyboard_init();
-  window_init();  
+  ui_init();  
   touch_init();  
 
   // trigger main loop
@@ -16,6 +20,6 @@ int main(void) {
 
   // deinitialize systems
   touch_deinit();
-  window_deinit();
+  ui_deinit();
   keyboard_deinit();
 }

@@ -13,5 +13,5 @@ enum {
 void alert_set_text(const char *new_text);
 
 // functions to build and break down the ui
-TextLayer* alert_ui_init(Layer *parent_layer, UIDimensions ui);
+const TextLayer* alert_ui_init(Layer *parent_layer, UIDimensions ui);
 void alert_ui_deinit();

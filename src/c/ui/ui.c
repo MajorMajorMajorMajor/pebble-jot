@@ -1,11 +1,25 @@
 #include <pebble.h>
-#include "keyboard/layout.h"
 
-#include "ui/key_grid.h"
-
+#include "ui/window.h"
 #include "ui.h"
 
-static GSize s_window_size;
+
+void ui_init(void) {
+  // Initialize keyboard window
+  kb_window_init();
+
+  Window *window = kb_window_get_window();
+  // Push the keyboard window  
+  const bool animated = true;
+
+  window_stack_push(window, animated);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Done initializing, pushed window: %p", window);
+}
+
+
+void ui_deinit(void) {
+  kb_window_deinit();
+}
 
 UIDimensions layout_compute_ui_dimensions(GSize size) {
   // Size the textbox
@@ -30,15 +44,4 @@ UIDimensions layout_compute_ui_dimensions(GSize size) {
     .textbox_size = textbox_size,
     .key_grid_size = key_grid_size
   };
-}
-
-// shows the grid for `layout_id` and hides the rest
-static void prv_show(LayoutId layout_id) {
-  KeyGrid *grid;
-
-  for (LayoutId i = 0; i < LAYOUT_COUNT; i++) {
-    grid = &s_key_grids[i];
-
-    layer_set_hidden(grid->layer, layout_id != i); // hide non-matching layouts
-  }
 }
