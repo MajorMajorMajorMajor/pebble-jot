@@ -7,8 +7,7 @@
 
 static UIStyle s_ui_style;
 
-void ui_style_init(void)
-{
+void ui_style_init(void) {
   const UISettings *settings = get_ui_settings();
   const UIStyleSettings style = settings->style;
 
@@ -22,6 +21,10 @@ void ui_style_init(void)
 
     .label_padding_px = 1,
   };
+}
+
+void ui_style_deinit(void) {
+  s_ui_style = (UIStyle){0};
 }
 
 const UIStyle *get_ui_style(void) {

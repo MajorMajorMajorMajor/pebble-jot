@@ -19,11 +19,14 @@ struct KeyButton {
 static void prv_draw_key_label(Layer *layer, GContext* ctx) {
   const UIStyle *style = get_ui_style();
 
-  const KeyLabel *key_label = layer_get_data(layer);
+  const KeyLabel *key_label = *(KeyLabel **)layer_get_data(layer);
+
+  // APP_LOG(APP_LOG_LEVEL_DEBUG, "Drawing key label %p (%d: %s)", key_label, key_label->type, key_label->text);
   // paranoia; not expecting null pointers here, because layers shouldn't be generated for null labels
-  if (key_label == NULL) {
+  if (key_label == NULL) {    
     return;
   }
+  
 
   // figure out where the label should go
   GRect bounds = layer_get_bounds(layer);
@@ -31,7 +34,7 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
 
   // draw the label
   switch (key_label->type) {
-    case KEY_LABEL_TYPE_NONE: {
+    case KEY_LABEL_TYPE_NONE: {      
       // No label, no draw
       break;
     }
@@ -39,10 +42,10 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
       // not implemented yet
       break;
     }
-    case KEY_LABEL_TYPE_TEXT: { 
+    case KEY_LABEL_TYPE_TEXT: {       
       // font geometry and color
       
-      GFont  text_font;
+      GFont  text_font = NULL;
       GRect  text_frame;
       GColor text_color;
       GTextOverflowMode text_overflow_mode = GTextOverflowModeWordWrap;
@@ -93,7 +96,8 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
         case KEY_LABEL_COUNT: {
           PEBBLE_ASSERT(0);
           break;        
-      }                  
+        }            
+      }
       graphics_context_set_text_color(ctx, text_color);        
       graphics_draw_text(
         ctx,   
@@ -105,7 +109,15 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
         text_alignment, // GTextAlignment alignment
         NULL // GTextAttributes text_attributes; optional
       );
-    }
+
+      APP_LOG(APP_LOG_LEVEL_DEBUG, 
+        "Drawing text label %s at (%d, %d, %d, %d)", 
+        key_label->text, 
+        text_frame.origin.x, 
+        text_frame.origin.y,
+        text_frame.size.w,
+        text_frame.size.h
+      );
     }
   }
 }
@@ -118,7 +130,11 @@ static void prv_label_create(KeyButton *this, const KeyLabel *key_label){
 
   // create a new label layer, as big as the button's base layer
   GRect bounds = layer_get_bounds(this->base_layer);
-  Layer *new_layer = layer_create(bounds);
+  Layer *new_layer = layer_create_with_data(bounds, sizeof(KeyLabel *));
+
+  // put a pointer to the key label into the data region
+  *(const KeyLabel **)layer_get_data(new_layer) = key_label;
+
 
   // set the drawing function for it
   layer_set_update_proc(new_layer, prv_draw_key_label);  
@@ -176,7 +192,7 @@ KeyButton *key_button_create(const Key *key, GRect frame) {
     for (i = 0; i < KEY_LABEL_COUNT; i++) {
         const KeyLabel *key_label = &key->labels[i];
         prv_label_create(new_key_button, key_label);
-    }    
+    }
 
     return new_key_button;
 }

@@ -15,5 +15,6 @@ typedef struct UIStyle {
 } UIStyle;
 
 void ui_style_init(void);
+void ui_style_deinit(void);
 
 const UIStyle *get_ui_style(void);

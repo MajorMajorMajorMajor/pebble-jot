@@ -1,10 +1,15 @@
 #include <pebble.h>
 
+#include "ui/style.h"
 #include "ui/window.h"
 #include "ui.h"
 
 
 void ui_init(void) {
+  // style
+  ui_style_init();
+
+
   // Initialize keyboard window
   kb_window_init();
 
@@ -17,8 +22,9 @@ void ui_init(void) {
 }
 
 
-void ui_deinit(void) {
+void ui_deinit(void) {  
   kb_window_deinit();
+  ui_style_deinit();
 }
 
 UIDimensions layout_compute_ui_dimensions(GSize size) {
