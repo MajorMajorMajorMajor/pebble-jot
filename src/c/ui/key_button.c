@@ -108,16 +108,7 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
         text_overflow_mode, // GTextOverflowMode overflow_mode
         text_alignment, // GTextAlignment alignment
         NULL // GTextAttributes text_attributes; optional
-      );
-
-      APP_LOG(APP_LOG_LEVEL_DEBUG, 
-        "Drawing text label %s at (%d, %d, %d, %d)", 
-        key_label->text, 
-        text_frame.origin.x, 
-        text_frame.origin.y,
-        text_frame.size.w,
-        text_frame.size.h
-      );
+      );      
     }
   }
 }
