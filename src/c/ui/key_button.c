@@ -16,7 +16,7 @@ struct KeyButton {
 };
 
 
-static void prv_draw_key_label(struct Layer *layer, GContext* ctx) {
+static void prv_draw_key_label(Layer *layer, GContext* ctx) {
   const UIStyle *style = get_ui_style();
 
   const KeyLabel *key_label = layer_get_data(layer);
@@ -135,11 +135,19 @@ static void prv_label_destroy(KeyButton *this, const KeyLabel *key_label) {
   layer_destroy(layer);
 }
 
+void prv_draw_key_background (Layer *layer, GContext *ctx){
+  const UIStyle *style = get_ui_style();
+  GRect bounds = layer_get_bounds(layer);
+
+  graphics_context_set_fill_color(ctx, style->key_background_color);
+  graphics_draw_rect(ctx, bounds);
+}
 
 KeyButton *key_button_create(const Key *key, GRect frame) {
     int i;
 
     Layer *base_layer = layer_create(frame);
+    layer_set_update_proc(base_layer, prv_draw_key_background);
     
     KeyButton *new_key_button = malloc(sizeof *new_key_button);
 
