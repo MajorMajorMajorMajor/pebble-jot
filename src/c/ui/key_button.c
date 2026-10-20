@@ -137,10 +137,18 @@ static void prv_label_create(KeyButton *this, const KeyLabel *key_label){
 //
 // @TODO: Verify this?
 static void prv_label_destroy(KeyButton *this, const KeyLabel *key_label) {
+  if (key_label->type == KEY_LABEL_TYPE_NONE) {
+    // no label, nothing to destroy
+    return;
+  }
   KeyLabelSlot label_slot = key_label->slot;
   
   Layer* layer = this->label_layers[label_slot];
   layer_destroy(layer);
+  Layer* layer = this->label_layers[label_slot];  
+  if (layer) {
+    layer_destroy(layer);
+  }
 }
 
 void prv_draw_key_background (Layer *layer, GContext *ctx){
