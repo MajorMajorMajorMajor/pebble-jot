@@ -31,6 +31,10 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
 
   // draw the label
   switch (key_label->type) {
+    case KEY_LABEL_TYPE_NONE: {
+      // No label, no draw
+      break;
+    }
     case KEY_LABEL_TYPE_IMAGE: {
       // not implemented yet
       break;
@@ -108,6 +112,10 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
 
 
 static void prv_label_create(KeyButton *this, const KeyLabel *key_label){    
+  if (key_label->type == KEY_LABEL_TYPE_NONE) {
+    return;
+  }
+
   // create a new label layer, as big as the button's base layer
   GRect bounds = layer_get_bounds(this->base_layer);
   Layer *new_layer = layer_create(bounds);
@@ -154,7 +162,7 @@ KeyButton *key_button_create(const Key *key, GRect frame) {
     *new_key_button = (KeyButton){
         .key = key,
         .base_layer = base_layer,
-        // .label_layers: zero-initialized
+        .label_layers = {0}
     };
     
     // create labels and populate .label_layers
@@ -173,7 +181,7 @@ void key_button_destroy(KeyButton *button){
   
   // destroy label layers
   int i;
-  for (i = 0; i < KEY_LABEL_COUNT; i++) {
+  for (i = 0; i < KEY_LABEL_COUNT; i++) {    
       const KeyLabel *key_label = &key->labels[i];
       prv_label_destroy(this, key_label);
   }    

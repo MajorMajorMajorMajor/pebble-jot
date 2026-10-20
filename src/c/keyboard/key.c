@@ -4,14 +4,13 @@
 static const Key s_keys[KEY_COUNT] = {  
   [KEY_ENGLISH_O] = {
     .labels = {
-      // KeyLabelType type defaults to 0 = KEY_LABEL_TEXT
-      [KEY_LABEL_CENTER] = { .text = "o" },
-      [KEY_LABEL_RIGHT]  = { .text = "b" }
+      { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "o" },
+      { .slot = KEY_LABEL_RIGHT,  .type = KEY_LABEL_TYPE_TEXT, .text = "b" },
     }
   },
   [KEY_ENGLISH_N] = {
     .labels = {
-      [KEY_LABEL_CENTER] = { .text = "n" }      
+      { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "n" },
     }
   }  
 };

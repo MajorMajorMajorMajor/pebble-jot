@@ -8,9 +8,10 @@ typedef enum {
   KEY_LABEL_COUNT
 } KeyLabelSlot;
 
-typedef enum {
-  KEY_LABEL_TYPE_TEXT, // 0 = default
-  KEY_LABEL_TYPE_IMAGE
+typedef enum {  
+  KEY_LABEL_TYPE_NONE, // 0 = default
+  KEY_LABEL_TYPE_TEXT, 
+  KEY_LABEL_TYPE_IMAGE,  
 } KeyLabelType;
 
 typedef struct {  
