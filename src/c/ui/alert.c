@@ -22,6 +22,7 @@ const TextLayer* alert_ui_init(Layer *parent_layer, UIDimensions ui){
     s_textbox = text_layer_create(frame); 
     text_layer_set_text(s_textbox, s_text);
     text_layer_set_text_alignment(s_textbox, GTextAlignmentLeft);
+    text_layer_set_background_color(s_textbox, GColorYellow);
     
     alert_set_text("Input text");
 
