@@ -13,6 +13,7 @@
 
 // Initialize height_px, leaving gfont zero-initialized until populated by get_ui_font()
 static UIFont s_fonts[] = {
+  {.font_key=FONT_KEY_GOTHIC_18,            .height_px=24},
   {.font_key=FONT_KEY_GOTHIC_18_BOLD,       .height_px=24},
   {.font_key=FONT_KEY_ROBOTO_CONDENSED_21,  .height_px=28},
   {.font_key=FONT_KEY_GOTHIC_24,            .height_px=32},
