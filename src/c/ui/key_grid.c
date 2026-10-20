@@ -72,8 +72,10 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame) {
   return grid;
 }
 
-void key_grid_destroy(KeyGrid *grid) {
+void key_grid_destroy(KeyGrid *grid) {  
   KeyGrid *this = grid;
+  if (!this)
+    return;
 
   // destroy the buttons
   size_t i;
@@ -91,7 +93,9 @@ void key_grid_destroy(KeyGrid *grid) {
       layer_destroy(this->layer);
       this->layer = NULL;
   }
-  
+
+  free(this->buttons);
+  free(this);
 }
 
 Layer *key_grid_get_layer(KeyGrid *grid) {
