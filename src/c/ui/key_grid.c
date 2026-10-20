@@ -21,10 +21,17 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame) {
   
   // Layer  
   layer = layer_create(frame);
+  if(!layer) {
+    return NULL;
+  }
 
   // Create buttons
   button_count = layout->key_count;
   buttons = calloc(button_count, sizeof *buttons);
+  if (!buttons) {
+    layer_destroy(layer);
+    return NULL;
+  }
 
   size_t i;
   for (i = 0; i < button_count; i++) {
