@@ -27,9 +27,12 @@ void ui_style_init(void) {
     .label_padding_px = 1,
   };
 
-  // Make sure the fonts were loaded
+  // Make sure the fonts were found and actually loaded
   PEBBLE_ASSERT(s_ui_style.label_center_font);
+  PEBBLE_ASSERT(s_ui_style.label_center_font->gfont);
+  
   PEBBLE_ASSERT(s_ui_style.label_peripheral_font);
+  PEBBLE_ASSERT(s_ui_style.label_peripheral_font->gfont);
 }
 
 void ui_style_deinit(void) {
