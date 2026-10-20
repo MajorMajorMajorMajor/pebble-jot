@@ -81,3 +81,7 @@ void key_grid_destroy(KeyGrid *grid) {
   // destroy the base layer
   layer_destroy(this->layer);
 }
+
+Layer *key_grid_get_layer(KeyGrid *grid) {
+  return grid->layer;
+}
