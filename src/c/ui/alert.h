@@ -14,4 +14,4 @@ void alert_set_text(const char *new_text);
 
 // functions to build and break down the ui
 TextLayer* alert_ui_init(UIDimensions ui);
-void alert_ui_deinit();
+void alert_ui_deinit(void);

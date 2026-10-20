@@ -33,7 +33,7 @@ TextLayer* alert_ui_init(UIDimensions ui){
     return s_textbox;
 }
 
-void alert_ui_deinit(){
+void alert_ui_deinit(void){
   if(s_textbox) {
     text_layer_destroy(s_textbox);
     s_textbox = NULL;

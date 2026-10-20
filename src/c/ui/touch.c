@@ -24,7 +24,7 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
 }
 
 // initialize touch
-void touch_init() {
+void touch_init(void) {
   // check if touch is enabled
   if (!touch_service_is_enabled()) {
     alert_set_text("Please enable touch in settings in order to use the touchscreen keyboard.");
@@ -34,6 +34,6 @@ void touch_init() {
   touch_service_subscribe(prv_touch_handler, NULL);
 }
 
-void touch_deinit() {
+void touch_deinit(void) {
     touch_service_unsubscribe();
 }
