@@ -19,6 +19,8 @@ int main(void) {
   app_event_loop();
 
   // deinitialize systems
+
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Begin deinitialization");
   touch_deinit();
   ui_deinit();
   keyboard_deinit();

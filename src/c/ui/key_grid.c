@@ -70,11 +70,13 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame) {
 }
 
 void key_grid_destroy(KeyGrid *grid) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "key_grid_destroy");
   KeyGrid *this = grid;
 
   // destroy the buttons
   size_t i;
   for (i = 0; i < this->button_count; i++) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Destroying button %d", i);
     key_button_destroy(this->buttons[i]);
   }
 

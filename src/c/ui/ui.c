@@ -18,6 +18,7 @@ void ui_init(void) {
 
 
 void ui_deinit(void) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "ui_deinit");
   kb_window_deinit();
 }
 
