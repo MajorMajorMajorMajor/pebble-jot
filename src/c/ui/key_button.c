@@ -93,10 +93,9 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
           text_frame = GRect(text_x, text_y, text_w, text_h);
           break;          
         }
-        case KEY_LABEL_COUNT: {
-          PEBBLE_ASSERT(0);
-          break;        
-        }            
+        default: {
+          PEBBLE_ASSERT(0);          
+        }
       }
       graphics_context_set_text_color(ctx, text_color);        
       graphics_draw_text(
