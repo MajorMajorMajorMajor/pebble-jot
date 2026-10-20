@@ -130,7 +130,9 @@ static void prv_label_create(KeyButton *this, const KeyLabel *key_label){
 
   // create a new label layer, as big as the button's base layer
   GRect bounds = layer_get_bounds(this->base_layer);
-  Layer *new_layer = layer_create_with_data(bounds, sizeof(KeyLabel *));
+  
+  Layer *new_layer = layer_create_with_data(bounds, sizeof(KeyLabel *));  
+  PEBBLE_ASSERT(new_layer);
 
   // put a pointer to the key label into the data region
   *(const KeyLabel **)layer_get_data(new_layer) = key_label;
@@ -178,9 +180,18 @@ KeyButton *key_button_create(const Key *key, GRect frame) {
     int i;
 
     Layer *base_layer = layer_create(frame);
+    if (!base_layer) {
+      return NULL;
+    }
+
     layer_set_update_proc(base_layer, prv_draw_key_background);
     
     KeyButton *new_key_button = malloc(sizeof *new_key_button);
+
+    if(!new_key_button) {
+      layer_destroy(base_layer);
+      return NULL;
+    }
 
     *new_key_button = (KeyButton){
         .key = key,
