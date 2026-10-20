@@ -57,12 +57,10 @@ static void prv_window_load(Window *window) {
   PEBBLE_ASSERT(s_window.grid);
   layer_add_child(window_layer, key_grid_get_layer(s_window.grid));
   
-  // Make alert area
-  // Cast window_layer from (const Layer *) to (Layer *) because the alert UI modifies 
-  // the root layer directly instead of exposing its own layer for drawing
-  // (for now...)
-  // @TODO: Refactor alert UI
-  alert_ui_init((Layer *)window_layer, ui);   
+  // Make alert area  
+  TextLayer* alert_layer = alert_ui_init(ui);
+  PEBBLE_ASSERT(alert_layer);  
+  layer_add_child(window_layer, text_layer_get_layer(alert_layer));
 }
 
 // Pebble OS invokes this when the window is destroyed, or (in the future) 

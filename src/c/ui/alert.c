@@ -12,7 +12,7 @@ void alert_set_text(const char *new_text) {
   layer_mark_dirty((Layer*)s_textbox);
 }
 
-const TextLayer* alert_ui_init(Layer *parent_layer, UIDimensions ui){
+TextLayer* alert_ui_init(UIDimensions ui){
       // Textbox  
     GRect frame = {
       .origin = {0, 0},
@@ -20,13 +20,15 @@ const TextLayer* alert_ui_init(Layer *parent_layer, UIDimensions ui){
     };
     
     s_textbox = text_layer_create(frame); 
+    if(!s_textbox) {
+      return NULL;
+    }
+
     text_layer_set_text(s_textbox, s_text);
     text_layer_set_text_alignment(s_textbox, GTextAlignmentLeft);
     text_layer_set_background_color(s_textbox, GColorYellow);
     
-    alert_set_text("Input text");
-
-    layer_add_child(parent_layer, text_layer_get_layer(s_textbox));
+    alert_set_text("Input text");    
 
     return s_textbox;
 }
