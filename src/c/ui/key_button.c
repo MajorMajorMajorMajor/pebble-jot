@@ -182,6 +182,7 @@ static void prv_label_destroy(KeyButton *this, const KeyLabel *key_label) {
   if (layer) {
     APP_LOG(APP_LOG_LEVEL_DEBUG, "destroying layer");
     layer_destroy(layer);
+    this->label_layers[label_slot] = NULL;
     APP_LOG(APP_LOG_LEVEL_DEBUG, "success");
   }
   
@@ -235,7 +236,10 @@ void key_button_destroy(KeyButton *button){
 
   // destroy the base layer
   APP_LOG(APP_LOG_LEVEL_DEBUG, "destroy button base layer");
-  layer_destroy(this->base_layer);
+  if(this->base_layer) {
+    layer_destroy(this->base_layer);
+    this->base_layer = NULL;
+  }
 
   // free
   APP_LOG(APP_LOG_LEVEL_DEBUG, "free: button %s", button->key->labels[KEY_LABEL_CENTER].text);

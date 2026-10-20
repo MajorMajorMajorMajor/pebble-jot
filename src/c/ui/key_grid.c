@@ -46,7 +46,10 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame) {
     if (!buttons[i]) {
       APP_LOG(APP_LOG_LEVEL_ERROR,  "Failed to create key button %u (key_id=%u)", i, (unsigned)pos->key_id);      
       for (size_t j = 0; j < i; j++) {
-        key_button_destroy(buttons[j]);
+        if(buttons[j]) {
+          key_button_destroy(buttons[j]);
+          buttons[j] = NULL;
+        }
       }
 
       free(buttons);
@@ -76,12 +79,22 @@ void key_grid_destroy(KeyGrid *grid) {
   // destroy the buttons
   size_t i;
   for (i = 0; i < this->button_count; i++) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Destroying button %d", i);
-    key_button_destroy(this->buttons[i]);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Destroying button %d", i);    
+
+    if (this->buttons[i]) {
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Destroying button at %p", this->buttons[i]);
+      key_button_destroy(this->buttons[i]);
+      this->buttons[i] = NULL;
+    }    
   }
 
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Destroying layer at %p", this->layer);
   // destroy the base layer
-  layer_destroy(this->layer);
+  if (this->layer) {
+      layer_destroy(this->layer);
+      this->layer = NULL;
+  }
+  
 }
 
 Layer *key_grid_get_layer(KeyGrid *grid) {

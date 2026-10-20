@@ -64,7 +64,10 @@ static void prv_window_load(Window *window) {
 // to free resources bound to the window when it is not on screen. 
 static void prv_window_unload(Window *window) {  
   APP_LOG(APP_LOG_LEVEL_DEBUG, "prv_window_unload");
-  key_grid_destroy(s_window.grid);  
+  if (s_window.grid) {
+    key_grid_destroy(s_window.grid); 
+    s_window.grid = NULL;
+  }
   alert_ui_deinit();
 }
 

@@ -32,5 +32,8 @@ const TextLayer* alert_ui_init(Layer *parent_layer, UIDimensions ui){
 }
 
 void alert_ui_deinit(){
-  text_layer_destroy(s_textbox);
+  if(s_textbox) {
+    text_layer_destroy(s_textbox);
+    s_textbox = NULL;
+  }
 }
