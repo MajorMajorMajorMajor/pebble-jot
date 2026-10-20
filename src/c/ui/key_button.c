@@ -161,10 +161,13 @@ static void prv_label_destroy(KeyButton *this, const KeyLabel *key_label) {
 
 void prv_draw_key_background (Layer *layer, GContext *ctx){
   const UIStyle *style = get_ui_style();
-  GRect bounds = layer_get_bounds(layer);
-
   graphics_context_set_fill_color(ctx, style->key_background_color);
-  graphics_draw_rect(ctx, bounds);
+
+  GRect bounds = layer_get_bounds(layer);
+  uint16_t corner_radius = style->key_corner_radius;
+  GCornerMask corner_mask = GCornersAll;  
+  graphics_fill_rect(ctx, bounds, corner_radius, corner_mask);
+  graphics_draw_round_rect(ctx, bounds, style->key_corner_radius);
 }
 
 KeyButton *key_button_create(const Key *key, GRect frame) {
