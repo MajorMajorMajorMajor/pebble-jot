@@ -19,7 +19,7 @@ struct KeyButton {
 static void prv_draw_key_label(Layer *layer, GContext* ctx) {
   const UIStyle *style = get_ui_style();
 
-  const KeyLabel *key_label = *(KeyLabel **)layer_get_data(layer);
+  const KeyLabel *key_label = *(const KeyLabel **)layer_get_data(layer);
 
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "Drawing key label %p (%d: %s)", key_label, key_label->type, key_label->text);
   // paranoia; not expecting null pointers here, because layers shouldn't be generated for null labels
@@ -130,7 +130,7 @@ static void prv_label_create(KeyButton *this, const KeyLabel *key_label){
 
   // create a new label layer, as big as the button's base layer
   GRect bounds = layer_get_bounds(this->base_layer);
-  
+
   Layer *new_layer = layer_create_with_data(bounds, sizeof(KeyLabel *));  
   PEBBLE_ASSERT(new_layer);
 
