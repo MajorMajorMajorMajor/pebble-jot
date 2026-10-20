@@ -6,6 +6,7 @@ typedef struct UIStyle {
   const UIFont *label_center_font;
   const UIFont *label_peripheral_font;
   
+  GColor key_background_color;
   GColor label_center_color;
   GColor label_peripheral_color;
 
