@@ -70,6 +70,15 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame) {
 
   // Construct new object
   KeyGrid *grid = malloc(sizeof *grid);
+  if(!grid){
+    for (i = 0; i < button_count; i++) {
+      key_button_destroy(buttons[i]);
+    }
+    
+    free(buttons);
+    layer_destroy(layer);
+    return NULL;
+  }
   *grid = (KeyGrid){
     .layer = layer, 
     .button_count = button_count, 
