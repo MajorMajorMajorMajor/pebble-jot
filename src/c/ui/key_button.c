@@ -158,7 +158,7 @@ static void prv_label_destroy(KeyButton *this, const KeyLabel *key_label) {
   }
 }
 
-void prv_draw_key_background (Layer *layer, GContext *ctx){
+static void prv_draw_key_background (Layer *layer, GContext *ctx){
   const UIStyle *style = get_ui_style();
   graphics_context_set_fill_color(ctx, style->key_background_color);
   graphics_context_set_stroke_color(ctx, style->key_outline_color);
