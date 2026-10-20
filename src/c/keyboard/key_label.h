@@ -5,6 +5,7 @@
 typedef enum {  
   KEY_LABEL_CENTER,
   KEY_LABEL_RIGHT,
+  KEY_LABEL_BOTTOM,
   KEY_LABEL_COUNT
 } KeyLabelSlot;
 

@@ -93,6 +93,25 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
           text_frame = GRect(text_x, text_y, text_w, text_h);
           break;          
         }
+        case KEY_LABEL_BOTTOM: {          
+          const UIFont *ui_font;
+          ui_font = style->label_peripheral_font;
+          text_font = ui_font->gfont;
+          text_color = style->label_peripheral_color;
+                  
+          GSize text_size = graphics_text_layout_get_content_size(
+            text, ui_font->gfont, box, text_overflow_mode, text_alignment);
+
+          // center the label horizontally and position it on the bottom side          
+          int w = text_size.w;
+          int h = ui_font->height_px;
+
+          int x = (box.origin.x) + (box.size.w / 2) - (w / 2);
+          int y = (box.origin.y) + (box.size.h) - (h * 0.75) - (style->label_padding_px);
+          
+          text_frame = GRect(x, y, w, h);
+          break;          
+        }
         default: {
           PEBBLE_ASSERT(0);          
         }

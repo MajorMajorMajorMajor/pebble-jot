@@ -10,6 +10,7 @@ static const Key s_keys[KEY_COUNT] = {
   [KEY_ENGLISH_N] = {
     .labels = {
       { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "n" },
+      { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = "l" },
     }
   },
   [KEY_ENGLISH_I] = {
@@ -27,6 +28,7 @@ static const Key s_keys[KEY_COUNT] = {
     .labels = {
       { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "o" },
       { .slot = KEY_LABEL_RIGHT,  .type = KEY_LABEL_TYPE_TEXT, .text = "b" },
+      { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = "d" },
     }
   },
   [KEY_ENGLISH_R] = {
