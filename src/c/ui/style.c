@@ -1,5 +1,6 @@
 #include <pebble.h>
 
+#include "common.h"
 #include "ui/settings.h"
 #include "ui/font.h"
 
@@ -25,6 +26,10 @@ void ui_style_init(void) {
 
     .label_padding_px = 1,
   };
+
+  // Make sure the fonts were loaded
+  PEBBLE_ASSERT(s_ui_style.label_center_font);
+  PEBBLE_ASSERT(s_ui_style.label_peripheral_font);
 }
 
 void ui_style_deinit(void) {
