@@ -46,7 +46,12 @@ static void prv_window_load(Window *window) {
   const UIDimensions ui = layout_compute_ui_dimensions(bounds.size);
 
   // Make grid
-  const GRect grid_bounds = bounds;  
+  const GRect grid_bounds = GRect(
+    0, // align to left edge
+    ui.textbox_size.h, 
+    ui.key_grid_size.w, 
+    ui.key_grid_size.h
+  );
   const Layout *layout = get_layout(KB_WINDOW_LAYOUT);
   s_window.grid = key_grid_create(layout, grid_bounds);
   PEBBLE_ASSERT(s_window.grid);
