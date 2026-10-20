@@ -126,9 +126,6 @@ static void prv_label_create(KeyButton *this, const KeyLabel *key_label){
   // add a reference to it to the key button object
   KeyLabelSlot label_slot = key_label->slot;
   this->label_layers[label_slot] = new_layer;
-  
-  const char *key_text = key_label->type == KEY_LABEL_TYPE_TEXT ? key_label->text : "not text";
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "created key label %s in slot %d", key_text, label_slot);
 
   // add it to the UI hierarchy
   layer_add_child(this->base_layer, new_layer);
@@ -140,53 +137,17 @@ static void prv_label_create(KeyButton *this, const KeyLabel *key_label){
 //
 // @TODO: Verify this?
 static void prv_label_destroy(KeyButton *this, const KeyLabel *key_label) {
-  char *type;  
-
-  switch(key_label->type){
-    case KEY_LABEL_TYPE_TEXT: {
-      type = "text"; 
-      break;
-    }
-
-    case KEY_LABEL_TYPE_IMAGE: {
-      type ="image";
-      break;      
-    }
-
-    case KEY_LABEL_TYPE_NONE: {
-      type="none";
-      break;
-    }
-
-    default: {
-      type="unknown";
-      break;
-    }
-  }
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "prv_label_destroy: type %s", type);
-
   if (key_label->type == KEY_LABEL_TYPE_NONE) {
     // no label, nothing to destroy
     return;
   }
-
-  APP_LOG(
-    APP_LOG_LEVEL_DEBUG, 
-    "prv_label_destroy: %s", 
-    key_label->type == KEY_LABEL_TYPE_TEXT ? key_label->text : "Non-text label"
-  );
   KeyLabelSlot label_slot = key_label->slot;
   
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "label_slot: %d", label_slot);
   Layer* layer = this->label_layers[label_slot];  
   if (layer) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "destroying layer");
     layer_destroy(layer);
     this->label_layers[label_slot] = NULL;
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "success");
   }
-  
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "success");
 }
 
 void prv_draw_key_background (Layer *layer, GContext *ctx){
@@ -221,7 +182,6 @@ KeyButton *key_button_create(const Key *key, GRect frame) {
 }
 
 void key_button_destroy(KeyButton *button){  
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "key_button_destroy");
   KeyButton *this = button;
   
   const Key *key = this->key;
@@ -230,19 +190,16 @@ void key_button_destroy(KeyButton *button){
   int i;
   for (i = 0; i < KEY_LABEL_COUNT; i++) {    
       const KeyLabel *key_label = &key->labels[i];
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "destroy key label %d", i);
       prv_label_destroy(this, key_label);
   }    
 
   // destroy the base layer
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "destroy button base layer");
   if(this->base_layer) {
     layer_destroy(this->base_layer);
     this->base_layer = NULL;
   }
 
   // free
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "free: button %s", button->key->labels[KEY_LABEL_CENTER].text);
   free(this);
 }
 

@@ -63,7 +63,6 @@ static void prv_window_load(Window *window) {
 // Pebble OS invokes this when the window is destroyed, or (in the future) 
 // to free resources bound to the window when it is not on screen. 
 static void prv_window_unload(Window *window) {  
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "prv_window_unload");
   if (s_window.grid) {
     key_grid_destroy(s_window.grid); 
     s_window.grid = NULL;
@@ -96,8 +95,6 @@ void kb_window_init(void) {
 
 // Invoked by controlling UI code to indicate that this window needs to be destroyed
 void kb_window_deinit(void) {
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "kb_window_deinit");
-
   window_destroy(s_window.window);
   s_window.window = NULL; // 
 }
