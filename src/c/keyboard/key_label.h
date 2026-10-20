@@ -18,7 +18,7 @@ typedef struct {
   KeyLabelSlot slot;
   KeyLabelType type;
   union {
-    char *text;
+    const char *text;
     GBitmap* image;
   };  
 } KeyLabel;

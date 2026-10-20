@@ -50,9 +50,9 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
       GColor text_color;
       GTextOverflowMode text_overflow_mode = GTextOverflowModeWordWrap;
       GTextAlignment text_alignment = GTextAlignmentCenter;
-      char*  text;
       
-      text = key_label->text;
+      
+      const char *text = key_label->text;
 
       switch (key_label->slot) {
         case KEY_LABEL_CENTER: {  
