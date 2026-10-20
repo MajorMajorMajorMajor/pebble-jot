@@ -39,7 +39,7 @@ static KeyboardWindow s_window;
 
 
 static void prv_window_load(Window *window) {
-  const Layer *window_layer = window_get_root_layer(window);
+  Layer *window_layer = window_get_root_layer(window);
   
   // Establish dimensions
   const GRect bounds = layer_get_bounds(window_layer);
@@ -50,6 +50,7 @@ static void prv_window_load(Window *window) {
   const Layout *layout = get_layout(KB_WINDOW_LAYOUT);
   s_window.grid = key_grid_create(layout, grid_bounds);
   PEBBLE_ASSERT(s_window.grid);
+  layer_add_child(window_layer, key_grid_get_layer(s_window.grid));
   
   // Make alert area
   // Cast window_layer from (const Layer *) to (Layer *) because the alert UI modifies 
