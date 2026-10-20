@@ -13,8 +13,8 @@
 
 // Initialize height_px, leaving font zero-initialized until populated by get_ui_font()
 static UIFont s_fonts[] = {
-  {.font_key=FONT_KEY_GOTHIC_18_BOLD, .height_px=0},
-  {.font_key=FONT_KEY_GOTHIC_24,      .height_px=0}  
+  {.font_key=FONT_KEY_GOTHIC_18_BOLD, .height_px=20},
+  {.font_key=FONT_KEY_GOTHIC_24,      .height_px=25}  
 };
 
 const UIFont *get_ui_font(const char *font_key) {    
