@@ -4,8 +4,8 @@
 
 static UISettings s_ui_settings = {
   .style = {
-    .label_center_font_key = FONT_KEY_GOTHIC_24,
-    .label_peripheral_font_key = FONT_KEY_GOTHIC_18_BOLD
+    .label_center_font_key = FONT_KEY_GOTHIC_28_BOLD,
+    .label_peripheral_font_key = FONT_KEY_GOTHIC_24,
   }
 };
 

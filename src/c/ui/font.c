@@ -11,10 +11,17 @@
 #include "font.h"
 
 
-// Initialize height_px, leaving font zero-initialized until populated by get_ui_font()
+// Initialize height_px, leaving gfont zero-initialized until populated by get_ui_font()
 static UIFont s_fonts[] = {
-  {.font_key=FONT_KEY_GOTHIC_18_BOLD, .height_px=20},
-  {.font_key=FONT_KEY_GOTHIC_24,      .height_px=25}  
+  {.font_key=FONT_KEY_GOTHIC_18_BOLD,       .height_px=24},
+  {.font_key=FONT_KEY_ROBOTO_CONDENSED_21,  .height_px=28},
+  {.font_key=FONT_KEY_GOTHIC_24,            .height_px=32},
+  {.font_key=FONT_KEY_GOTHIC_24_BOLD,       .height_px=32},
+  {.font_key=FONT_KEY_GOTHIC_28,            .height_px=38},
+  {.font_key=FONT_KEY_GOTHIC_28_BOLD,       .height_px=38},
+  {.font_key=FONT_KEY_BITHAM_30_BLACK,      .height_px=40},
+  {.font_key=FONT_KEY_BITHAM_42_LIGHT,      .height_px=56},
+  {.font_key=FONT_KEY_BITHAM_42_BOLD,       .height_px=56},
 };
 
 const UIFont *get_ui_font(const char *font_key) {    
