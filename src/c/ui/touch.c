@@ -2,21 +2,26 @@
 #include "alert.h"
 #include "touch.h"
 
+static void prv_alert_with_coordinates(char *template, int x, int y) {
+	char text[64] = {0};
+	snprintf(text, sizeof text, template, x, y);
+	alert_set_text(text);
+}
+
+
 static void prv_touch_handler(const TouchEvent *event, void *context) {
   switch(event->type) {
     case TouchEvent_Touchdown: { 
-      char text[64] = {0};
-      snprintf(text, sizeof text, "Touchdown detected at (%d, %d)", event->x, event->y);
-      alert_set_text(text);
+      prv_alert_with_coordinates("Touchdown detected at (%d, %d)", event->x, event->y);
       break;
     }      
     case TouchEvent_Liftoff: {
-      alert_set_text("Lift-off");
+      prv_alert_with_coordinates("Lift-off at (%d, %d)", event->x, event->y);
       break;
     }
 
     case TouchEvent_PositionUpdate: {
-      alert_set_text("New position");
+      prv_alert_with_coordinates("New position (%d, %d)", event->x, event->y);
       break;
     }
 
