@@ -45,6 +45,9 @@ static void prv_window_load(Window *window) {
   const GRect bounds = layer_get_bounds(window_layer);
   const UIDimensions ui = layout_compute_ui_dimensions(bounds.size);
 
+
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Window: origin=(%d, %d), size=(%d, %d)", bounds.origin.x, bounds.origin.y, bounds.size.w, bounds.size.h);
+
   // Make grid
   const GRect grid_bounds = GRect(
     0, // align to left edge
