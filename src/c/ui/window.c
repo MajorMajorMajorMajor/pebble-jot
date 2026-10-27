@@ -21,7 +21,6 @@ struct KeyboardWindow {
   KeyGrid *grid;
 };
 
-typedef struct KeyboardWindow KeyboardWindow; // defined in window.c
 
 static KeyboardWindow s_window;
 

@@ -6,15 +6,12 @@
 
 #include "ui/style.h"
 
-static UIStyle s_ui_style;
+UIStyle get_ui_style(void) {
+  const UISettings *settings = get_ui_settings();  
 
-void ui_style_init(void) {
-  const UISettings *settings = get_ui_settings();
-  const UIStyleSettings style = settings->style;
-
-  s_ui_style = (UIStyle) {
-    .label_center_font = get_ui_font(style.label_center_font_key),
-    .label_peripheral_font = get_ui_font(style.label_peripheral_font_key),
+  UIStyle style = (UIStyle) {
+    .label_center_font = get_ui_font(settings->style.label_center_font_key),
+    .label_peripheral_font = get_ui_font(settings->style.label_peripheral_font_key),
 
     .key_corner_radius = 3,
     
@@ -28,17 +25,11 @@ void ui_style_init(void) {
   };
 
   // Make sure the fonts were found and actually loaded
-  PEBBLE_ASSERT(s_ui_style.label_center_font);
-  PEBBLE_ASSERT(s_ui_style.label_center_font->gfont);
+  PEBBLE_ASSERT(style.label_center_font);
+  PEBBLE_ASSERT(style.label_center_font->gfont);
   
-  PEBBLE_ASSERT(s_ui_style.label_peripheral_font);
-  PEBBLE_ASSERT(s_ui_style.label_peripheral_font->gfont);
-}
+  PEBBLE_ASSERT(style.label_peripheral_font);
+  PEBBLE_ASSERT(style.label_peripheral_font->gfont);
 
-void ui_style_deinit(void) {
-  s_ui_style = (UIStyle){0};
-}
-
-const UIStyle *get_ui_style(void) {
-  return &s_ui_style;
+  return style;
 }
