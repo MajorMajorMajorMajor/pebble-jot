@@ -18,7 +18,7 @@
 struct KeyboardWindow {
   // abstract data
   KeyboardState *keyboard_state;  
-  UIStyle *style;
+  const UIStyle *style;
 
   // concrete UI elements
   Window *window;
@@ -99,10 +99,13 @@ static void prv_window_load(Window *window) {
 
 // Pebble OS invokes this when the window is destroyed, or (in the future) 
 // to free resources bound to the window when it is not on screen. 
-static void prv_window_unload(Window *window) {  
-  if (s_window.grid) {
-    key_grid_destroy(s_window.grid); 
-    s_window.grid = NULL;
+static void prv_window_unload(Window *window) {
+  KeyboardWindow *self = window_get_user_data(window);  
+  PEBBLE_ASSERT(self);
+
+  if (self->grid) {
+    key_grid_destroy(self->grid); 
+    self->grid = NULL;
   }
   alert_ui_deinit();
 }
@@ -149,11 +152,17 @@ KeyboardWindow *keyboard_window_create(
 }
 
 // Invoked by controlling UI code to indicate that this window needs to be destroyed
-void kb_window_deinit(void) {
-  window_destroy(s_window.window);
-  s_window.window = NULL; // 
+void keyboard_window_destroy(KeyboardWindow *keyboard_window) {
+  if (!keyboard_window) {
+    return;
+  }
+
+  window_destroy(keyboard_window->window);
+  keyboard_window->window = NULL;
+
+  free(keyboard_window);
 }
 
-Window *kb_window_get_window(void) {
-  return s_window.window;
+Window *keyboard_window_get_window(KeyboardWindow *keyboard_window) {
+  return keyboard_window->window;
 }

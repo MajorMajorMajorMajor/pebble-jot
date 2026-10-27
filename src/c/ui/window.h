@@ -14,4 +14,4 @@ KeyboardWindow *keyboard_window_create(
 
 void keyboard_window_destroy(KeyboardWindow *window);
 
-Window *keyboard_window_get_window(void);
+Window *keyboard_window_get_window(KeyboardWindow *keyboard_window);
