@@ -177,8 +177,13 @@ static KeyLabelLayer *prv_label_create(const KeyLabel *key_label, GRect frame, c
 
 
 static void prv_label_destroy(KeyLabelLayer *label) {
+  if (!label) {
+    return;
+  }
+
   if(label->layer) {
     layer_destroy(label->layer);
+    label->layer = NULL;
   }  
 
   // nothing to free! allocation was done by pebble's Layer
@@ -198,7 +203,7 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   graphics_draw_round_rect(ctx, bounds, style->key_corner_radius);
 }
 
-KeyButtonLayer *key_button_create(const Key *key, GRect frame, UIStyle *style) {
+KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *style) {
     PEBBLE_ASSERT(key);
     PEBBLE_ASSERT(style);
 
@@ -237,19 +242,28 @@ KeyButtonLayer *key_button_create(const Key *key, GRect frame, UIStyle *style) {
         // create a new label layer, as big as the button's base layer
         GRect label_frame = layer_get_bounds(button->base_layer);
         KeyLabelLayer *new_label = prv_label_create(key_label, label_frame, button->style);
-        PEBBLE_ASSERT(new_label);
+        if (!new_label){
+          // safe to call destroy on partially initialized button, because the destructor
+          // skips null pointers and we initialized .label_layers to {0}
+          key_button_destroy(button); 
+          return NULL;
+        }        
 
         // add it to the UI hierarchy
         layer_add_child(button->base_layer, new_label->layer);
 
         // add to new button
-        button->label_layers[key_label->slot] = new_label;
+        button->label_layers[i] = new_label;
     }
 
     return button;
 }
 
 void key_button_destroy(KeyButtonLayer *button){  
+  if (!button) {
+    return;
+  }
+
   // destroy label layers
   int i;
   for (i = 0; i < KEY_LABEL_COUNT; i++) {
@@ -261,7 +275,8 @@ void key_button_destroy(KeyButtonLayer *button){
 
   // destroy the base layer
   if(button->base_layer) {
-    layer_destroy(button->base_layer);    
+    layer_destroy(button->base_layer);
+    button->base_layer = NULL;
   }
 
   // no need to free the button pointer, since memory was managed by the base layer

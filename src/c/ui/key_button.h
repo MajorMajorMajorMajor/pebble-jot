@@ -8,7 +8,7 @@
 // defined in key_button.c
 typedef struct KeyButtonLayer KeyButtonLayer;
 
-KeyButtonLayer *key_button_create(const Key *key, GRect frame, UIStyle *style);
+KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *style);
 void key_button_destroy(KeyButtonLayer *button);
 
 Layer *key_button_get_layer(KeyButtonLayer *button);
