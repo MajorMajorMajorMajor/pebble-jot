@@ -159,10 +159,7 @@ static KeyLabelLayer *prv_label_create(const KeyLabel *key_label, GRect frame, c
   Layer* layer = layer_create_with_data(frame, sizeof(KeyLabelLayer));  // (void *) pointer to KeyLabelLayer
   if(!layer) {    
     return NULL;
-  }
-  
-  // populate layer data and set the drawing function  
-  layer_set_update_proc(layer, prv_draw_key_label);
+  }  
 
   // Get a pointer to the storage allocated for us by the Layer
   KeyLabelLayer* label = layer_get_data(layer);  
@@ -171,6 +168,9 @@ static KeyLabelLayer *prv_label_create(const KeyLabel *key_label, GRect frame, c
     .style = style,    
     .layer = layer,
   };
+
+  // populate layer data and set the drawing function  
+  layer_set_update_proc(layer, prv_draw_key_label);
 
   return label;
 }
