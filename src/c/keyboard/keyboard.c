@@ -34,10 +34,19 @@ Keyboard *keyboard_create(void) {
     &keyboard->state,
     &keyboard->style
   );
+  if (!keyboard->window) {
+    keyboard_destroy(keyboard);
+    return NULL;
+  }
 
   return keyboard;
 }
 
-void keyboard_destroy(Keyboard *keyboard){
+void keyboard_destroy(Keyboard *keyboard) {
+  if(keyboard->window) {
+    keyboard_window_destroy(keyboard->window);
+    keyboard->window = NULL;
+  }
+
   free(keyboard);
 }

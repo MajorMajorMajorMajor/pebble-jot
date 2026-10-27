@@ -8,10 +8,11 @@
 typedef struct KeyboardWindow KeyboardWindow; // defined in window.c
 
 KeyboardWindow *keyboard_window_create(
-  KeyboardState *keyboard_state, 
+  KeyboardState *state, 
   const UIStyle *style
 );
 
-void keyboard_window_destroy(KeyboardWindow *window);
+void keyboard_window_destroy(KeyboardWindow *self);
+Window *keyboard_window_get_window(KeyboardWindow *self);
 
-Window *keyboard_window_get_window(KeyboardWindow *keyboard_window);
+void keyboard_window_set_content_layer(KeyboardWindow *self, Layer *content_layer);

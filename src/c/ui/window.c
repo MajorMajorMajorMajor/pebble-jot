@@ -17,7 +17,7 @@
 // instead of a Window.
 struct KeyboardWindow {
   // abstract data
-  KeyboardState *keyboard_state;  
+  KeyboardState *state;  
   const UIStyle *style;
 
   // concrete UI elements
@@ -44,7 +44,7 @@ static void prv_window_load(Window *window) {
   KeyboardWindow *self = window_get_user_data(window);  
   PEBBLE_ASSERT(self);
 
-  KeyboardState *keyboard_state = self->keyboard_state;
+  KeyboardState *keyboard_state = self->state;
   
   // Build components
   Layer *root_layer = window_get_root_layer(window);
@@ -79,9 +79,9 @@ static void prv_window_load(Window *window) {
 
   // ## 2. Content Layer
 
-  // Use the content window, else fall back to a debug view
+  // Use the supplied content layer, else fall back to a debug view
   if (!self->content_layer) {
-    TextLayer* alert_layer = alert_ui_init(ui);
+    TextLayer *alert_layer = alert_ui_init(ui);
     PEBBLE_ASSERT(alert_layer);
 
     self->content_layer = text_layer_get_layer(alert_layer);
@@ -94,7 +94,7 @@ static void prv_window_load(Window *window) {
   layer_set_frame(self->content_layer, content_frame);  
 
   // add it the content layer (behind the grid)
-  layer_insert_below_sibling(grid_layer, self->content_layer);      
+  layer_insert_below_sibling(self->content_layer, grid_layer);
 }
 
 // Pebble OS invokes this when the window is destroyed, or (in the future) 
@@ -107,29 +107,28 @@ static void prv_window_unload(Window *window) {
     key_grid_destroy(self->grid); 
     self->grid = NULL;
   }
-  alert_ui_deinit();
+
+  // Don't unload the content layer, it's owned by the client app
 }
 
-KeyboardWindow *keyboard_window_create(
-    KeyboardState *keyboard_state, const UIStyle *style) {
-
+KeyboardWindow *keyboard_window_create(KeyboardState *state, const UIStyle *style) {
   // Allocate space for struct on the heap
-  KeyboardWindow *keyboard_window = malloc(sizeof *keyboard_window);
-  if(!keyboard_window) {
+  KeyboardWindow *self = malloc(sizeof *self);
+  if (!self) {
     return NULL;
   }
 
   // Create the Pebble window
   Window *window = window_create();
   if (!window) {
-    free(keyboard_window);
+    free(self);
     return NULL;
   }
   
-  // Populate static structure
-  *keyboard_window = (KeyboardWindow) {
+  // Populate data object
+  *self = (KeyboardWindow) {
     .window = window,
-    .keyboard_state = keyboard_state,
+    .state = state,
     .style = style,
 
     // populated on load
@@ -139,8 +138,8 @@ KeyboardWindow *keyboard_window_create(
     .content_layer = NULL,
   };
 
-  // Reference to the 
-  window_set_user_data(window, keyboard_window);
+  // Store reference to the data object inside the window so .load and .unload handlers can access it
+  window_set_user_data(window, self);
 
   window_set_click_config_provider(window, click_config_provider);
   window_set_window_handlers(window, (WindowHandlers) {
@@ -148,21 +147,34 @@ KeyboardWindow *keyboard_window_create(
     .unload = prv_window_unload,
   });
   
-  return keyboard_window;
+  return self;
 }
 
 // Invoked by controlling UI code to indicate that this window needs to be destroyed
-void keyboard_window_destroy(KeyboardWindow *keyboard_window) {
-  if (!keyboard_window) {
+void keyboard_window_destroy(KeyboardWindow *self) {    
+  if (!self) {
     return;
   }
 
-  window_destroy(keyboard_window->window);
-  keyboard_window->window = NULL;
+  if (self->content_layer) {        
+    // oops! Consumers should set content layer to NULL first!!
+    alert_ui_deinit();    
+  }
 
-  free(keyboard_window);
+  // destroy the window
+  window_destroy(self->window);
+  self->window = NULL;
+
+  // free thyself
+  free(self);
 }
 
-Window *keyboard_window_get_window(KeyboardWindow *keyboard_window) {
-  return keyboard_window->window;
+Window *keyboard_window_get_window(KeyboardWindow *self) {
+  return self->window;
+}
+
+void keyboard_window_set_content_layer(
+    KeyboardWindow *self, Layer *content_layer) {
+
+  return;
 }
