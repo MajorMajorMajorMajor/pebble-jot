@@ -182,8 +182,7 @@ static void prv_label_destroy(KeyLabelLayer *label) {
   }
 
   if(label->layer) {
-    layer_destroy(label->layer);
-    label->layer = NULL;
+    layer_destroy(label->layer);    
   }  
 
   // nothing to free! allocation was done by pebble's Layer
@@ -275,8 +274,7 @@ void key_button_destroy(KeyButtonLayer *button){
 
   // destroy the base layer
   if(button->base_layer) {
-    layer_destroy(button->base_layer);
-    button->base_layer = NULL;
+    layer_destroy(button->base_layer);    
   }
 
   // no need to free the button pointer, since memory was managed by the base layer
