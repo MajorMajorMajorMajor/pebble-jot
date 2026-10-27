@@ -2,6 +2,7 @@
 #include <pebble.h>
 
 // keyboard logic
+#include "common.h"
 #include "keyboard/keyboard.h"
 
 // ui controls
@@ -11,7 +12,10 @@
 
 int main(void) {
   // initialize systems
-  keyboard_init();
+  Keyboard *keyboard = keyboard_create();
+  PEBBLE_ASSERT(keyboard);
+  
+  // keyboard_init();
   ui_init();  
   touch_init();  
 
@@ -21,5 +25,5 @@ int main(void) {
   // deinitialize systems
   touch_deinit();
   ui_deinit();
-  keyboard_deinit();
+  keyboard_destroy(keyboard);  
 }

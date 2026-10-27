@@ -2,7 +2,9 @@
 
 #include "layout.h"
 
-void keyboard_init(void);
-void keyboard_deinit(void);
+typedef struct Keyboard Keyboard;
 
-LayoutId keyboard_get_active_layout_id(void);
+Keyboard *keyboard_create(void);
+void keyboard_destroy(Keyboard *keyboard);
+
+LayoutId keyboard_get_active_layout_id(const Keyboard* keyboard);
