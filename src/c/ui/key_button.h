@@ -2,11 +2,13 @@
 
 #include <pebble.h>
 
+#include "ui/style.h"
 #include "keyboard/key.h"
 
 // defined in key_button.c
-typedef struct KeyButton KeyButton;
+typedef struct KeyButtonLayer KeyButtonLayer;
 
-KeyButton *key_button_create(const Key *key, GRect frame);
-void key_button_destroy(KeyButton *button);
-Layer *key_button_get_layer(KeyButton *button);
+KeyButtonLayer *key_button_create(const Key *key, GRect frame, UIStyle *style);
+void key_button_destroy(KeyButtonLayer *button);
+
+Layer *key_button_get_layer(KeyButtonLayer *button);
