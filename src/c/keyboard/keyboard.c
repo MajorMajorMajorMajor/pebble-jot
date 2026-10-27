@@ -43,7 +43,11 @@ Keyboard *keyboard_create(void) {
 }
 
 void keyboard_destroy(Keyboard *keyboard) {
-  if(keyboard->window) {
+  if (!keyboard) {
+    return;
+  }
+  
+  if (keyboard->window) {
     keyboard_window_destroy(keyboard->window);
     keyboard->window = NULL;
   }
