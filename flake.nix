@@ -18,6 +18,7 @@
         devShell = pebble.pebbleEnv.${system} { 
           packages = [
             pkgs.llvmPackages.clang-tools
+            pkgs.cloc
           ];
         };
       }
