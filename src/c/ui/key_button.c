@@ -31,7 +31,7 @@ struct KeyButtonLayer {
 
 
 static void prv_draw_key_label(Layer *layer, GContext* ctx) {
-  const KeyLabelLayer *label = *(const KeyLabelLayer **)layer_get_data(layer);
+  const KeyLabelLayer *label = layer_get_data(layer);
 
   // paranoia; not expecting null pointers here, because layers shouldn't be generated for null labels
   if (!label || !label->key_label || label->key_label->type == KEY_LABEL_TYPE_NONE) {
@@ -153,59 +153,49 @@ static KeyLabelLayer *prv_label_create(const KeyLabel *key_label, GRect frame, c
   if (key_label->type == KEY_LABEL_TYPE_NONE) {
     return NULL;
   }
+  
 
-  // Allocate a new label layer with metadata
-  KeyLabelLayer *this = malloc(sizeof *this);
-  if(!this) {
+  // Create the underlying Layer object and allocate storage using Pebble's layer API
+  Layer* layer = layer_create_with_data(frame, sizeof(KeyLabelLayer));  // (void *) pointer to KeyLabelLayer
+  if(!layer) {    
     return NULL;
   }
+  
+  // populate layer data and set the drawing function  
+  layer_set_update_proc(layer, prv_draw_key_label);
 
-  *this = (KeyLabelLayer){
+  // Get a pointer to the storage allocated for us by the Layer
+  KeyLabelLayer* label = layer_get_data(layer);  
+  *label = (KeyLabelLayer){
     .key_label = key_label,
-    .style = style,
-
-    // populated below
-    .layer = NULL,
+    .style = style,    
+    .layer = layer,
   };
 
-  // Create the underlying Layer object
-  this->layer = layer_create_with_data(frame, sizeof(KeyLabelLayer*));
-  if(!this->layer) {
-    free(this);
-    return NULL;
-  }
-
-  // populate layer data and set the drawing function
-  *(const KeyLabelLayer **)layer_get_data(this->layer) = this;
-  layer_set_update_proc(this->layer, prv_draw_key_label);
-
-  return this;
+  return label;
 }
 
 
-// Maybe we don't need our own destroy method if it turns out that destroying
-// the base layer would automatically destroy child layers?
-//
-// @TODO: Verify this?
-static void prv_label_destroy(KeyLabelLayer *this) {
-  if(this->layer) {
-    layer_destroy(this->layer);
-  }
+static void prv_label_destroy(KeyLabelLayer *label) {
+  if(label->layer) {
+    layer_destroy(label->layer);
+  }  
 
-  free(this);
+  // nothing to free! allocation was done by pebble's Layer
 }
 
 static void prv_draw_key_background (Layer *layer, GContext *ctx){
-  const KeyButtonLayer *this = *(KeyButtonLayer **)layer_get_data(layer);
+  const KeyButtonLayer *button = layer_get_data(layer);
+  const UIStyle *style = button->style;
 
-  graphics_context_set_fill_color(ctx, this->style->key_background_color);
-  graphics_context_set_stroke_color(ctx, this->style->key_outline_color);
+  graphics_context_set_fill_color(ctx, style->key_background_color);
+  graphics_context_set_stroke_color(ctx, style->key_outline_color);
 
   GRect bounds = layer_get_bounds(layer);
-  uint16_t corner_radius = this->style->key_corner_radius;
+  uint16_t corner_radius = style->key_corner_radius;
   GCornerMask corner_mask = GCornersAll;
   graphics_fill_rect(ctx, bounds, corner_radius, corner_mask);
-  graphics_draw_round_rect(ctx, bounds, this->style->key_corner_radius);
+  graphics_draw_round_rect(ctx, bounds, style->key_corner_radius);
 }
 
 KeyButtonLayer *key_button_create(const Key *key, GRect frame, UIStyle *style) {
@@ -214,33 +204,26 @@ KeyButtonLayer *key_button_create(const Key *key, GRect frame, UIStyle *style) {
 
     int i;
 
-    // Allocate this object
-    KeyButtonLayer *this = malloc(sizeof *this);
-    if(!this) {
+    // Create a layer and allocate memory
+    Layer *base_layer = layer_create_with_data(frame, sizeof(KeyButtonLayer));
+    if (!base_layer) {      
       return NULL;
     }
-
-    *this = (KeyButtonLayer){
+    
+    // Write the button struct into layer storage
+    KeyButtonLayer *button = layer_get_data(base_layer);
+    *button = (KeyButtonLayer){
         .key = key,
         .style = style,
+        
+        .base_layer = base_layer, // link back to the base layer (that contains the memory allocation for this entire object)
 
         // dynamic objects initialized below
-        .base_layer = NULL,
         .label_layers = {0}
     };
 
-
-    // Create base layer
-    this->base_layer = layer_create_with_data(frame, sizeof(KeyButtonLayer*));
-    if (!this->base_layer) {
-      free(this);
-      return NULL;
-    }
-
-    // Configure base layer and associate with the button
-    layer_set_update_proc(this->base_layer, prv_draw_key_background);
-    *(KeyButtonLayer**)layer_get_data(this->base_layer) = this;
-
+    // Set drawing function for the button itself
+    layer_set_update_proc(button->base_layer, prv_draw_key_background);
 
     // create labels and populate .label_layers
     for (i = 0; i < KEY_LABEL_COUNT; i++) {
@@ -252,40 +235,37 @@ KeyButtonLayer *key_button_create(const Key *key, GRect frame, UIStyle *style) {
         }
 
         // create a new label layer, as big as the button's base layer
-        GRect label_frame = layer_get_bounds(this->base_layer);
-        KeyLabelLayer *new_label = prv_label_create(key_label, label_frame, style);
+        GRect label_frame = layer_get_bounds(button->base_layer);
+        KeyLabelLayer *new_label = prv_label_create(key_label, label_frame, button->style);
         PEBBLE_ASSERT(new_label);
 
         // add it to the UI hierarchy
-        layer_add_child(this->base_layer, new_label->layer);
+        layer_add_child(button->base_layer, new_label->layer);
 
         // add to new button
-        this->label_layers[key_label->slot] = new_label;
+        button->label_layers[key_label->slot] = new_label;
     }
 
-    return this;
+    return button;
 }
 
-void key_button_destroy(KeyButtonLayer *button){
-  KeyButtonLayer *this = button;
-
+void key_button_destroy(KeyButtonLayer *button){  
   // destroy label layers
   int i;
   for (i = 0; i < KEY_LABEL_COUNT; i++) {
-    if(this->label_layers[i]) {
-      prv_label_destroy(this->label_layers[i]);
-      this->label_layers[i] = NULL;
+    if(button->label_layers[i]) {
+      prv_label_destroy(button->label_layers[i]);
+      button->label_layers[i] = NULL;
     }
   }
 
   // destroy the base layer
-  if(this->base_layer) {
-    layer_destroy(this->base_layer);
-    this->base_layer = NULL;
+  if(button->base_layer) {
+    layer_destroy(button->base_layer);    
   }
 
-  // free
-  free(this);
+  // no need to free the button pointer, since memory was managed by the base layer
+  // destroyed by layer_destroy() above
 }
 
 Layer *key_button_get_layer(KeyButtonLayer *button) {
