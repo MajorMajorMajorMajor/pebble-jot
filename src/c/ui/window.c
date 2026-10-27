@@ -68,6 +68,8 @@ static void prv_window_load(Window *window) {
     ui.key_grid_size.w, 
     ui.key_grid_size.h
   );  
+
+  // TODO: Refactor key_grid to accept style
   self->grid = key_grid_create(layout, grid_frame);
   PEBBLE_ASSERT(self->grid);
   
