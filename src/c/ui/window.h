@@ -1,13 +1,17 @@
 #pragma once
 
 #include <pebble.h>
-#include "keyboard/layout.h"
 
-extern const LayoutId KB_WINDOW_LAYOUT;
+#include "ui/style.h"
+#include "keyboard/state.h"
 
 typedef struct KeyboardWindow KeyboardWindow; // defined in window.c
 
-void kb_window_init(void);
-void kb_window_deinit(void);
+KeyboardWindow *keyboard_window_create(
+  KeyboardState *keyboard_state, 
+  const UIStyle *style
+);
 
-Window *kb_window_get_window(void);
+void keyboard_window_destroy(KeyboardWindow *window);
+
+Window *keyboard_window_get_window(void);

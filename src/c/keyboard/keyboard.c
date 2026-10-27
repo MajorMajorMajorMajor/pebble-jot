@@ -1,13 +1,18 @@
 #include <pebble.h>
 
 #include "ui/style.h"
+#include "ui/window.h"
 
 #include "keyboard/layout.h"
+#include "keyboard/state.h"
+
 #include "keyboard/keyboard.h"
 
+
 struct Keyboard {
-  LayoutId active_layout_id;
+  KeyboardState state;  
   UIStyle style;
+  KeyboardWindow *window;
 };
 
 Keyboard *keyboard_create(void) {
@@ -18,18 +23,21 @@ Keyboard *keyboard_create(void) {
   }  
 
   // Set initial layout
-  keyboard->active_layout_id = LAYOUT_ENGLISH_ABC;  
+  keyboard->state = (KeyboardState){0};
+  keyboard->state.active_layout_id = LAYOUT_ENGLISH_ABC;  
 
   // Style
-  keyboard->style = get_ui_style();
+  keyboard->style = get_ui_style();  
+
+  // Window
+  keyboard->window = keyboard_window_create(
+    &keyboard->state,
+    &keyboard->style
+  );
 
   return keyboard;
 }
 
 void keyboard_destroy(Keyboard *keyboard){
   free(keyboard);
-}
-
-LayoutId keyboard_get_active_layout_id(const Keyboard* keyboard) {
-  return keyboard->active_layout_id;
 }
