@@ -79,8 +79,6 @@ static char s_typed[160];
 static size_t s_typed_len;
 static uint32_t s_typing_id;
 static int s_touch_key = -1;
-static const char *s_last_gesture;
-static const char *s_last_binding;
 static const char *const s_bindings[14][19] = {
   { "a", "", "", "-", "v", "", "$", "", "", "", "", "÷", "V", "", "¥", "", "", "7", "A" }, // a
   { "n", "^", "´", "!", "\\", "l", "/", "+", "`", "ˇ", "’", "¡", "—", "L", "–", "×", "‘", "8", "N" }, // n
