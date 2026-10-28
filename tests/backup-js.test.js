@@ -18,6 +18,15 @@ const localStorage = {
   getItem(key) { return storage[key] ?? null; },
   setItem(key, value) { storage[key] = value; }
 };
+const project = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
+const buildScript = fs.readFileSync(path.join(__dirname, '../wscript'), 'utf8');
+assert.equal(project.pebble.enableMultiJS, false,
+  'Single-file companion must not require webpack');
+assert.ok(buildScript.includes("src/js/**/*.js"),
+  'The build must bundle the src/js companion');
+assert.ok(fs.existsSync(path.join(__dirname, '../src/js/pebble-js-app.js')),
+  'Legacy companion entry point is required');
+
 const program = fs.readFileSync(
   path.join(__dirname, '../src/js/pebble-js-app.js'), 'utf8');
 vm.runInNewContext(program, {
