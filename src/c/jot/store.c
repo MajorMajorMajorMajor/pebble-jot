@@ -185,3 +185,22 @@ bool jot_store_preview(int slot, char *out, size_t capacity, time_t *created) {
   if (created) *created = (time_t)s_index[slot].timestamp;
   return true;
 }
+
+bool jot_store_export(int slot, char *out, size_t capacity, time_t *created) {
+  if (!out || capacity == 0 || slot < 0 || slot >= JOT_NOTE_CAPACITY ||
+      !s_index[slot].used) return false;
+
+  NoteRecord record;
+  const char *text = s_text;
+  size_t length = s_length;
+  if (slot != s_active_slot) {
+    if (!prv_read(slot, &record)) return false;
+    text = record.text;
+    length = record.length;
+  }
+
+  if (length + 1 > capacity) return false;
+  memcpy(out, text, length + 1);
+  if (created) *created = (time_t)s_index[slot].timestamp;
+  return true;
+}
