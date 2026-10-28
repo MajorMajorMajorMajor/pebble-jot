@@ -1,59 +1,53 @@
-# Jot 0.1 — Pebble quick capture
+# Jot — detailed behavior and developer notes
 
-First Pebble on-watch note-taking app built on the `mobile-gestures` keyboard.
-Gesture recognition and bindings are carried over, including CW digits 0–9.
+Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagEase-inspired touchscreen gesture keyboard. The main [README](README.md) is the best starting point.
 
-## Controls
+## Current controls
 
-* Launch **Jot**: immediately opens a blank writing surface. No launch menu.
-* Type with existing taps, swipes, eight drag-and-returns, and CW/CCW circles.
-* **Select (short press)**: save the current note and start a new one.
-* **Up or Down**: open the notes list; **KB corner tap** also opens it.
-* In the list: Up/Down browse, Select edits a selected note, Back returns.
-* Hold Select on a list entry to request deletion. Select confirms, Back cancels.
-* **Back from editor**: exits; saves pending note on orderly app shutdown.
-* Hold Select in the editor for ~1.2 s to access the old diagnostic menu
-  (Typing / Trace), if you need to continue gesture experiments.
+- **Launch:** go directly to a blank editor.
+- **Editor Select:** save this note and start a new one.
+- **Editor Up / Down or KB touch target:** show saved notes.
+- **Editor Back:** exit, saving pending changes during normal shutdown.
+- **Editor long Select (~1.2 s):** open the inherited typing/trace diagnostic menu.
+- **Notes list Up / Down:** browse saved notes.
+- **Notes list Select:** open a note for editing.
+- **Notes list long Select:** begin a two-step delete; Select confirms and Back cancels.
+- **Notes list Back:** return to the editor.
 
-## Persistence
+The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
-Notes are stored in the watch app's Pebble persistent storage. The app
-has a deliberately bounded capacity of **16 notes**, each up to **159 UTF-8
-bytes** (not characters). At capacity it refuses to create another note;
-**it does not overwrite an old one**. Notes are written after ~1.8 seconds
-without new typing, and also when entering the list, starting a new note,
-or leaving the app normally. A `*` after JOT indicates an unsaved change.
-`SAVE ERROR` indicates Pebble storage has not accepted a write.
+## Persistence and limitations
 
-This app has a **different UUID** from the typing-test harness. It can be
-installed alongside the original app, but **its notes are stored separately**.
-Uninstalling Jot removes those local notes. Phone sync/export is not yet
-implemented; don't store irreplaceable information in this experimental build.
+The app stores notes in Pebble's per-app persistent storage, currently capped at **16 notes** of **159 UTF-8 bytes** each. A note's byte count may differ from its character count. The app refuses to allocate a seventeenth note instead of silently overwriting existing notes.
 
-## Apply
+A pending change is indicated by `JOT *`. Autosave fires approximately 1.8 seconds after the last edit, and saves are also attempted at navigation boundaries. `SAVE ERROR` means a write was not accepted; do not assume the affected note is safely stored. Note order is newest-first.
 
-From the repository's `mobile-gestures` branch, after fetching the patch:
+**No backup/export or phone synchronization exists yet.** The watch stores notes locally, and uninstalling Jot may delete them. Avoid irreplaceable notes during development.
+
+## Development and verification
+
+The initial Jot app has been compiled, installed, and photographed working on real Pebble hardware, including the writing screen and notes list. This confirms those visible screens and text entry run on-device, **not** that all storage edge cases or gesture classes have been thoroughly hardware-tested.
+
+From the repository root:
 
 ```sh
-git apply --check /storage/emulated/0/Download/jot-v0.1.patch
-git apply /storage/emulated/0/Download/jot-v0.1.patch
 pebble build
+pebble install --emulator emery
 ```
 
-The patch was generated against the uploaded `typing-source.tar.gz` plus
-`typing-mode-integrated`, `gesture-classifier-calibrated`,
-`trace-harness-responsive`, `trace-export-status`, and
-`circle-tuning-numbers` changes. If the branch has diverged, please use
-`git apply --check` before modifying anything. Do not force-apply.
+Use your configured watch-install procedure for hardware tests. The primary platform in `package.json` is currently `emery`.
 
-## First device test
+Relevant modules:
 
-1. Launch Jot from the app menu or assigned quick-launch button.
-2. Write a short phrase with at least one CW digit, wait for `*` to disappear.
-3. Press Select, write a second phrase, then press Up.
-4. Open the earlier note, edit it, exit the app, relaunch and verify it remains.
-5. Confirm delete requires a second action, and the original typing app
-   remains installed separately.
+- `src/c/jot/jot.c` — editor/list interface, autosave, navigation.
+- `src/c/jot/store.c` and `store.h` — local note persistence.
+- `src/c/keyboard/` — gesture bindings and keyboard state.
+- `src/c/ui/touch.c` — gesture recording and recognition.
 
-Build / runtime status: host storage tests passed; Pebble SDK compilation and
-on-device testing have **not** yet been performed.
+## Roadmap
+
+1. A robust phone-side export/backup path before treating notes as dependable storage.
+2. Device testing of note persistence, full capacity, relaunch, and deletion.
+3. Refinement of Jot's visual identity without reducing keyboard touch targets.
+
+The earlier `jot-v0.1.patch` instructions are historical; this repository now contains the Jot source directly. Simply pull and build the branch.
