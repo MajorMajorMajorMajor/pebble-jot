@@ -22,3 +22,6 @@ bool jot_store_delete(int slot);
 int jot_store_slot_at(int rank);
 // Reads a note preview and timestamp from persistence or the active buffer.
 bool jot_store_preview(int slot, char *out, size_t capacity, time_t *created);
+// Reads full note text and its timestamp, including the active buffer.
+// Call jot_store_flush() before starting a consistent export.
+bool jot_store_export(int slot, char *out, size_t capacity, time_t *created);
