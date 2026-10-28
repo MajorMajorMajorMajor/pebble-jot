@@ -7,7 +7,7 @@
 // emitting APP_LOG messages inside the callback would disturb touch timing.
 enum {
   TRACE_MAX_EVENTS = 1024, TRACE_MAX_STROKES = 128,
-  FEEDBACK_DELAY_MS = 100, TRACE_PACK_EVENTS = 7,
+  FEEDBACK_DELAY_MS = 100, TRACE_PACK_EVENTS = 6,
   TRACE_LOG_LINES_PER_TICK = 4, TRACE_LOG_QUEUE_LIMIT = 3
 };
 
@@ -137,6 +137,10 @@ typedef struct TraceDump {
 static TraceDump *s_dump_head, *s_dump_tail;
 static uint8_t s_dump_count;
 static AppTimer *s_dump_timer;
+// An export is complete only after TRACE_END has been emitted for its trial.
+// This is a watch-side indicator, not an acknowledgement from the phone.
+static uint32_t s_last_exported_trial_id;
+static uint32_t s_failed_export_trial_id;
 
 static bool s_touch_enabled;
 static bool s_recording;
@@ -166,8 +170,19 @@ static const char *prv_event_name(TouchEventType type) {
 
 static void prv_show_prompt(void) {
   char prompt[80];
-  snprintf(prompt, sizeof prompt, "Trace %s\nUp:type Down:dir Sel:rec",
-           prv_trace_label());
+  if (s_dump_count) {
+    snprintf(prompt, sizeof prompt, "Trace %s\nExporting %u trial(s)...",
+             prv_trace_label(), (unsigned)s_dump_count);
+  } else if (s_failed_export_trial_id) {
+    snprintf(prompt, sizeof prompt, "Trace %s\nEXPORT FAILED #%lu",
+             prv_trace_label(), (unsigned long)s_failed_export_trial_id);
+  } else if (s_last_exported_trial_id) {
+    snprintf(prompt, sizeof prompt, "Trace %s\nReady (trial #%lu)",
+             prv_trace_label(), (unsigned long)s_last_exported_trial_id);
+  } else {
+    snprintf(prompt, sizeof prompt, "Trace %s\nUp:type Down:dir Sel:rec",
+             prv_trace_label());
+  }
   alert_set_text(prompt);
 }
 
@@ -269,8 +284,30 @@ static void prv_show_typed(void) {
 }
 
 static void prv_show_menu(void) {
-  alert_set_text(s_menu_selection ? "Mode: Trace\nUp/Down:choose Select:go" :
-                                    "Mode: Typing\nUp/Down:choose Select:go");
+  char prompt[80];
+  const char *mode = s_menu_selection ? "Trace" : "Typing";
+  if (s_dump_count) {
+    snprintf(prompt, sizeof prompt, "Mode: %s\nExporting %u trial(s)...",
+             mode, (unsigned)s_dump_count);
+  } else if (s_failed_export_trial_id) {
+    snprintf(prompt, sizeof prompt, "Mode: %s\nEXPORT FAILED #%lu",
+             mode, (unsigned long)s_failed_export_trial_id);
+  } else if (s_last_exported_trial_id) {
+    snprintf(prompt, sizeof prompt, "Mode: %s\nReady (trial #%lu)",
+             mode, (unsigned long)s_last_exported_trial_id);
+  } else {
+    snprintf(prompt, sizeof prompt, "Mode: %s\nUp/Down:choose Select:go",
+             mode);
+  }
+  alert_set_text(prompt);
+}
+
+// Refresh only at state changes, not on every log line: repaints during
+// export would compete with the logger and defeat the responsiveness fix.
+static void prv_show_export_status(void) {
+  if (s_recording) return;
+  if (s_mode == MODE_TRACE) prv_show_prompt();
+  else if (s_mode == MODE_MENU) prv_show_menu();
 }
 
 static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
@@ -576,10 +613,13 @@ static void prv_export_tick(void *context) {
       APP_LOG(APP_LOG_LEVEL_INFO, "TRACE_END,%lu,%u,%lu",
               (unsigned long)d->id, (unsigned)d->event_count,
               (unsigned long)d->event_overflow);
+      s_last_exported_trial_id = d->id;
       s_dump_head = d->next;
       if (!s_dump_head) s_dump_tail = NULL;
       --s_dump_count;
       prv_free_dump(d);
+      // "Ready" appears only after the queue has drained through TRACE_END.
+      prv_show_export_status();
     }
     ++emitted;
   }
@@ -592,19 +632,17 @@ static void prv_finish_trial(void) {
   s_stroke.active = false;
 
   const bool queued = prv_queue_trial();
-  char message[80];
   if (queued) {
-    snprintf(message, sizeof message, "%s %s: %u events\nSaved; Select:again",
-             s_trial_key >= 0 ? s_keys[s_trial_key] : "NONE",
-             prv_trace_label(), (unsigned)s_event_count);
+    // The trial is only queued here; it has not yet reached TRACE_END.
+    prv_show_export_status();
     prv_schedule_export();
   } else {
-    // Never pretend data was exported if the copy could not be allocated.
+    // Never display Ready after an allocation failure: the sample was lost.
+    s_failed_export_trial_id = s_trial_id;
     APP_LOG(APP_LOG_LEVEL_ERROR, "TRACE_QUEUE_FAILED,%lu,%u",
             (unsigned long)s_trial_id, (unsigned)s_event_count);
-    snprintf(message, sizeof message, "Export memory full\nTrial NOT saved");
+    prv_show_export_status();
   }
-  alert_set_text(message);
 }
 
 void touch_recorder_select(void) {
@@ -629,6 +667,9 @@ void touch_recorder_select(void) {
     prv_schedule_export();
     return;
   }
+  // Starting a new trial acknowledges any earlier export allocation error.
+  // The old trial cannot be recovered, but future successes can show Ready.
+  s_failed_export_trial_id = 0;
   ++s_trial_id;
   s_trial_key = -1;
   s_trial_key_set = false;
