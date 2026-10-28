@@ -44,9 +44,39 @@ Relevant modules:
 - `src/c/keyboard/` — gesture bindings and keyboard state.
 - `src/c/ui/touch.c` — gesture recording and recognition.
 
+## Phone backup — experimental (v0.2)
+
+The watch-to-phone transfer is **manual and non-destructive**. Jot retains its notes on the watch.
+
+1. Launch Jot, press **Up** or **Down** to open the notes list.
+2. **Hold Up for about one second**. Watch for `Exporting X/Y` and then **`Phone copy saved`**. That final message means the Pebble phone companion has confirmed writing the entire snapshot to its own `localStorage`; it does **not** mean you've saved a file elsewhere on the phone.
+3. In the Pebble phone app, find **Jot → Settings** (the gear icon). The read-only Jot backup page shows your most recent transferred notes.
+4. Use **Copy notes** or **Select all** and paste into a permanent notes app or file. **Save .txt** and **Save .json** are also offered, though some in-app webviews may not support downloads.
+
+If the watch says `Phone not responding` or `Phone save failed`, the previous complete phone snapshot is kept. Retry when connected. If you cancel midway, no partial snapshot overwrites the previous one. You may need to close and reopen the Jot settings page to see newly transferred notes.
+
+### One-time GitHub Pages setup
+
+The companion's read-only export viewer is at
+`https://majormajormajormajor.github.io/pebble-jot/export.html`.
+
+For that link to work, the repository owner must enable **GitHub Pages** in
+**Settings → Pages → Build and deployment → Deploy from a branch**, choose
+**main** and **/docs**, then save. This is one-time hosting of the *empty
+static viewer*, not hosting any note data. Until Pages is enabled and
+published, the watch-to-phone transfer can work but the viewer won't open.
+
+### Privacy / durability
+
+- No Jot backend receives the notes. The Pebble phone companion stores a single latest complete snapshot in its own local storage. It can be erased by resetting the companion app or its storage.
+- When opening the viewer, the snapshot is carried in the URL **fragment** (after `#`), which is not included in HTTP requests for the page. The viewer clears the fragment after reading it. Nonetheless, a copied URL, screenshots, or browser history could expose the notes. **Do not share the export URL.**
+- The static page has no trackers or external scripts; the page's HTML is public but your notes are not committed to GitHub.
+- This is a **manual snapshot**, not ongoing background sync. Re-export after editing notes, and copy to a separate permanent location before relying on it as a backup.
+- AppMessage and the new phone viewer require on-device testing. The source has been implemented but a successful phone transfer is not yet verified.
+
 ## Roadmap
 
-1. A robust phone-side export/backup path before treating notes as dependable storage.
+1. Verify end-to-end phone backup and export on real hardware (including Unicode, disconnects and failure recovery).
 2. Device testing of note persistence, full capacity, relaunch, and deletion.
 3. Refinement of Jot's visual identity without reducing keyboard touch targets.
 
