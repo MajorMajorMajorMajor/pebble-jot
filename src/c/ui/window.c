@@ -194,6 +194,8 @@ static void prv_detach_content_layer(KeyboardWindow *self) {
   }
 }
 
+// Resizes the supplied layer with layer_set_frame to fit into the content area of the keyboard window.
+// Before destroying the layer, be sure to detach it by setting the keyboard content layer to NULL.
 void keyboard_window_set_content_layer(KeyboardWindow *self, Layer *content_layer) {
   // first, let's check if the content layer is being unset
   if (content_layer != self->content_layer) {    
