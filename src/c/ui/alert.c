@@ -20,7 +20,7 @@ TextLayer* alert_ui_init(GRect frame){
 
     text_layer_set_text(s_textbox, s_text);
     text_layer_set_text_alignment(s_textbox, GTextAlignmentLeft);
-    text_layer_set_background_color(s_textbox, GColorYellow);
+    text_layer_set_background_color(s_textbox, GColorFromRGB(255, 214, 109));
     
     alert_set_text("Input text");    
 

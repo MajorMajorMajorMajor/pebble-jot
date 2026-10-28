@@ -14,8 +14,14 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context)
   touch_recorder_next_direction();
 }
 
+static void prv_select_long_handler(ClickRecognizerRef recognizer, void *context) {
+  touch_enter_harness();
+}
+
 void click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
+  window_long_click_subscribe(BUTTON_ID_SELECT, 1200,
+                              prv_select_long_handler, NULL);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler); 
 }

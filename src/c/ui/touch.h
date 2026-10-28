@@ -7,3 +7,6 @@ void touch_deinit(void);
 void touch_recorder_select(void);
 void touch_recorder_next_type(void);
 void touch_recorder_next_direction(void);
+
+// Long-select from Jot: retain the previous diagnostic harness.
+void touch_enter_harness(void);

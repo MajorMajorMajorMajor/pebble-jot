@@ -2,6 +2,7 @@
 
 #include "ui/alert.h"
 #include "ui/touch.h"
+#include "jot/jot.h"
 
 // Temporary on-device trace recorder. Nothing is logged while a trial is running:
 // emitting APP_LOG messages inside the callback would disturb touch timing.
@@ -71,8 +72,8 @@ static const char *const s_gestures[] = {
   "CW", "CCW"
 };
 
-typedef enum { MODE_MENU, MODE_TRACE, MODE_TYPING } InputMode;
-static InputMode s_mode = MODE_MENU;
+typedef enum { MODE_MENU, MODE_TRACE, MODE_TYPING, MODE_JOT } InputMode;
+static InputMode s_mode = MODE_JOT;
 static int s_menu_selection;
 static char s_typed[160];
 static size_t s_typed_len;
@@ -398,7 +399,7 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
           if (strcmp(direction, dirs[i]) == 0) { direction = returns[i]; break; }
         }
       }
-      if (s_summary_count < TRACE_MAX_STROKES) {
+      if (s_mode == MODE_TRACE && s_summary_count < TRACE_MAX_STROKES) {
         s_summaries[s_summary_count++] = (StrokeSummary) {
           .duration_ms = now_ms - s_stroke.start_ms,
           .right = right, .left = left, .down = down, .up = up,
@@ -412,11 +413,11 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
           .reversal_dot = reversal_dot,
           .key_index = s_touch_key
         };
-      } else {
+      } else if (s_mode == MODE_TRACE) {
         ++s_summary_overflow;
       }
 
-      snprintf(s_feedback_text, sizeof s_feedback_text,
+      if (s_mode == MODE_TRACE) snprintf(s_feedback_text, sizeof s_feedback_text,
                "~%s %lums\nX%c%d Y%c%d (%u upd)",
                direction,
                (unsigned long)(now_ms - s_stroke.start_ms),
@@ -425,7 +426,7 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
                s_stroke.move_count);
 
       s_stroke.active = false;
-      if (s_mode == MODE_TYPING) {
+      if (s_mode == MODE_TYPING || s_mode == MODE_JOT) {
         int gesture_index = -1;
         for (unsigned i = 0; i < sizeof s_gestures / sizeof s_gestures[0]; ++i) {
           if (strcmp(direction, s_gestures[i]) == 0) { gesture_index = (int)i; break; }
@@ -433,6 +434,12 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
         if (strcmp(direction, "STILL") == 0) gesture_index = 0;
         const char *binding = (s_touch_key >= 0 && gesture_index >= 0) ?
                               s_bindings[s_touch_key][gesture_index] : "";
+        if (s_mode == MODE_JOT) {
+          // The KB corner is also a convenient touch shortcut to note history.
+          if (s_touch_key == 13 && gesture_index == 0) jot_show_list();
+          else jot_input(binding);
+          break;
+        }
         APP_LOG(APP_LOG_LEVEL_INFO, "TYPE,%lu,%s,%s,%s,%lu,%u,%d,%d,%d,%d,%lu,%ld,%d,%d,%ld,%ld",
                 (unsigned long)++s_typing_id,
                 s_touch_key >= 0 ? s_keys[s_touch_key] : "NONE", direction,
@@ -468,13 +475,14 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
 }
 
 static void prv_touch_handler(const TouchEvent *event, void *context) {
-  if ((s_mode == MODE_TRACE && !s_recording) || s_mode == MODE_MENU || !event) {
+  if ((s_mode == MODE_TRACE && !s_recording) || s_mode == MODE_MENU ||
+      (s_mode == MODE_JOT && jot_list_is_open()) || !event) {
     return;
   }
 
   const uint32_t now_ms = prv_now_ms();
 
-  if (s_mode == MODE_TYPING) {
+  if (s_mode == MODE_TYPING || s_mode == MODE_JOT) {
     prv_update_stroke(event, now_ms);
     return;
   }
@@ -662,6 +670,7 @@ void touch_recorder_select(void) {
     return;
   }
   if (s_mode == MODE_TYPING) { s_mode = MODE_MENU; prv_show_menu(); return; }
+  if (s_mode == MODE_JOT) { jot_new_note(); return; }
   if (!s_touch_enabled) {
     return;
   }
@@ -700,6 +709,7 @@ void touch_recorder_select(void) {
 void touch_recorder_next_type(void) {
   if (s_mode == MODE_MENU) { s_menu_selection = 1 - s_menu_selection; prv_show_menu(); return; }
   if (s_mode == MODE_TYPING) return;
+  if (s_mode == MODE_JOT) { jot_show_list(); return; }
   if (s_recording || !s_touch_enabled) return;
   s_trace_family = (s_trace_family + 1) % 4;
   s_trace_choice = 0;
@@ -709,12 +719,21 @@ void touch_recorder_next_type(void) {
 void touch_recorder_next_direction(void) {
   if (s_mode == MODE_MENU) { s_menu_selection = 1 - s_menu_selection; prv_show_menu(); return; }
   if (s_mode == MODE_TYPING) return;
+  if (s_mode == MODE_JOT) { jot_show_list(); return; }
   if (s_recording || !s_touch_enabled) return;
   s_trace_choice = (s_trace_choice + 1) % s_trace_choices[s_trace_family];
   prv_show_prompt();
 }
 
+void touch_enter_harness(void) {
+  if (s_mode != MODE_JOT || jot_list_is_open()) return;
+  jot_save_now();
+  s_mode = MODE_MENU;
+  prv_show_menu();
+}
+
 void touch_init(void) {
+  jot_init();
   s_touch_enabled = touch_service_is_enabled();
   if (!s_touch_enabled) {
     alert_set_text("Enable touchscreen in Settings to record traces.");
@@ -722,10 +741,11 @@ void touch_init(void) {
   }
 
   touch_service_subscribe(prv_touch_handler, NULL);
-  prv_show_menu();
+  jot_refresh_editor();
 }
 
 void touch_deinit(void) {
+  jot_deinit();
   prv_cancel_feedback();
   if (s_touch_enabled) {
     touch_service_unsubscribe();

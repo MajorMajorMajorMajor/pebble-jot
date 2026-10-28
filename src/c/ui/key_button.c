@@ -12,6 +12,7 @@
 struct KeyLabelLayer {
   const KeyLabel *key_label;
   const UIStyle *style;
+  const Key *key;
 
   Layer *layer;
 };
@@ -40,6 +41,10 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
 
   const KeyLabel* key_label = label->key_label;
   const UIStyle* style = label->style;
+  const bool special = label->key == get_key(KEY_ENGLISH_MENU) ||
+                       label->key == get_key(KEY_ENGLISH_123) ||
+                       label->key == get_key(KEY_ENGLISH_BACKSPACE) ||
+                       label->key == get_key(KEY_ENGLISH_RETURN);
 
   
   // APP_LOG(APP_LOG_LEVEL_DEBUG, "Drawing key label %p (%d: %s)", key_label, key_label->type, key_label->text);
@@ -75,7 +80,7 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
           const UIFont *ui_font;
           ui_font = style->label_center_font;
           text_font = ui_font->gfont;
-          text_color = style->label_center_color;
+          text_color = special ? GColorWhite : style->label_center_color;
 
           GSize text_size = graphics_text_layout_get_content_size(
             text, ui_font->gfont, box, text_overflow_mode, text_alignment);
@@ -94,7 +99,7 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
           const UIFont *ui_font;
           ui_font = style->label_peripheral_font;
           text_font = ui_font->gfont;
-          text_color = style->label_peripheral_color;
+          text_color = special ? GColorWhite : style->label_peripheral_color;
 
           GSize text_size = graphics_text_layout_get_content_size(
             text, ui_font->gfont, box, text_overflow_mode, text_alignment);
@@ -113,7 +118,7 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
           const UIFont *ui_font;
           ui_font = style->label_peripheral_font;
           text_font = ui_font->gfont;
-          text_color = style->label_peripheral_color;
+          text_color = special ? GColorWhite : style->label_peripheral_color;
 
           GSize text_size = graphics_text_layout_get_content_size(
             text, ui_font->gfont, box, text_overflow_mode, text_alignment);
@@ -148,7 +153,8 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
 }
 
 
-static KeyLabelLayer *prv_label_create(const KeyLabel *key_label, GRect frame, const UIStyle *style){
+static KeyLabelLayer *prv_label_create(const KeyLabel *key_label, const Key *key,
+                                       GRect frame, const UIStyle *style){
   // No label, no layer
   if (key_label->type == KEY_LABEL_TYPE_NONE) {
     return NULL;
@@ -165,7 +171,8 @@ static KeyLabelLayer *prv_label_create(const KeyLabel *key_label, GRect frame, c
   KeyLabelLayer* label = layer_get_data(layer);  
   *label = (KeyLabelLayer){
     .key_label = key_label,
-    .style = style,    
+    .style = style,
+    .key = key,
     .layer = layer,
   };
 
@@ -192,7 +199,14 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   const KeyButtonLayer *button = layer_get_data(layer);
   const UIStyle *style = button->style;
 
-  graphics_context_set_fill_color(ctx, style->key_background_color);
+  const bool special = button->key == get_key(KEY_ENGLISH_MENU) ||
+                       button->key == get_key(KEY_ENGLISH_123) ||
+                       button->key == get_key(KEY_ENGLISH_BACKSPACE) ||
+                       button->key == get_key(KEY_ENGLISH_RETURN);
+  const bool space = button->key == get_key(KEY_ENGLISH_SPACEBAR);
+  graphics_context_set_fill_color(ctx,
+      special ? GColorDarkGray :
+      space ? GColorFromRGB(255, 209, 88) : style->key_background_color);
   graphics_context_set_stroke_color(ctx, style->key_outline_color);
 
   GRect bounds = layer_get_bounds(layer);
@@ -240,7 +254,7 @@ KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *st
 
         // create a new label layer, as big as the button's base layer
         GRect label_frame = layer_get_bounds(button->base_layer);
-        KeyLabelLayer *new_label = prv_label_create(key_label, label_frame, button->style);
+        KeyLabelLayer *new_label = prv_label_create(key_label, button->key, label_frame, button->style);
         if (!new_label){
           // safe to call destroy on partially initialized button, because the destructor
           // skips null pointers and we initialized .label_layers to {0}
