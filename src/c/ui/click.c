@@ -7,11 +7,11 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *contex
 }
 
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  touch_recorder_next_key();
+  touch_recorder_next_type();
 }
 
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  touch_recorder_next_gesture();
+  touch_recorder_next_direction();
 }
 
 void click_config_provider(void *context) {

@@ -5,7 +5,11 @@
 
 // Temporary on-device trace recorder. Nothing is logged while a trial is running:
 // emitting APP_LOG messages inside the callback would disturb touch timing.
-enum { TRACE_MAX_EVENTS = 1024, TRACE_MAX_STROKES = 128, FEEDBACK_DELAY_MS = 100 };
+enum {
+  TRACE_MAX_EVENTS = 1024, TRACE_MAX_STROKES = 128,
+  FEEDBACK_DELAY_MS = 100, TRACE_PACK_EVENTS = 7,
+  TRACE_LOG_LINES_PER_TICK = 4, TRACE_LOG_QUEUE_LIMIT = 3
+};
 
 typedef struct {
   uint32_t elapsed_ms;
@@ -32,6 +36,11 @@ typedef struct {
   int16_t prev_dx, prev_dy;
   int32_t signed_turn;
   uint16_t turn_steps;
+  // Peak radial displacement and the origin-anchored signed polygon area.
+  // Both accumulate with constant memory, including after trace-buffer overflow.
+  int16_t peak_dx, peak_dy;
+  uint32_t peak_sq;
+  int32_t signed_area2;
 } StrokeStats;
 
 typedef struct {
@@ -43,6 +52,9 @@ typedef struct {
   int16_t end_dx, end_dy;
   int32_t signed_turn;
   uint16_t turn_steps;
+  int16_t peak_dx, peak_dy;
+  int32_t signed_area2;
+  int32_t reversal_dot;
   int8_t key_index;
 } StrokeSummary;
 
@@ -89,8 +101,43 @@ static size_t s_event_count;
 static uint32_t s_overflow_count;
 static uint32_t s_trial_id;
 static uint32_t s_trial_start_ms;
-static size_t s_key_index;
-static size_t s_gesture_index;
+// Trace mode selectors are independent of the detected starting key.
+// 0: Tap/Hold (2), 1: Swipe (8), 2: Return (8), 3: Circle (2).
+static uint8_t s_trace_family;
+static uint8_t s_trace_choice;
+static int s_trial_key = -1;
+static bool s_trial_key_set;
+static const uint8_t s_trace_choices[] = { 2, 8, 8, 2 };
+static const char *const s_trace_labels[4][8] = {
+  { "TAP", "HOLD" },
+  { "UP", "UP_RIGHT", "RIGHT", "DOWN_RIGHT", "DOWN", "DOWN_LEFT", "LEFT", "UP_LEFT" },
+  { "RETURN_UP", "RETURN_UP_RIGHT", "RETURN_RIGHT", "RETURN_DOWN_RIGHT",
+    "RETURN_DOWN", "RETURN_DOWN_LEFT", "RETURN_LEFT", "RETURN_UP_LEFT" },
+  { "CW", "CCW" }
+};
+
+static const char *prv_trace_label(void) {
+  return s_trace_labels[s_trace_family][s_trace_choice];
+}
+
+// Immutable snapshot queued on stop. A new trial can use s_events immediately,
+// while timer callbacks export the previous one without blocking button clicks.
+typedef struct TraceDump {
+  struct TraceDump *next;
+  uint32_t id;
+  int key;
+  const char *label;
+  size_t event_count, stroke_count;
+  uint32_t event_overflow, stroke_overflow;
+  size_t event_pos, stroke_pos;
+  uint8_t phase;
+  TraceEvent *events;
+  StrokeSummary *strokes;
+} TraceDump;
+static TraceDump *s_dump_head, *s_dump_tail;
+static uint8_t s_dump_count;
+static AppTimer *s_dump_timer;
+
 static bool s_touch_enabled;
 static bool s_recording;
 static StrokeStats s_stroke;
@@ -119,8 +166,8 @@ static const char *prv_event_name(TouchEventType type) {
 
 static void prv_show_prompt(void) {
   char prompt[80];
-  snprintf(prompt, sizeof prompt, "%s %s\nUp:key Down:dir Select:rec",
-           s_keys[s_key_index], s_gestures[s_gesture_index]);
+  snprintf(prompt, sizeof prompt, "Trace %s\nUp:type Down:dir Sel:rec",
+           prv_trace_label());
   alert_set_text(prompt);
 }
 
@@ -147,13 +194,21 @@ static void prv_include_position(int16_t x, int16_t y) {
   if (y > s_stroke.max_y) s_stroke.max_y = y;
 }
 
-static const char *prv_direction(int dx, int dy) {
+static const char *prv_direction(int dx, int dy, int key_index) {
   const int ax = dx < 0 ? -dx : dx;
   const int ay = dy < 0 ? -dy : dy;
 
   if (ax == 0 && ay == 0) return "STILL";
-  // Call a direction diagonal if both axes contribute substantially.
-  if (ax && ay && (ax < ay ? ax * 4 >= ay : ay * 4 >= ax)) {
+  // At the physical edge, the outward component is compressed by the screen.
+  // Keep central-key diagonals strict to avoid classifying drift as a diagonal.
+  int diagonal_ratio = 4;
+  if ((dx > 0 && (key_index == 2 || key_index == 5 || key_index == 8)) ||
+      (dx < 0 && (key_index == 10 || key_index == 11 ||
+                  key_index == 12 || key_index == 13))) {
+    diagonal_ratio = 8;
+  }
+  if (ax && ay && (ax < ay ? ax * diagonal_ratio >= ay :
+                             ay * diagonal_ratio >= ax)) {
     if (dy < 0) return dx < 0 ? "UP_LEFT" : "UP_RIGHT";
     return dx < 0 ? "DOWN_LEFT" : "DOWN_RIGHT";
   }
@@ -164,6 +219,19 @@ static const char *prv_direction(int dx, int dy) {
 static void prv_track_position(int16_t x, int16_t y) {
   int dx = x - s_stroke.last_x;
   int dy = y - s_stroke.last_y;
+  const int old_x = s_stroke.last_x - s_stroke.start_x;
+  const int old_y = s_stroke.last_y - s_stroke.start_y;
+  const int rel_x = x - s_stroke.start_x;
+  const int rel_y = y - s_stroke.start_y;
+  const uint32_t radial_sq = (uint32_t)(rel_x * rel_x + rel_y * rel_y);
+  if (radial_sq > s_stroke.peak_sq) {
+    s_stroke.peak_sq = radial_sq;
+    s_stroke.peak_dx = rel_x;
+    s_stroke.peak_dy = rel_y;
+  }
+  // Twice the signed area swept around touchdown (shoelace formula).
+  // On screen coordinates, positive means clockwise.
+  s_stroke.signed_area2 += (int32_t)old_x * rel_y - (int32_t)old_y * rel_x;
   s_stroke.path_length += (uint32_t)(dx < 0 ? -dx : dx)
                         + (uint32_t)(dy < 0 ? -dy : dy);
   if (dx || dy) {
@@ -210,6 +278,11 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
     case TouchEvent_Touchdown:
       prv_cancel_feedback();
       s_touch_key = prv_key_at(event->x, event->y);
+      // Assign the trial key from its first touchdown, not the button selector.
+      if (s_mode == MODE_TRACE && !s_trial_key_set) {
+        s_trial_key = s_touch_key;
+        s_trial_key_set = true;
+      }
       s_stroke = (StrokeStats) {
         .active = true,
         .start_ms = now_ms,
@@ -235,41 +308,48 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
       if (!s_stroke.active) return;
       prv_track_position(event->x, event->y);
 
-      // Signed maximum excursion from touchdown, not merely the final delta.
+      // Extrema remain useful diagnostics, but the outward direction comes
+      // from the farthest point, not a combination of unrelated axis extrema.
       const int right = s_stroke.max_x - s_stroke.start_x;
       const int left = s_stroke.start_x - s_stroke.min_x;
       const int down = s_stroke.max_y - s_stroke.start_y;
       const int up = s_stroke.start_y - s_stroke.min_y;
-      const int dx = right >= left ? right : -left;
-      const int dy = down >= up ? down : -up;
-
+      const int dx = s_stroke.peak_dx;
+      const int dy = s_stroke.peak_dy;
       const int end_dx = event->x - s_stroke.start_x;
       const int end_dy = event->y - s_stroke.start_y;
-      const int return_distance = (end_dx < 0 ? -end_dx : end_dx)
-                                + (end_dy < 0 ? -end_dy : end_dy);
-      const int excursion = (right > left ? right : left)
-                          + (down > up ? down : up);
-      const char *direction = prv_direction(dx, dy);
-      // Provisional shape heuristics; keep raw features for calibration.
-      // Screen Y increases downward: positive turning is clockwise.
-      if (excursion >= 16 && return_distance <= 8 &&
-          s_stroke.path_length >= (uint32_t)(excursion * 2)) {
-        if (s_stroke.turn_steps >= 5 &&
-            s_stroke.signed_turn >= 4) direction = "CW";
-        else if (s_stroke.turn_steps >= 5 &&
-                 s_stroke.signed_turn <= -4) direction = "CCW";
-        else {
-          static const char *const returns[8] = {
-            "RETURN_UP", "RETURN_UP_RIGHT", "RETURN_RIGHT", "RETURN_DOWN_RIGHT",
-            "RETURN_DOWN", "RETURN_DOWN_LEFT", "RETURN_LEFT", "RETURN_UP_LEFT"
-          };
-          const char *outward = prv_direction(dx, dy);
-          static const char *const dirs[8] = {
-            "UP", "UP_RIGHT", "RIGHT", "DOWN_RIGHT", "DOWN", "DOWN_LEFT", "LEFT", "UP_LEFT"
-          };
-          for (unsigned i = 0; i < 8; ++i) {
-            if (strcmp(outward, dirs[i]) == 0) { direction = returns[i]; break; }
-          }
+      const int peak_major = (dx < 0 ? -dx : dx) > (dy < 0 ? -dy : dy) ?
+                             (dx < 0 ? -dx : dx) : (dy < 0 ? -dy : dy);
+      const int32_t reversal_dot = (int32_t)s_stroke.peak_sq -
+                                   (int32_t)end_dx * dx - (int32_t)end_dy * dy;
+      const int width = s_stroke.max_x - s_stroke.min_x;
+      const int height = s_stroke.max_y - s_stroke.min_y;
+      const int min_span = width < height ? width : height;
+      const int max_span = width > height ? width : height;
+      const int32_t area_abs = s_stroke.signed_area2 < 0 ?
+                               -s_stroke.signed_area2 : s_stroke.signed_area2;
+      const char *direction = prv_direction(dx, dy, s_touch_key);
+
+      // Circle first: reject a skinny drag or wiggle using both area coverage
+      // and aspect ratio. No square roots, floating point, or stored samples.
+      if (s_stroke.peak_sq >= 400 && s_stroke.path_length >= 60 &&
+          min_span >= 12 && min_span * 4 >= max_span &&
+          area_abs * 4 >= 3 * width * height) {
+        direction = s_stroke.signed_area2 > 0 ? "CW" : "CCW";
+      } else if (s_stroke.peak_sq >= 100 &&
+                 reversal_dot >= 4 * peak_major &&
+                 reversal_dot * 8 >= (int32_t)s_stroke.peak_sq) {
+        // Finger need not finish close to touchdown. Only the displacement
+        // *back along the outward axis* matters; preserve all 8 directions.
+        static const char *const returns[8] = {
+          "RETURN_UP", "RETURN_UP_RIGHT", "RETURN_RIGHT", "RETURN_DOWN_RIGHT",
+          "RETURN_DOWN", "RETURN_DOWN_LEFT", "RETURN_LEFT", "RETURN_UP_LEFT"
+        };
+        static const char *const dirs[8] = {
+          "UP", "UP_RIGHT", "RIGHT", "DOWN_RIGHT", "DOWN", "DOWN_LEFT", "LEFT", "UP_LEFT"
+        };
+        for (unsigned i = 0; i < 8; ++i) {
+          if (strcmp(direction, dirs[i]) == 0) { direction = returns[i]; break; }
         }
       }
       if (s_summary_count < TRACE_MAX_STROKES) {
@@ -281,6 +361,9 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
           .end_dx = end_dx, .end_dy = end_dy,
           .signed_turn = s_stroke.signed_turn,
           .turn_steps = s_stroke.turn_steps,
+          .peak_dx = dx, .peak_dy = dy,
+          .signed_area2 = s_stroke.signed_area2,
+          .reversal_dot = reversal_dot,
           .key_index = s_touch_key
         };
       } else {
@@ -304,13 +387,14 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
         if (strcmp(direction, "STILL") == 0) gesture_index = 0;
         const char *binding = (s_touch_key >= 0 && gesture_index >= 0) ?
                               s_bindings[s_touch_key][gesture_index] : "";
-        APP_LOG(APP_LOG_LEVEL_INFO, "TYPE,%lu,%s,%s,%s,%lu,%u,%d,%d,%d,%d,%lu,%ld",
+        APP_LOG(APP_LOG_LEVEL_INFO, "TYPE,%lu,%s,%s,%s,%lu,%u,%d,%d,%d,%d,%lu,%ld,%d,%d,%ld,%ld",
                 (unsigned long)++s_typing_id,
                 s_touch_key >= 0 ? s_keys[s_touch_key] : "NONE", direction,
                 *binding ? binding : "UNBOUND",
                 (unsigned long)(now_ms - s_stroke.start_ms), s_stroke.move_count,
                 right, left, down, up, (unsigned long)s_stroke.path_length,
-                (long)s_stroke.signed_turn);
+                (long)s_stroke.signed_turn, dx, dy,
+                (long)s_stroke.signed_area2, (long)reversal_dot);
         if (*binding) {
           if (binding[0] == '\b' && s_typed_len) {
             // UTF-8 safe backspace.
@@ -364,49 +448,162 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
   prv_update_stroke(event, now_ms);
 }
 
+// Packet format: TRACE_PACK,trial,first_seq,base_ms,hex
+// Each 10-digit hex sample is (dt:16, x:8, y:8, flags:8), dt relative
+// to the packet's base_ms. flags: 0=DOWN,1=MOVE,2=UP, plus bit 2 for
+// non_navigational. A decoder accompanies this patch.
+static char prv_hex_digit(unsigned n) {
+  return "0123456789ABCDEF"[n & 15];
+}
+
+static void prv_hex_byte(char *out, uint8_t v) {
+  out[0] = prv_hex_digit(v >> 4);
+  out[1] = prv_hex_digit(v);
+}
+
+static void prv_export_tick(void *context);
+
+static void prv_schedule_export(void) {
+  if (!s_dump_timer && s_dump_head && !s_recording) {
+    s_dump_timer = app_timer_register(10, prv_export_tick, NULL);
+  }
+}
+
+static void prv_free_dump(TraceDump *dump) {
+  free(dump->events);
+  free(dump->strokes);
+  free(dump);
+}
+
+// Copy out just the actual samples; no 1024-event duplicate is kept permanently.
+static bool prv_queue_trial(void) {
+  TraceDump *dump = calloc(1, sizeof *dump);
+  if (!dump) return false;
+  if (s_event_count) {
+    dump->events = malloc(s_event_count * sizeof *dump->events);
+    if (!dump->events) { prv_free_dump(dump); return false; }
+    memcpy(dump->events, s_events, s_event_count * sizeof *dump->events);
+  }
+  if (s_summary_count) {
+    dump->strokes = malloc(s_summary_count * sizeof *dump->strokes);
+    if (!dump->strokes) { prv_free_dump(dump); return false; }
+    memcpy(dump->strokes, s_summaries,
+           s_summary_count * sizeof *dump->strokes);
+  }
+  dump->id = s_trial_id;
+  dump->key = s_trial_key;
+  dump->label = prv_trace_label();
+  dump->event_count = s_event_count;
+  dump->stroke_count = s_summary_count;
+  dump->event_overflow = s_overflow_count;
+  dump->stroke_overflow = s_summary_overflow;
+  if (s_dump_tail) s_dump_tail->next = dump;
+  else s_dump_head = dump;
+  s_dump_tail = dump;
+  ++s_dump_count;
+  return true;
+}
+
+static void prv_export_tick(void *context) {
+  s_dump_timer = NULL;
+  if (s_recording || !s_dump_head) return;
+  unsigned emitted = 0;
+  while (s_dump_head && emitted < TRACE_LOG_LINES_PER_TICK) {
+    TraceDump *d = s_dump_head;
+    if (d->phase == 0) {
+      APP_LOG(APP_LOG_LEVEL_INFO, "TRACE_BEGIN,%lu,%s_%s",
+              (unsigned long)d->id,
+              d->key >= 0 ? s_keys[d->key] : "NONE", d->label);
+      d->phase = 1;
+    } else if (d->phase == 1) {
+      if (d->event_pos == d->event_count) { d->phase = 2; continue; }
+      const size_t first = d->event_pos;
+      const TraceEvent *base_event = &d->events[first];
+      const uint32_t base_ms = base_event->elapsed_ms;
+      char packed[TRACE_PACK_EVENTS * 10 + 1];
+      size_t used = 0;
+      while (d->event_pos < d->event_count && used < TRACE_PACK_EVENTS) {
+        const TraceEvent *e = &d->events[d->event_pos];
+        const uint32_t dt = e->elapsed_ms - base_ms;
+        if (dt > 65535) break;
+        // Touchscreen coordinates normally fit within an unsigned byte;
+        // preserve unusual/out-of-bounds values using a legacy record.
+        if (e->x < 0 || e->x > 255 || e->y < 0 || e->y > 255) break;
+        char *out = packed + used * 10;
+        prv_hex_byte(out,     (uint8_t)(dt >> 8));
+        prv_hex_byte(out + 2, (uint8_t)dt);
+        prv_hex_byte(out + 4, (uint8_t)e->x);
+        prv_hex_byte(out + 6, (uint8_t)e->y);
+        uint8_t flags = (e->type == TouchEvent_Touchdown ? 0 :
+                         e->type == TouchEvent_PositionUpdate ? 1 : 2);
+        if (e->non_navigational) flags |= 4;
+        prv_hex_byte(out + 8, flags);
+        ++used;
+        ++d->event_pos;
+      }
+      if (used) {
+        packed[used * 10] = '\0';
+        APP_LOG(APP_LOG_LEVEL_INFO, "TRACE_PACK,%lu,%u,%lu,%s",
+                (unsigned long)d->id, (unsigned)first,
+                (unsigned long)base_ms, packed);
+      } else {
+        const TraceEvent *e = &d->events[d->event_pos++];
+        APP_LOG(APP_LOG_LEVEL_INFO, "TRACE,%lu,%u,%lu,%s,%d,%d,%u",
+                (unsigned long)d->id, (unsigned)first,
+                (unsigned long)e->elapsed_ms, prv_event_name(e->type),
+                e->x, e->y, (unsigned)e->non_navigational);
+      }
+    } else if (d->phase == 2) {
+      if (d->stroke_pos == d->stroke_count) { d->phase = 3; continue; }
+      const StrokeSummary *st = &d->strokes[d->stroke_pos];
+      APP_LOG(APP_LOG_LEVEL_INFO,
+              "STROKE,%lu,%u,%lu,%u,%d,%d,%d,%d,%lu,%s,%d,%d,%ld,%u,%d,%d,%ld,%ld,%s",
+              (unsigned long)d->id, (unsigned)d->stroke_pos,
+              (unsigned long)st->duration_ms, st->moves,
+              st->right, st->left, st->down, st->up,
+              (unsigned long)st->path_length, st->direction,
+              st->end_dx, st->end_dy, (long)st->signed_turn,
+              (unsigned)st->turn_steps, st->peak_dx, st->peak_dy,
+              (long)st->signed_area2, (long)st->reversal_dot,
+              st->key_index >= 0 ? s_keys[st->key_index] : "NONE");
+      ++d->stroke_pos;
+    } else if (d->phase == 3) {
+      APP_LOG(APP_LOG_LEVEL_INFO, "STROKE_END,%lu,%u,%lu",
+              (unsigned long)d->id, (unsigned)d->stroke_count,
+              (unsigned long)d->stroke_overflow);
+      d->phase = 4;
+    } else {
+      APP_LOG(APP_LOG_LEVEL_INFO, "TRACE_END,%lu,%u,%lu",
+              (unsigned long)d->id, (unsigned)d->event_count,
+              (unsigned long)d->event_overflow);
+      s_dump_head = d->next;
+      if (!s_dump_head) s_dump_tail = NULL;
+      --s_dump_count;
+      prv_free_dump(d);
+    }
+    ++emitted;
+  }
+  prv_schedule_export();
+}
+
 static void prv_finish_trial(void) {
-  // Stop receiving data before dumping. The logs are emitted only while idle.
   s_recording = false;
   prv_cancel_feedback();
   s_stroke.active = false;
 
-  APP_LOG(APP_LOG_LEVEL_INFO, "TRACE_BEGIN,%lu,%s_%s",
-          (unsigned long)s_trial_id,
-          s_keys[s_key_index], s_gestures[s_gesture_index]);
-
-  for (size_t i = 0; i < s_event_count; ++i) {
-    const TraceEvent *event = &s_events[i];
-    APP_LOG(APP_LOG_LEVEL_INFO, "TRACE,%lu,%u,%lu,%s,%d,%d,%u",
-            (unsigned long)s_trial_id, (unsigned)i,
-            (unsigned long)event->elapsed_ms,
-            prv_event_name(event->type),
-            event->x, event->y,
-            (unsigned)event->non_navigational);
-  }
-
-  for (size_t i = 0; i < s_summary_count; ++i) {
-    const StrokeSummary *st = &s_summaries[i];
-    APP_LOG(APP_LOG_LEVEL_INFO,
-            "STROKE,%lu,%u,%lu,%u,%d,%d,%d,%d,%lu,%s,%d,%d,%ld,%u",
-            (unsigned long)s_trial_id, (unsigned)i,
-            (unsigned long)st->duration_ms, st->moves,
-            st->right, st->left, st->down, st->up,
-            (unsigned long)st->path_length, st->direction,
-            st->end_dx, st->end_dy, (long)st->signed_turn,
-            (unsigned)st->turn_steps);
-  }
-  APP_LOG(APP_LOG_LEVEL_INFO, "STROKE_END,%lu,%u,%lu",
-          (unsigned long)s_trial_id, (unsigned)s_summary_count,
-          (unsigned long)s_summary_overflow);
-
-  APP_LOG(APP_LOG_LEVEL_INFO, "TRACE_END,%lu,%u,%lu",
-          (unsigned long)s_trial_id,
-          (unsigned)s_event_count, (unsigned long)s_overflow_count);
-
+  const bool queued = prv_queue_trial();
   char message[80];
-  snprintf(message, sizeof message, "%s %s: %u events\nSelect:repeat",
-           s_keys[s_key_index], s_gestures[s_gesture_index],
-           (unsigned)s_event_count);
+  if (queued) {
+    snprintf(message, sizeof message, "%s %s: %u events\nSaved; Select:again",
+             s_trial_key >= 0 ? s_keys[s_trial_key] : "NONE",
+             prv_trace_label(), (unsigned)s_event_count);
+    prv_schedule_export();
+  } else {
+    // Never pretend data was exported if the copy could not be allocated.
+    APP_LOG(APP_LOG_LEVEL_ERROR, "TRACE_QUEUE_FAILED,%lu,%u",
+            (unsigned long)s_trial_id, (unsigned)s_event_count);
+    snprintf(message, sizeof message, "Export memory full\nTrial NOT saved");
+  }
   alert_set_text(message);
 }
 
@@ -427,7 +624,14 @@ void touch_recorder_select(void) {
     return;
   }
 
+  if (s_dump_count >= TRACE_LOG_QUEUE_LIMIT) {
+    alert_set_text("Export queue full\nSelect again after export");
+    prv_schedule_export();
+    return;
+  }
   ++s_trial_id;
+  s_trial_key = -1;
+  s_trial_key_set = false;
   s_event_count = 0;
   s_overflow_count = 0;
   s_summary_count = 0;
@@ -438,29 +642,25 @@ void touch_recorder_select(void) {
   s_recording = true;
 
   char message[80];
-  snprintf(message, sizeof message, "REC %s %s\nSelect:stop",
-           s_keys[s_key_index], s_gestures[s_gesture_index]);
+  snprintf(message, sizeof message, "REC %s\nTouch key; Select:stop",
+           prv_trace_label());
   alert_set_text(message);
 }
 
-void touch_recorder_next_key(void) {
+void touch_recorder_next_type(void) {
   if (s_mode == MODE_MENU) { s_menu_selection = 1 - s_menu_selection; prv_show_menu(); return; }
   if (s_mode == MODE_TYPING) return;
-  if (s_recording || !s_touch_enabled) {
-    return;
-  }
-  s_key_index = (s_key_index + 1) % (sizeof s_keys / sizeof s_keys[0]);
+  if (s_recording || !s_touch_enabled) return;
+  s_trace_family = (s_trace_family + 1) % 4;
+  s_trace_choice = 0;
   prv_show_prompt();
 }
 
-void touch_recorder_next_gesture(void) {
+void touch_recorder_next_direction(void) {
   if (s_mode == MODE_MENU) { s_menu_selection = 1 - s_menu_selection; prv_show_menu(); return; }
   if (s_mode == MODE_TYPING) return;
-  if (s_recording || !s_touch_enabled) {
-    return;
-  }
-  s_gesture_index = (s_gesture_index + 1) %
-                    (sizeof s_gestures / sizeof s_gestures[0]);
+  if (s_recording || !s_touch_enabled) return;
+  s_trace_choice = (s_trace_choice + 1) % s_trace_choices[s_trace_family];
   prv_show_prompt();
 }
 
@@ -484,4 +684,11 @@ void touch_deinit(void) {
   // An unfinished trial is intentionally not emitted as a completed sample.
   s_recording = false;
   s_stroke.active = false;
+  if (s_dump_timer) { app_timer_cancel(s_dump_timer); s_dump_timer = NULL; }
+  // Flush on orderly shutdown rather than silently losing finished trials.
+  // This may take time when exiting, but never blocks the normal stop button.
+  while (s_dump_head) {
+    prv_export_tick(NULL);
+    if (s_dump_timer) { app_timer_cancel(s_dump_timer); s_dump_timer = NULL; }
+  }
 }
