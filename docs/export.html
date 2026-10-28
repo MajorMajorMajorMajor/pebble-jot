@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Jot · Notes backup</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#f8f0d8;color:#29282b;min-height:100vh}
+main{max-width:720px;margin:0 auto;padding:24px 18px 64px}
+header{background:#ffcf57;padding:22px;border:3px solid #26242a;border-radius:14px;box-shadow:5px 5px 0 #29282b}
+h1{font-size:32px;margin:0 0 3px;letter-spacing:-1.5px}h2{font-size:19px;margin:24px 0 10px}
+p{line-height:1.5}.sub{margin:0;font-weight:600}.muted{color:#57535b}
+.card{background:#fffaf0;border:2px solid #29282b;border-radius:10px;padding:16px;margin:16px 0}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:16px 0}
+button{background:#29282b;color:#fff;border:0;border-radius:8px;font-weight:700;font-size:15px;padding:12px 16px;cursor:pointer}
+button.secondary{background:#ffd35d;color:#29282b;border:2px solid #29282b;padding:10px 14px}
+button:disabled{opacity:.4;cursor:not-allowed}
+textarea{width:100%;min-height:200px;background:white;color:#29282b;border:2px solid #777;border-radius:7px;padding:12px;font:14px/1.5 ui-monospace,SFMono-Regular,monospace;resize:vertical}
+article{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px 0;border-bottom:1px solid #ccc}
+article:last-child{border:0}.date{font-size:12px;color:#555;margin-bottom:5px}.note{font-size:17px}
+#status{font-weight:700}footer{margin-top:30px;font-size:13px;color:#58535b}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>✎ Jot</h1>
+<p class="sub">Your pocket notebook · phone backup</p>
+</header>
+<p id="status" role="status">Reading your notes…</p>
+<p class="muted">Your notes travel in the URL <em>fragment</em>. This page contains no analytics and doesn't upload them. Avoid sharing the page's URL: it contains your notes.</p>
+<div class="row">
+<button id="copy">Copy notes</button>
+<button id="select" class="secondary">Select all</button>
+<button id="download" class="secondary">Save .txt</button>
+<button id="json" class="secondary">Save .json</button>
+</div>
+<label for="backupText"><strong>Plain text backup</strong></label>
+<textarea id="backupText" readonly spellcheck="false"></textarea>
+<h2>Notes</h2>
+<div id="notes"></div>
+<footer>For a fresh backup: open Jot's notes list on the watch, hold Up, wait for “Phone copy saved”, then reopen this page from the Pebble app's Jot settings. Store a separate text or JSON copy somewhere safe.</footer>
+</main>
+<script>
+(function(){
+  'use strict';
+  var status=document.getElementById('status');
+  var textarea=document.getElementById('backupText');
+  var notesRoot=document.getElementById('notes');
+  var snapshot=null;
+  var text='';
+
+  function decodeUtf8Base64(b64){
+    var bytes=atob(b64);
+    var encoded='';
+    for(var i=0;i<bytes.length;i++){
+      var n=bytes.charCodeAt(i).toString(16).toUpperCase();
+      encoded+='%'+('0'+n).slice(-2);
+    }
+    return decodeURIComponent(encoded);
+  }
+  function formattedDate(seconds){
+    var d=new Date(Number(seconds)*1000);
+    return isNaN(d.getTime())?'Unknown date':d.toLocaleString();
+  }
+  function save(name,content,type){
+    var url=URL.createObjectURL(new Blob([content],{type:type}));
+    var a=document.createElement('a');
+    a.href=url;a.download=name;document.body.appendChild(a);a.click();
+    a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  }
+  function mark(message){status.textContent=message;}
+  try {
+    var raw=window.location.hash.slice(1);
+    if(!raw){
+      mark('No phone backup found yet.');
+      textarea.value='Open Jot on your watch, open the notes list, hold Up to export, then reopen Jot settings on your phone.';
+      ['copy','select','download','json'].forEach(function(id){document.getElementById(id).disabled=true;});
+      return;
+    }
+    snapshot=JSON.parse(decodeUtf8Base64(raw));
+    if(snapshot.format!=='jot-backup-v1'||!Array.isArray(snapshot.notes))
+      throw new Error('Invalid backup format');
+    // Keep the notes private after decoding; no need to retain the encoded URL.
+    history.replaceState(null,'',location.pathname);
+    var chunks=['Jot notes backup · '+(snapshot.savedAt||'')+'\n'];
+    snapshot.notes.forEach(function(note,i){
+      if(typeof note.text!=='string')throw new Error('Invalid note');
+      var date=formattedDate(note.created);
+      chunks.push('['+date+']\n'+note.text+'\n');
+      var article=document.createElement('article');
+      var label=document.createElement('div');
+      label.className='date';label.textContent=date;
+      var body=document.createElement('div');
+      body.className='note';body.textContent=note.text;
+      article.appendChild(label);article.appendChild(body);
+      notesRoot.appendChild(article);
+    });
+    text=chunks.join('\n---\n\n');
+    textarea.value=text;
+    mark(snapshot.notes.length+' note(s) received · '+(snapshot.savedAt||''));
+  }catch(e){
+    mark('Could not decode this backup: '+e.message);
+    ['copy','select','download','json'].forEach(function(id){document.getElementById(id).disabled=true;});
+    return;
+  }
+  document.getElementById('select').onclick=function(){textarea.focus();textarea.select();};
+  document.getElementById('copy').onclick=function(){
+    textarea.focus();textarea.select();
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){mark('Copied to clipboard');},
+        function(){mark('Text selected. Use Copy in your phone menu.');});
+    }else if(document.execCommand&&document.execCommand('copy')){
+      mark('Copied to clipboard');
+    }else{
+      mark('Text selected. Use Copy in your phone menu.');
+    }
+  };
+  document.getElementById('download').onclick=function(){save('jot-notes.txt',text,'text/plain;charset=utf-8');};
+  document.getElementById('json').onclick=function(){save('jot-notes.json',JSON.stringify(snapshot,null,2),'application/json;charset=utf-8');};
+})();
+</script>
+</body>
+</html>
