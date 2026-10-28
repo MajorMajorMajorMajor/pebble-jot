@@ -6,7 +6,8 @@ positions. Recognition is deliberately not part of the recorder.
 
 ## On the watch
 
-- **Up:** cycle through the nine letter keys (A, N, I, H, O, R, T, E, S).
+- **Up:** cycle through all 14 keys (the nine letters, SPACE, BACKSPACE,
+  RETURN, 123, and KB).
 - **Down:** cycle through TAP and the eight swipe directions.
 - **Select:** start recording a trial; press it again to stop and dump the trial.
 - **Select again:** repeat the same key/direction, with a new trial ID.
@@ -15,6 +16,14 @@ You can record a single gesture, several consecutive gestures, or no detected
 touches at all between the two Select presses. For now, the trial label always
 indicates the intended key and gesture, so use separate trials for different
 targets. Do not change the key/direction while recording.
+
+After each liftoff the content area shows a **provisional** direction and the
+signed maximum X/Y excursions from touchdown, duration, and number of MOVE
+events. `STILL` means the sensor reported no change of position; it does not
+necessarily mean the user tapped. This feedback uses a short timer after
+liftoff and is cancelled if the next touchdown happens first, so no screen
+updates occur in the middle of a touch. The raw logged trace format is
+unchanged, and feedback has no effect on its recorded values.
 
 ## On the computer
 
