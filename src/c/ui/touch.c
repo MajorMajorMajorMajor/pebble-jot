@@ -81,16 +81,16 @@ static int s_touch_key = -1;
 static const char *s_last_gesture;
 static const char *s_last_binding;
 static const char *const s_bindings[14][19] = {
-  { "a", "", "", "-", "v", "", "$", "", "", "", "", "÷", "V", "", "¥", "", "", "", "A" }, // a
-  { "n", "^", "´", "!", "\\", "l", "/", "+", "`", "ˇ", "’", "¡", "—", "L", "–", "×", "‘", "", "N" }, // n
-  { "i", "", "\n", "", "€", "=", "x", "?", "", "", "\n", "", "£", "±", "X", "¿", "", "", "I" }, // i
-  { "h", "", "%", "k", "_", "", "", "(", "{", "", "‰", "K", "¬", "", "]", ")", "}", "", "H" }, // h
-  { "o", "u", "p", "b", "j", "d", "g", "c", "q", "U", "P", "B", "J", "D", "G", "C", "Q", "", "O" }, // o
-  { "r", "", "}", ")", "]", "", "@", "m", "|", "", "{", "(", "", "", "ª", "M", "¶", "", "R" }, // r
-  { "t", "¨", "y", "*", "", "", "\b", "<", "~", "˝", "Y", "†", "", "", "\b", "‹", "˜", "", "T" }, // t
-  { "e", "w", "'", "z", ":", ".", ",", "", "\"", "W", "”", "Z", "„", "…", "‚", "", "“", "", "E" }, // e
-  { "s", "&", "°", ">", " ", "", ";", "#", "f", "§", "º", "›", " ", "", ";", "£", "F", "", "S" }, // s
-  { " ", "", "", "", " ", " ", " ", "", "", "", "", "", " ", " ", " ", "", "", "", " " }, // spacebar
+  { "a", "", "", "-", "v", "", "$", "", "", "", "", "÷", "V", "", "¥", "", "", "7", "A" }, // a
+  { "n", "^", "´", "!", "\\", "l", "/", "+", "`", "ˇ", "’", "¡", "—", "L", "–", "×", "‘", "8", "N" }, // n
+  { "i", "", "\n", "", "€", "=", "x", "?", "", "", "\n", "", "£", "±", "X", "¿", "", "9", "I" }, // i
+  { "h", "", "%", "k", "_", "", "", "(", "{", "", "‰", "K", "¬", "", "]", ")", "}", "4", "H" }, // h
+  { "o", "u", "p", "b", "j", "d", "g", "c", "q", "U", "P", "B", "J", "D", "G", "C", "Q", "5", "O" }, // o
+  { "r", "", "}", ")", "]", "", "@", "m", "|", "", "{", "(", "", "", "ª", "M", "¶", "6", "R" }, // r
+  { "t", "¨", "y", "*", "", "", "\b", "<", "~", "˝", "Y", "†", "", "", "\b", "‹", "˜", "1", "T" }, // t
+  { "e", "w", "'", "z", ":", ".", ",", "", "\"", "W", "”", "Z", "„", "…", "‚", "", "“", "2", "E" }, // e
+  { "s", "&", "°", ">", " ", "", ";", "#", "f", "§", "º", "›", " ", "", ";", "£", "F", "3", "S" }, // s
+  { " ", "", "", "", " ", " ", " ", "", "", "", "", "", " ", " ", " ", "", "", "", "0" }, // spacebar
   { "\b", "\b", "", "", "", "", "\b", "\b", "\b", "", "", "", "", "", "", "", "", "", "" }, // backspace
   { "\n", "\n", "", "\n", "\n", "\n", "\n", "\n", "", "", "", "", "", "", "", "", "", "", "" }, // enter
   { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" }, // 123
@@ -217,9 +217,11 @@ static const char *prv_direction(int dx, int dy, int key_index) {
   // At the physical edge, the outward component is compressed by the screen.
   // Keep central-key diagonals strict to avoid classifying drift as a diagonal.
   int diagonal_ratio = 4;
-  if ((dx > 0 && (key_index == 2 || key_index == 5 || key_index == 8)) ||
-      (dx < 0 && (key_index == 10 || key_index == 11 ||
-                  key_index == 12 || key_index == 13))) {
+  if (dx > 0 && (key_index == 2 || key_index == 5 || key_index == 8)) {
+    // I/R/S start at the right edge: outward x motion is often compressed.
+    diagonal_ratio = 10;
+  } else if (dx < 0 && (key_index == 10 || key_index == 11 ||
+                       key_index == 12 || key_index == 13)) {
     diagonal_ratio = 8;
   }
   if (ax && ay && (ax < ay ? ax * diagonal_ratio >= ay :
@@ -367,11 +369,18 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
                                -s_stroke.signed_area2 : s_stroke.signed_area2;
       const char *direction = prv_direction(dx, dy, s_touch_key);
 
-      // Circle first: reject a skinny drag or wiggle using both area coverage
-      // and aspect ratio. No square roots, floating point, or stored samples.
-      if (s_stroke.peak_sq >= 400 && s_stroke.path_length >= 60 &&
-          min_span >= 12 && min_span * 4 >= max_span &&
-          area_abs * 4 >= 3 * width * height) {
+      // Circle first. Two confidence bands distinguish a real loop from
+      // straight/return strokes. Larger loops may be relatively narrow;
+      // smaller loops need strong enclosed-area evidence. All integer math.
+      const bool normal_loop =
+          s_stroke.peak_sq >= 400 && s_stroke.path_length >= 60 &&
+          min_span >= 12 && min_span * 5 >= max_span &&
+          area_abs >= (11 * width * height + 19) / 20;
+      const bool compact_loop =
+          s_stroke.peak_sq >= 225 && s_stroke.path_length >= 45 &&
+          min_span >= 9 && min_span * 6 >= max_span &&
+          area_abs >= width * height;
+      if (normal_loop || compact_loop) {
         direction = s_stroke.signed_area2 > 0 ? "CW" : "CCW";
       } else if (s_stroke.peak_sq >= 100 &&
                  reversal_dot >= 4 * peak_major &&
