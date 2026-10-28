@@ -51,6 +51,7 @@ static void prv_send_current(void *context) {
     prv_fail("Phone not responding");
     return;
   }
+  ++s_attempts; // Count busy/disconnected attempts too: never retry forever.
 
   DictionaryIterator *iter = NULL;
   AppMessageResult result = app_message_outbox_begin(&iter);
@@ -93,7 +94,6 @@ static void prv_send_current(void *context) {
     prv_schedule(500);
     return;
   }
-  ++s_attempts;
   prv_schedule(BACKUP_ACK_TIMEOUT_MS);
 }
 
@@ -139,7 +139,7 @@ static void prv_outbox_failed(DictionaryIterator *iter,
 void jot_backup_init(void) {
   s_status[0] = '\0';
   s_active = false;
-  s_session = 0;
+  s_session = (uint32_t)time(NULL); // Unique across ordinary app relaunches.
   app_message_register_inbox_received(prv_inbox_received);
   app_message_register_outbox_failed(prv_outbox_failed);
   s_available = app_message_open(128, 384) == APP_MSG_OK;
@@ -170,6 +170,8 @@ bool jot_backup_active(void) { return s_active; }
 const char *jot_backup_status(void) { return s_status; }
 
 void jot_backup_cancel(void) {
+  bool was_active = s_active;
   prv_cancel_timer();
   s_active = false;
+  if (was_active) prv_status("Export canceled");
 }
