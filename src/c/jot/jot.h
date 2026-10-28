@@ -11,3 +11,5 @@ void jot_show_list(void);
 bool jot_list_is_open(void);
 void jot_refresh_editor(void);
 void jot_save_now(void);
+// Invalidate the note browser when backup status changes.
+void jot_backup_ui_changed(void);
