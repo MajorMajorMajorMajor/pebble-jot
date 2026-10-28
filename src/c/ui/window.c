@@ -54,8 +54,8 @@ UIDimensions compute_ui_dimensions(const KeyboardWindow *self) {
 
   // key button grid uses the whole width and goes below the content
   GRect grid_frame = bounds;
-  grid_frame.origin.y = content_height;
-  grid_frame.size.h -= content_height;  // subtract the content height
+  grid_frame.origin.y += content_height; // align the top of the grid to the bottom of the content
+  grid_frame.size.h -= content_height;   // use the remaining space for the grid
 
   return (struct UIDimensions) {
     .content_frame = content_frame,
