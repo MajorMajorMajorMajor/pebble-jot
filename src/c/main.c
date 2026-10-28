@@ -21,7 +21,19 @@ int main(void) {
   GRect frame = keyboard_get_content_frame(keyboard);
   TextLayer *alert_layer = alert_ui_init(frame);
 
-  keyboard_set_content_layer(keyboard, (Layer *)alert_layer);
+  /** 
+    Note that TextLayer can be safely type-casted to `Layer` (or `Layer *` in case of a pointer). 
+    The `layer_...` functions can then be used with the data structures of these subclasses.   
+    
+    For example, the following is legal:
+
+    ```
+    TextLayer \*text\_layer;...layer\_set\_hidden((Layer \*)text\_layer, true);
+    ```
+
+    See: https://developer.repebble.com/docs/c/User_Interface/Layers.md
+  */
+  keyboard_set_content_layer(keyboard, (Layer *)alert_layer);  
 
   // Push the keyboard window  
   const bool animated = true;
@@ -35,5 +47,6 @@ int main(void) {
 
   // deinitialize systems
   touch_deinit();
+  alert_ui_deinit();
   keyboard_destroy(keyboard);  
 }
