@@ -1,17 +1,17 @@
 #include <pebble.h>
 #include "click.h"
-#include "alert.h"
+#include "touch.h"
 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  alert_set_text("Select");
+  touch_recorder_select();
 }
 
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  alert_set_text("Up");
+  touch_recorder_next_key();
 }
 
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  alert_set_text("Down");
+  touch_recorder_next_gesture();
 }
 
 void click_config_provider(void *context) {
