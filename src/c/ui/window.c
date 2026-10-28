@@ -95,15 +95,16 @@ static void prv_window_unload(Window *window) {
   KeyboardWindow *self = window_get_user_data(window);  
   PEBBLE_ASSERT(self);
 
-  if (self->grid) {
-    key_grid_destroy(self->grid); 
-    self->grid = NULL;
-  }
-
   // Don't unload the content layer, it's owned by the client app;
   // Just detach it if it's still on our window
   if(self->content_layer) {
     prv_detach_content_layer(self);
+  }
+
+  // Destroy the things we created ourselves on .load
+  if (self->grid) {
+    key_grid_destroy(self->grid); 
+    self->grid = NULL;
   }
 }
 

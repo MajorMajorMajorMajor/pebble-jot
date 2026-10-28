@@ -20,6 +20,7 @@ int main(void) {
   // set up content layer
   GRect frame = keyboard_get_content_frame(keyboard);
   TextLayer *alert_layer = alert_ui_init(frame);
+  PEBBLE_ASSERT(alert_layer);
 
   /** 
     Note that TextLayer can be safely type-casted to `Layer` (or `Layer *` in case of a pointer). 
@@ -47,6 +48,9 @@ int main(void) {
 
   // deinitialize systems
   touch_deinit();
+
+  keyboard_set_content_layer(keyboard, NULL); // remove the alert ui from the keyboard window before destroying it
   alert_ui_deinit();
+
   keyboard_destroy(keyboard);  
 }
