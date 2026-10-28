@@ -10,6 +10,8 @@ UIStyle get_ui_style(void) {
   const UISettings *settings = get_ui_settings();  
 
   UIStyle style = (UIStyle) {
+    .content_height_px = 40,
+
     .label_center_font = get_ui_font(settings->style.label_center_font_key),
     .label_peripheral_font = get_ui_font(settings->style.label_peripheral_font_key),
 

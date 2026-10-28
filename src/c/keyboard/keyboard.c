@@ -1,5 +1,7 @@
 #include <pebble.h>
 
+#include "common.h"
+
 #include "ui/style.h"
 #include "ui/window.h"
 
@@ -46,11 +48,30 @@ void keyboard_destroy(Keyboard *keyboard) {
   if (!keyboard) {
     return;
   }
-  
+
   if (keyboard->window) {
     keyboard_window_destroy(keyboard->window);
     keyboard->window = NULL;
   }
 
   free(keyboard);
+}
+
+
+Window *keyboard_get_window(Keyboard *keyboard) {
+  if(!keyboard) {
+    return NULL;
+  }
+
+  return keyboard_window_get_window(keyboard->window);
+}
+
+GRect keyboard_get_content_frame(Keyboard *keyboard) {  
+  return compute_ui_dimensions(keyboard->window).content_frame;
+}
+
+void keyboard_set_content_layer(Keyboard *keyboard, Layer* content_layer) {
+  PEBBLE_ASSERT(keyboard);
+
+  keyboard_window_set_content_layer(keyboard->window, content_layer);
 }

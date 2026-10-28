@@ -3,6 +3,8 @@
 #include "ui/font.h"
 
 typedef struct UIStyle {
+  unsigned int content_height_px;
+  
   const UIFont *label_center_font;
   const UIFont *label_peripheral_font;
   

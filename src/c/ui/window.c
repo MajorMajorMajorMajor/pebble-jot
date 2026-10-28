@@ -7,7 +7,6 @@
 
 #include "ui/style.h"
 #include "ui/key_grid.h"
-#include "ui/alert.h"
 #include "ui/click.h"
 
 #include "ui/window.h"
@@ -26,7 +25,6 @@ struct KeyboardWindow {
   Layer *content_layer;
 };
 
-
 // Future logic for showing different key grids
 // shows the grid for `layout_id` and hides the rest
 // static void prv_show(LayoutId layout_id) {
@@ -39,6 +37,28 @@ struct KeyboardWindow {
 //   }
 // }
 
+UIDimensions compute_ui_dimensions(const KeyboardWindow *self) {
+  Layer *root_layer = window_get_root_layer(self->window);  
+
+  const GRect bounds = layer_get_bounds(root_layer);
+
+  const unsigned int content_height = self->style->content_height_px;
+  
+  // content frame uses the whole width and goes at the top of the frame
+  GRect content_frame = bounds;
+  content_frame.size.h = content_height;
+
+  // key button grid uses the whole width and goes below the content
+  GRect grid_frame = bounds;
+  grid_frame.origin.y = content_height;
+  grid_frame.size.h -= content_height;  // subtract the content height
+
+  return (struct UIDimensions) {
+    .content_frame = content_frame,
+    .grid_frame = grid_frame
+  };
+}
+
 
 static void prv_window_load(Window *window) {
   KeyboardWindow *self = window_get_user_data(window);  
@@ -48,29 +68,17 @@ static void prv_window_load(Window *window) {
   
   // Build components
   Layer *root_layer = window_get_root_layer(window);
-  
-  // Establish dimensions
-  const GRect bounds = layer_get_bounds(root_layer);
-  const UIDimensions ui = layout_compute_ui_dimensions(bounds.size);
-
-
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Window: origin=(%d, %d), size=(%d, %d)", 
-    bounds.origin.x, bounds.origin.y, bounds.size.w, bounds.size.h);
-
     
+  // Establish dimensions
+  UIDimensions dimensions = compute_ui_dimensions(self);
+
   // ## 1. Grid Layer  
 
   // TODO: move this logic into calculate_grid_frame()
-  const Layout *layout = get_layout(keyboard_state->active_layout_id);
-  const GRect grid_frame = GRect(
-    0, // align to left edge
-    ui.textbox_size.h, 
-    ui.key_grid_size.w, 
-    ui.key_grid_size.h
-  );  
+  const Layout *layout = get_layout(keyboard_state->active_layout_id);  
 
   // TODO: Refactor key_grid to accept style
-  self->grid = key_grid_create(layout, grid_frame);
+  self->grid = key_grid_create(layout, dimensions.grid_frame);
   PEBBLE_ASSERT(self->grid);
   
   Layer *grid_layer = key_grid_get_layer(self->grid);
@@ -82,21 +90,14 @@ static void prv_window_load(Window *window) {
   // ## 2. Content Layer
 
   // Use the supplied content layer, else fall back to a debug view
-  if (!self->content_layer) {
-    TextLayer *alert_layer = alert_ui_init(ui);
-    PEBBLE_ASSERT(alert_layer);
+  if (self->content_layer) {
+    // set the frame size
+    // TODO: move this logic into calculate_content_frame()      
+    layer_set_frame(self->content_layer, dimensions.content_frame);  
 
-    self->content_layer = text_layer_get_layer(alert_layer);
+    // add it the content layer (behind the grid)
+    layer_insert_below_sibling(self->content_layer, grid_layer);
   }
-
-  // set the frame size
-  // TODO: move this logic into calculate_content_frame()  
-  GRect content_frame = {0};
-  content_frame.size = ui.textbox_size;      
-  layer_set_frame(self->content_layer, content_frame);  
-
-  // add it the content layer (behind the grid)
-  layer_insert_below_sibling(self->content_layer, grid_layer);
 }
 
 // Pebble OS invokes this when the window is destroyed, or (in the future) 
@@ -110,7 +111,13 @@ static void prv_window_unload(Window *window) {
     self->grid = NULL;
   }
 
-  // Don't unload the content layer, it's owned by the client app
+  // Don't unload the content layer, it's owned by the client app;
+  // Just detach it if it's still on our window
+  if(self->content_layer 
+      && layer_get_window(self->content_layer) == self->window) {
+    
+    layer_remove_from_parent(self->content_layer);
+  }
 }
 
 KeyboardWindow *keyboard_window_create(KeyboardState *state, const UIStyle *style) {
@@ -158,11 +165,6 @@ void keyboard_window_destroy(KeyboardWindow *self) {
     return;
   }
 
-  if (self->content_layer) {        
-    // oops! Consumers should set content layer to NULL first!!
-    alert_ui_deinit();    
-  }
-
   // destroy the window
   window_destroy(self->window);
   self->window = NULL;
@@ -178,5 +180,5 @@ Window *keyboard_window_get_window(KeyboardWindow *self) {
 void keyboard_window_set_content_layer(
     KeyboardWindow *self, Layer *content_layer) {
 
-  return;
+  self->content_layer = content_layer;
 }
