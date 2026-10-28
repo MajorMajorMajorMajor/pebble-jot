@@ -38,7 +38,8 @@ struct KeyboardWindow {
 // }
 
 // forward declarations of private methods
-static void prv_detach_layer(KeyboardWindow *self, Layer* layer);
+static void prv_detach_content_layer(KeyboardWindow *self);
+static void prv_attach_content_layer(KeyboardWindow *self);
 
 UIDimensions compute_ui_dimensions(const KeyboardWindow *self) {
   Layer *root_layer = window_get_root_layer(self->window);  
@@ -75,23 +76,17 @@ static void prv_window_load(Window *window) {
   // Establish dimensions
   UIDimensions dimensions = compute_ui_dimensions(self);
 
-  // ## 1. Grid Layer  
-
-  // TODO: move this logic into calculate_grid_frame()
-  const Layout *layout = get_layout(keyboard_state->active_layout_id);  
-
-  // TODO: Refactor key_grid to accept style
-  self->grid = key_grid_create(layout, dimensions.grid_frame);
+  // create grid layer
+  const Layout *layout = get_layout(keyboard_state->active_layout_id);    
+  self->grid = key_grid_create(layout, dimensions.grid_frame); // TODO: Refactor key_grid to accept style
   PEBBLE_ASSERT(self->grid);
-  
+      
+  // add grid layer to the window
   Layer *grid_layer = key_grid_get_layer(self->grid);
-  
-  // add the grid to the root layer  
   layer_add_child(root_layer, grid_layer);
   
-
-  // ## 2. Content Layer
-  keyboard_window_set_content_layer(self, self->content_layer);  
+  // add content layer to the window
+  prv_attach_content_layer(self);
 }
 
 // Pebble OS invokes this when the window is destroyed, or (in the future) 
@@ -108,7 +103,7 @@ static void prv_window_unload(Window *window) {
   // Don't unload the content layer, it's owned by the client app;
   // Just detach it if it's still on our window
   if(self->content_layer) {
-    prv_detach_layer(self, self->content_layer);
+    prv_detach_content_layer(self);
   }
 }
 
@@ -169,41 +164,41 @@ Window *keyboard_window_get_window(KeyboardWindow *self) {
   return self->window;
 }
 
-static void prv_detach_layer(KeyboardWindow *self, Layer* layer) {
-  if(!self || !layer) {
+static void prv_attach_content_layer(KeyboardWindow *self) {  
+  // Layer can only be attached if if we got far enough into the .load to place the grid
+  if (!self->content_layer || !self->grid) { 
+    return;
+  }
+
+  // resize the layer to the content dimensions
+  UIDimensions dimensions = compute_ui_dimensions(self);
+  layer_set_frame(self->content_layer, dimensions.content_frame);  
+  
+  // if it's already attached to our window, this will remove it and reattach it
+  // in the correct z-order
+  Layer *grid_layer = key_grid_get_layer(self->grid);
+  if (grid_layer) {
+    layer_insert_below_sibling(self->content_layer, grid_layer);  
+  }
+}
+
+static void prv_detach_content_layer(KeyboardWindow *self) {
+  if(!self || !self->content_layer) {
     return;
   }
    
   // if the layer is currently attached to our window, detach it
-  if(self->window && layer_get_window(layer) == self->window) {    
+  if(self->window && layer_get_window(self->content_layer) == self->window) {    
     layer_remove_from_parent(self->content_layer);
   }
 }
 
 void keyboard_window_set_content_layer(KeyboardWindow *self, Layer *content_layer) {
   // first, let's check if the content layer is being unset
-  if (content_layer == NULL && self->content_layer) {
-    prv_detach_layer(self, self->content_layer); // detach previous content layer
+  if (content_layer != self->content_layer) {    
+    prv_detach_content_layer(self);
+    self->content_layer = content_layer;
   }
-  
-  // update local reference
-  self->content_layer = content_layer;
-
-  // place the layer if it exists
-  if (!content_layer) {
-    return;
-  }  
-  
-  // resize the layer to the content dimensions
-  UIDimensions dimensions = compute_ui_dimensions(self);
-  layer_set_frame(content_layer, dimensions.content_frame);  
-
-  // if it's already attached to our window, we're done
-  if(layer_get_window(content_layer) == self->window) {
-    return;
-  }
-
-  // otherwise, add it the content layer (behind the grid)
-  Layer *grid_layer = key_grid_get_layer(self->grid);
-  layer_insert_below_sibling(content_layer, grid_layer);  
+    
+  prv_attach_content_layer(self);
 }
