@@ -8,7 +8,7 @@ Jot grew out of the [MessagEase-inspired gesture keyboard experiments](https://g
 
 **Early working prototype.** Jot has been built and photographed running on a real Pebble, with live text entry and a notes list visible on-device. This does **not** yet establish comprehensive verification of persistence, deletion, or every gesture on all hardware. The app currently targets **emery (Pebble Time 2)**.
 
-Notes stay **on the watch only**. There is no phone sync or export yet: **do not store irreplaceable information** in this version. Uninstalling the app may remove its local notes.
+Notes remain on the watch. Jot v0.2 adds an **experimental manual phone backup** over Bluetooth. This is not continuous sync, and the copy in the Pebble phone companion is not yet a durable external backup; **do not store irreplaceable information** until you've copied the notes to another location. Uninstalling Jot may remove its local notes.
 
 ## Using Jot
 
@@ -29,6 +29,16 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The `JOT *` heading means there are unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` indicates the storage write did not succeed.
 
+## Export notes to your phone (v0.2)
+
+In the notes list, **hold Up** for about one second. Wait for **Phone copy saved** on the watch. This indicates the entire note snapshot was received and stored in the Pebble phone companion. The watch retains its notes.
+
+In the Pebble phone app, open **Jot → Settings** (gear icon) to view your latest backup and **Copy notes** or save a `.txt`/`.json` file. Browser/webview download support may vary; copying is the fallback.
+
+**One-time setup:** The repo's empty static export viewer must be published with GitHub Pages: **Settings → Pages → Deploy from a branch → main → /docs**. The page doesn't host your note data; the phone passes its local snapshot in the URL fragment, which the page decodes locally. The fragment can reveal private notes to anyone who receives that URL, so don't share it.
+
+See [README-JOT.md](README-JOT.md) for detailed limits and failure handling. This feature needs on-watch/phone verification.
+
 ## Storage limits
 
 The current storage model is intentionally bounded:
@@ -36,7 +46,7 @@ The current storage model is intentionally bounded:
 - Up to **16 notes**, each containing **159 UTF-8 bytes** of text (not necessarily 159 characters).
 - Notes are timestamped and displayed newest first.
 - When full, Jot refuses new notes rather than overwriting existing ones.
-- Notes live in Pebble's local persistent storage; phone transfer is not implemented.
+- Notes live in Pebble's local persistent storage; phone backup is manual and does not delete on-watch notes.
 
 ## Building
 
@@ -64,6 +74,6 @@ See [README-JOT.md](README-JOT.md) for detailed controls and limits, and [TOUCH_
 
 ## Next steps
 
-The immediate priorities are safe backup/export to the phone, more real-watch testing of persistence and editing, and UI polish that keeps the keyboard touch targets intact.
+The immediate priorities are hardware verification of the v0.2 manual export, a more durable backup destination, real-watch testing of persistence, and UI polish that keeps the keyboard touch targets intact.
 
 Pebble SDK documentation: <https://developer.repebble.com>
