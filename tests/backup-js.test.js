@@ -19,11 +19,11 @@ const localStorage = {
   setItem(key, value) { storage[key] = value; }
 };
 const program = fs.readFileSync(
-  path.join(__dirname, '../src/pkjs/index.js'), 'utf8');
+  path.join(__dirname, '../src/js/pebble-js-app.js'), 'utf8');
 vm.runInNewContext(program, {
   Pebble: phone, localStorage, console,
   encodeURIComponent, decodeURIComponent
-}, {filename: 'src/pkjs/index.js'});
+}, {filename: 'src/js/pebble-js-app.js'});
 
 function message(kind, session, index, extras = {}) {
   listeners.appmessage({payload: {
