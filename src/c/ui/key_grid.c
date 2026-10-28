@@ -10,14 +10,14 @@ struct KeyGrid {
   Layer *layer;  
 
   size_t button_count; // one button per key
-  KeyButton **buttons; 
+  KeyButtonLayer **buttons; 
 };
 
 // create a key grid
-KeyGrid *key_grid_create(const Layout *layout, GRect frame) {
+KeyGrid *key_grid_create(const Layout *layout, GRect frame, const UIStyle *style) {
   Layer *layer;
   size_t button_count;
-  KeyButton **buttons;  
+  KeyButtonLayer **buttons;  
   
   // Layer  
   layer = layer_create(frame);
@@ -47,7 +47,7 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame) {
     GRect button_frame = GRect(x1, y1, x2 - x1, y2 - y1);
     const Key* key = get_key(pos->key_id);
 
-    buttons[i] = key_button_create(key, button_frame);
+    buttons[i] = key_button_create(key, button_frame, style);
    
     // if a button failed to create, roll back the creation process
     if (!buttons[i]) {

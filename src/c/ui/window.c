@@ -78,7 +78,7 @@ static void prv_window_load(Window *window) {
 
   // create grid layer
   const Layout *layout = get_layout(keyboard_state->active_layout_id);    
-  self->grid = key_grid_create(layout, dimensions.grid_frame); // TODO: Refactor key_grid to accept style
+  self->grid = key_grid_create(layout, dimensions.grid_frame, self->style); // TODO: Refactor key_grid to accept style
   PEBBLE_ASSERT(self->grid);
       
   // add grid layer to the window
