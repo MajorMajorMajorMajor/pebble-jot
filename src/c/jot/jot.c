@@ -1,6 +1,7 @@
 #include <pebble.h>
 #include "jot/jot.h"
 #include "jot/store.h"
+#include "jot/backup.h"
 #include "ui/alert.h"
 
 #define AUTOSAVE_DELAY_MS 1800
@@ -143,7 +144,8 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
   graphics_context_set_text_color(ctx, GColorWhite);
   graphics_draw_text(ctx,
                      s_confirm_delete ? "Delete? Select=yes Back=no" :
-                                        "Select:edit  Hold:delete",
+                     *jot_backup_status() ? jot_backup_status() :
+                     "Hold UP:backup  Sel:edit",
                      fonts_get_system_font(FONT_KEY_GOTHIC_14),
                      GRect(5, height - footer_h - 2, width - 10, footer_h + 2),
                      GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
@@ -153,17 +155,22 @@ static void prv_redraw_list(void) {
   if (s_list_layer) layer_mark_dirty(s_list_layer);
 }
 
+void jot_backup_ui_changed(void) {
+  prv_redraw_list();
+}
+
 static void prv_list_up(ClickRecognizerRef ref, void *context) {
-  if (s_confirm_delete) return;
+  if (s_confirm_delete || jot_backup_active()) return;
   if (s_selected_rank > 0) --s_selected_rank;
   prv_redraw_list();
 }
 static void prv_list_down(ClickRecognizerRef ref, void *context) {
-  if (s_confirm_delete) return;
+  if (s_confirm_delete || jot_backup_active()) return;
   if (s_selected_rank + 1 < jot_store_count()) ++s_selected_rank;
   prv_redraw_list();
 }
 static void prv_list_select(ClickRecognizerRef ref, void *context) {
+  if (jot_backup_active()) return;
   int slot = jot_store_slot_at(s_selected_rank);
   if (slot < 0) return;
   if (s_confirm_delete) {
@@ -185,12 +192,14 @@ static void prv_list_select(ClickRecognizerRef ref, void *context) {
   window_stack_pop(true);
 }
 static void prv_list_hold(ClickRecognizerRef ref, void *context) {
+  if (jot_backup_active()) return;
   if (jot_store_count() > 0) {
     s_confirm_delete = true;
     prv_redraw_list();
   }
 }
 static void prv_list_back(ClickRecognizerRef ref, void *context) {
+  if (jot_backup_active()) jot_backup_cancel();
   if (s_confirm_delete) {
     s_confirm_delete = false;
     prv_redraw_list();
@@ -198,7 +207,14 @@ static void prv_list_back(ClickRecognizerRef ref, void *context) {
     window_stack_pop(true);
   }
 }
+static void prv_list_export(ClickRecognizerRef ref, void *context) {
+  if (s_confirm_delete || jot_backup_active()) return;
+  if (!prv_flush()) { prv_redraw_list(); return; }
+  jot_backup_start();
+  prv_redraw_list();
+}
 static void prv_list_clicks(void *context) {
+  window_long_click_subscribe(BUTTON_ID_UP, 900, prv_list_export, NULL);
   window_single_click_subscribe(BUTTON_ID_UP, prv_list_up);
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_list_down);
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_list_select);
@@ -243,10 +259,12 @@ void jot_init(void) {
                                                  .unload = prv_list_unload});
     window_set_click_config_provider(s_list_window, prv_list_clicks);
   }
+  jot_backup_init();
   jot_refresh_editor();
 }
 
 void jot_deinit(void) {
   prv_flush();
+  jot_backup_deinit();
   if (s_list_window) { window_destroy(s_list_window); s_list_window = NULL; }
 }
