@@ -1,26 +1,39 @@
 {
-  "name": "messagease-test2",
+  "name": "pebble-jot",
   "author": "MakeAwesomeHappen",
-  "version": "1.0.0",
-  "keywords": ["pebble-app"],
+  "version": "0.2.0",
+  "keywords": [
+    "pebble-app"
+  ],
   "private": true,
   "dependencies": {},
   "pebble": {
-    "displayName": "messagease-test2",
+    "displayName": "Jot",
     "uuid": "b1bfef07-497f-4f18-8740-6f606b59a4e4",
     "sdkVersion": "3",
     "enableMultiJS": true,
-    "targetPlatforms": [     
-      "emery"      
+    "targetPlatforms": [
+      "emery"
     ],
     "watchapp": {
       "watchface": false
     },
     "messageKeys": [
-      "dummy"
+      "dummy",
+      "BackupKind",
+      "BackupSession",
+      "BackupIndex",
+      "BackupTotal",
+      "BackupTimestamp",
+      "BackupText",
+      "BackupAck",
+      "BackupStatus"
     ],
     "resources": {
       "media": []
-    }
+    },
+    "capabilities": [
+      "configurable"
+    ]
   }
 }
