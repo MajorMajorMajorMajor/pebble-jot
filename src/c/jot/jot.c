@@ -59,6 +59,16 @@ void jot_input(const char *binding) {
   jot_refresh_editor();
 }
 
+void jot_delete_forward(void) {
+  if ((s_list_window && window_stack_get_top_window() == s_list_window) ||
+      jot_reader_is_open()) return;
+  const bool changed = jot_store_delete_forward();
+  // Deletion is never a failed insertion due to a full buffer.
+  s_input_full = false;
+  if (changed) prv_schedule_autosave();
+  jot_refresh_editor();
+}
+
 void jot_save_now(void) {
   prv_flush();
   jot_refresh_editor();
