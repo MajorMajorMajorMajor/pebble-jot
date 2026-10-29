@@ -228,6 +228,69 @@ int main(void) {
   assert(jot_store_cursor() == 80);
   assert(jot_store_text()[79] == 'x');
 
+  // Forward delete removes the following character without moving the caret.
+  assert(jot_store_new());
+  assert(!jot_store_delete_forward()); // Empty draft, no hidden note created.
+  assert(jot_store_input("ABCDE"));
+  assert(jot_store_flush());
+  assert(!jot_store_dirty());
+  assert(!jot_store_delete_forward()); // At EOF: clean no-op.
+  assert(!jot_store_dirty());
+  assert(jot_store_set_cursor(2));
+  assert(jot_store_delete_forward());  // AB|CDE -> AB|DE
+  assert(strcmp(jot_store_text(), "ABDE") == 0);
+  assert(jot_store_cursor() == 2);
+  assert(jot_store_dirty());
+  assert(jot_store_flush());
+  assert(jot_store_set_cursor(0));
+  assert(jot_store_delete_forward());
+  assert(strcmp(jot_store_text(), "BDE") == 0);
+  assert(jot_store_cursor() == 0);
+  assert(jot_store_input("A"));
+  assert(strcmp(jot_store_text(), "ABDE") == 0);
+  assert(jot_store_cursor() == 1);
+
+  // UTF-8 characters must not be split: delete accented/emoji characters.
+  assert(jot_store_new());
+  assert(jot_store_input("a\xC3\xA9" "b"));
+  assert(jot_store_set_cursor(1));
+  assert(jot_store_delete_forward());
+  assert(strcmp(jot_store_text(), "ab") == 0);
+  assert(jot_store_cursor() == 1);
+  assert(jot_store_input("\xF0\x9F\x98\x8A"));
+  assert(jot_store_set_cursor(1));
+  assert(jot_store_delete_forward());
+  assert(strcmp(jot_store_text(), "ab") == 0);
+  assert(jot_store_cursor() == 1);
+  assert(jot_store_input("\b")); // Old backward-delete still works.
+  assert(strcmp(jot_store_text(), "b") == 0);
+
+  // Deleting a newline forward joins lines and survives save/reopen.
+  assert(jot_store_new());
+  assert(jot_store_input("first\nsecond"));
+  assert(jot_store_set_cursor(5));
+  assert(jot_store_delete_forward());
+  assert(strcmp(jot_store_text(), "firstsecond") == 0);
+  assert(jot_store_cursor() == 5);
+  assert(jot_store_flush());
+  const int forward_slot = jot_store_slot_at(0);
+  jot_store_init();
+  assert(jot_store_open(forward_slot));
+  assert(strcmp(jot_store_text(), "firstsecond") == 0);
+  assert(!jot_store_delete_forward());
+  assert(!jot_store_dirty());
+
+  // A full note can delete forward and insert again without a FULL error.
+  assert(jot_store_new());
+  assert(jot_store_input(limit_text));
+  assert(jot_store_set_cursor(80));
+  assert(jot_store_delete_forward());
+  assert(jot_store_length() == JOT_NOTE_TEXT_BYTES - 2);
+  assert(jot_store_cursor() == 80);
+  assert(jot_store_input("Z"));
+  assert(jot_store_length() == JOT_NOTE_TEXT_BYTES - 1);
+  assert(jot_store_text()[80] == 'Z');
+
   puts("Jot storage regression tests passed");
   return 0;
 }
