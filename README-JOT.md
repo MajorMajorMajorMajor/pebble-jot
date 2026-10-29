@@ -16,6 +16,8 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Editor long Select (~1.2 s):** open the inherited typing/trace diagnostic menu.
 - **Notes list Up / Down:** browse saved notes. Up from the newest note focuses **+ NEW**, Down from **+ NEW** returns to the newest note.
 - **Notes list Select:** open the selected saved note in the full-screen reader, or choose **+ NEW** to start a blank note.
+- **Notes list tap a note card:** open that exact note directly in the reader.
+- **Notes list vertical drag:** scroll the cards smoothly with finger motion, while keeping header, footer, and button focus consistent.
 - **Notes list long Select:** begin a two-step delete; Select confirms and Back cancels.
 - **Notes list tap + NEW:** open a new blank editor (only a stationary tap activates it; buttons work too).
 - **Notes list Back:** from older notes or **+ NEW**, return to the newest note; at the newest note, exit Jot. From an empty list, Back exits.
@@ -25,6 +27,44 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Draft peek tap, Select or Back:** return to the same keyboard editor.
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
+
+## Touch-responsive note list (v1.7 — physical testing pending)
+
+The note cards now scroll in their own **clipped Pebble Layer** beneath
+the fixed `+ NEW` header and backup/status footer. Instead of advancing
+one card for each swipe, the cards follow vertical finger motion in actual
+pixel increments. The viewport is bounded to the note content: it cannot
+drag past the first or last card. On release it stays in place (no inertial
+fling yet).
+
+**Tap:** a brief tap within an actual drawn card opens the corresponding
+read-only reader, preserving its rank and allowing Back to return to that
+position. The tap hit test shares the painter's exact card width, row
+height, margins and current pixel offset. A tap in a gap, on unused paper,
+or in the fixed footer is ignored. The `+ NEW` header tap still works.
+
+**Drag:** after more than 10 pixels of vertical movement, Jot changes to
+a scrolling gesture and stops treating that stroke as a possible tap.
+Once the stroke has moved far enough, returning to the starting point
+cannot accidentally open a note. The highlighted note follows the
+visible cards so the hardware Up/Down/Select controls remain useful after
+dragging; physical navigation re-centers the selected note in the familiar
+one-card-at-a-time fashion.
+
+Only gestures beginning within the card viewport can scroll it. Touch
+scrolling and card taps are suppressed during delete confirmation and
+active phone backup. NEW focus, Back-to-top, long Select to delete, long
+Up to back up, and the original keyboard gesture recognizer are not
+changed.
+
+New `src/c/jot/list_touch.c` is a dependency-free, host-tested source
+of truth for scroll bounds and card hitboxes. Automated tests cover
+the empty list, 1–16 notes, card gaps, clipped top/bottom edges,
+fractional scrolling and scroll-position-dependent hits. On-watch
+verification is still needed before closing
+[issue #7](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/7).
+A kinetic fling can be explored after the drag gestures are proven
+reliable on Emery.
 
 ## Context-aware screen navigation (v1.6 — Emery testing pending)
 
