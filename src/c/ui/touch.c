@@ -551,14 +551,19 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
         s_reader_touch_moved = true;
 
       if (event->type == TouchEvent_Liftoff) {
+        const JotReaderTouchLayout layout = jot_reader_touch_layout();
         const JotReaderTouchAction action = jot_reader_touch_action(
             jot_reader_is_peek(), s_reader_touch_x, s_reader_touch_y,
             event->x, event->y, s_reader_touch_moved,
-            now_ms - s_reader_touch_ms);
+            now_ms - s_reader_touch_ms, &layout);
         s_reader_touch_active = false;
         if (action == JOT_READER_TOUCH_BACK ||
-            action == JOT_READER_TOUCH_DISMISS_PEEK) jot_reader_back();
-        // Other saved-reader taps are intentionally inert until #23.
+            action == JOT_READER_TOUCH_DISMISS_PEEK) {
+          jot_reader_back();
+        } else if (action == JOT_READER_TOUCH_EDIT) {
+          // The same safe window-stack transition as physical Select.
+          jot_reader_edit_current();
+        }
       }
     }
     return;
