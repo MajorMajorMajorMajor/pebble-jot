@@ -331,6 +331,30 @@ int main(void) {
   assert(jot_store_active_slot() == navigation_slot);
   assert(!jot_store_dirty());
 
+  // Touch SAVE after autosave must reuse the same persistent note.
+  // The reader can first obtain the committed content; *then* the
+  // underlying keyboard can become a new draft without losing that note.
+  const int saved_before = jot_store_count();
+  const int saved_slot = jot_store_active_slot();
+  const size_t saved_cursor = jot_store_cursor();
+  assert(saved_slot >= 0);
+  assert(jot_store_flush()); // Already clean; no second record.
+  assert(jot_store_count() == saved_before);
+  assert(jot_store_active_slot() == saved_slot);
+  assert(jot_store_cursor() == saved_cursor);
+  char saved_copy[JOT_NOTE_TEXT_BYTES];
+  time_t saved_created = 0;
+  assert(jot_store_export(saved_slot, saved_copy, sizeof saved_copy,
+                          &saved_created));
+  assert(strcmp(saved_copy, "navigation test preserved") == 0);
+  assert(jot_store_new());  // Happens only after reader opens.
+  assert(jot_store_active_slot() == -1);
+  assert(jot_store_length() == 0);
+  assert(jot_store_count() == saved_before);
+  assert(jot_store_export(saved_slot, saved_copy, sizeof saved_copy,
+                          &saved_created));
+  assert(strcmp(saved_copy, "navigation test preserved") == 0);
+
   puts("Jot storage regression tests passed");
   return 0;
 }
