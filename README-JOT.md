@@ -11,7 +11,8 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Editor Backspace NE / E / SE / S:** delete the following UTF-8 character; tapping Backspace or swiping NW / N / SW / W deletes backward.
 - **Editor I swipe up / S swipe down:** move between explicit newline-separated text lines, retaining a preferred column.
 - **Editor I up-and-return / S down-and-return:** jump to the beginning / end of the active note.
-- **Editor Up / Down or KB touch target:** show saved notes.
+- **Editor Up / Down:** show saved notes.
+- **Editor SAVE touch key (formerly KB):** commit the note and open its saved full-screen reader; a blank draft does nothing. The physical Select key still saves new notes to the list.
 - **Editor Back:** save and show the notes list from quick capture; while editing a saved note, save and return to that note's reader.
 - **Editor long Select (~1.2 s):** open the inherited typing/trace diagnostic menu.
 - **Notes list Up / Down:** browse saved notes. Up from the newest note focuses **+ NEW**, Down from **+ NEW** returns to the newest note.
@@ -28,7 +29,60 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
-## Touch saved-note text to edit (v1.7.3 — Emery test pending)
+## Touch SAVE → committed reader (v1.7.4 — Emery testing pending)
+
+The old **KB** key at keyboard row 1, column 1 now reads **SAVE**. Its
+existing 50px-wide, dark-ink cell and all touch coordinate geometry remain
+unchanged; the smaller 18px bold label font ensures the four-letter
+word fits legibly. The original keyboard gesture mapping remains stored
+in `docs/gesture-map.csv`, including the menu/hand key's other design
+assignments. Only a stationary tap on key index 13 in Jot mode is
+repurposed, and the diagnostic typing/trace binding table is untouched.
+
+**A deliberate distinction between touch and buttons:**
+
+- **Quick-capture editor, SAVE touch:** commit → notes list pushed
+  under the reader → that exact **saved note's full-screen reader** is
+  displayed. The editor is cleared only after the reader opens.
+- **Quick-capture editor, physical Select:** unchanged; commit and
+  open the **notes list**, highlighting the just-saved note.
+- **Existing saved-note edit, SAVE touch:** reuse the existing
+  `prv_finish_saved_edit()` flow; save and return to the refreshed
+  reader for that exact record.
+- **Existing saved-note edit, physical Select/Back:** unchanged; save
+  and return to that note's refreshed reader.
+- **Saved reader ← NOTES:** returns to the notes list with the correct
+  selected note, and the list's **+ NEW** starts another blank note.
+  Touching saved reader text reopens editing, as verified in #23.
+- **Quick-capture empty draft, SAVE:** no-op; no phantom note is
+  allocated and no unrelated saved reader is shown.
+
+**Persistence and navigation safety:** The new
+`jot_editor_touch_save()` checks its editing origin, requires the list
+window to exist and the editor to be the active screen, then calls
+`prv_flush()` **before any window change**. If persist_write_data
+fails, it leaves the editor buffer and UTF-8 cursor intact with the
+existing SAVE ERROR indication. On success it uses
+`jot_store_active_slot()` and `prv_rank_of_slot(slot)`, rather than
+assuming the edited note is always newest. It pushes the list first,
+then calls `jot_reader_show(slot, rank, count)`. If either window
+cannot be opened, Jot pops the list and returns to the current
+editor *without clearing its text*. Only after the reader opens does
+`jot_store_new()` reset the underlying keyboard. Autosave may
+already have persisted the record; the final SAVE tap reuses the
+same slot and creates no duplicate.
+
+The host regression suite now checks the SAVE tap dispatch, label/font,
+save-before-window-stack ordering, rollback paths, no-op on empty
+drafts, editor reset only after reader success, and preservation of
+existing physical-button controls. Store-side tests still simulate
+write failures and check that drafts survive. The actual Pebble SDK
+build, key legibility, list-under-reader stack and touch behavior
+must be verified on Emery before
+[issue #24](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/24)
+can close.
+
+## Touch saved-note text to edit (v1.7.3 — verified on Emery)
 
 From the normal saved-note reader, a **short, stationary tap inside
 visible note text** now opens its editor. The action is routed through
@@ -64,9 +118,9 @@ The compiled host touch tests cover the exact visible text edges,
 timestamp and footer exclusions, short-note blank paper, scrolled
 long notes, empty/unavailable viewports, drag cancellation and Peek.
 The source-level CI test enforces the shared Select and touch editing
-path and failure-safe stack transitions. Real Emery visual/touch
-verification is still required before closing
-[issue #23](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/23).
+path and failure-safe stack transitions. The feature was thoroughly
+verified on Emery; [issue #23](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/23)
+is completed.
 
 ## Contextual reader Back key (v1.7.2 — verified on Emery)
 
@@ -436,6 +490,6 @@ published, the watch-to-phone transfer can work but the viewer won't open.
 
 1. Verify end-to-end phone backup and export on real hardware (including Unicode, disconnects and failure recovery).
 2. Device testing of note persistence, full capacity, relaunch, and deletion.
-3. Verify the 1.5.3 visual-line caret placement on real Emery, then implement forward delete and navigation polish.
+3. Verify the 1.7.4 touch SAVE → reader flow on real Emery, then tackle #17 tap-to-place cursor, reader gesture scrolling, and storage durability.
 
 The earlier `jot-v0.1.patch` instructions are historical; this repository now contains the Jot source directly. Simply pull and build the branch.
