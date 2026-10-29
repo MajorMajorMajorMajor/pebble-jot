@@ -15,6 +15,8 @@ void jot_editor_select(void);
 void jot_editor_back(void);
 void jot_show_list(void);
 bool jot_list_is_open(void);
+// Handle a short, stationary tap on the notes-list + pill.
+void jot_list_tap(int16_t x, int16_t y);
 void jot_refresh_editor(void);
 void jot_save_now(void);
 // Switch from a read-only saved-note page back to the keyboard editor.
