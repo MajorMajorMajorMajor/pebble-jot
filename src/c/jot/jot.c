@@ -166,6 +166,18 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentCenter, NULL);
 
+  // Notebook-style add pill sits between the Jot title and note count.
+  // Only a stationary tap on this header target opens a fresh editor.
+  graphics_context_set_fill_color(ctx, ink);
+  graphics_fill_rect(ctx, GRect(width - 101, 8, 29, 25),
+                     10, GCornersAll);
+  graphics_context_set_text_color(ctx, yellow);
+  graphics_draw_text(ctx, "+",
+                     fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                     GRect(width - 101, 8, 29, 24),
+                     GTextOverflowModeTrailingEllipsis,
+                     GTextAlignmentCenter, NULL);
+
   if (!count) {
     // An unused sheet of paper should look inviting, not like an error.
     const int card_y = LIST_HEADER_H + 17;
@@ -320,8 +332,15 @@ static void prv_list_back(ClickRecognizerRef ref, void *context) {
   if (s_confirm_delete) {
     s_confirm_delete = false;
     prv_redraw_list();
+  } else if (s_selected_rank > 0) {
+    // Back in history first returns to its newest page.
+    s_selected_rank = 0;
+    prv_redraw_list();
   } else {
-    window_stack_pop(true);
+    // The editor is underneath the list; popping only the list would
+    // bounce Back between two Jot screens forever. At the top, exit.
+    if (prv_flush()) window_stack_pop_all(true);
+    else prv_redraw_list();
   }
 }
 static void prv_list_export(ClickRecognizerRef ref, void *context) {
@@ -459,6 +478,27 @@ void jot_editor_back(void) {
 
 bool jot_list_is_open(void) {
   return s_list_window && window_stack_get_top_window() == s_list_window;
+}
+
+void jot_list_tap(int16_t x, int16_t y) {
+  if (!jot_list_is_open() || !s_list_layer ||
+      s_confirm_delete || jot_backup_active()) return;
+  const int width = layer_get_bounds(s_list_layer).size.w;
+  if (x < width - 101 || x >= width - 72 || y < 8 || y >= 33) return;
+
+  // Fresh note is a deliberate action, not a consequence of browsing.
+  // Refuse to switch if a dirty draft cannot be committed safely.
+  if (!prv_flush()) { prv_redraw_list(); return; }
+  if (!jot_store_new()) {
+    s_storage_error = true;
+    prv_redraw_list();
+    return;
+  }
+  s_editing_slot = -1;
+  s_input_full = false;
+  s_storage_error = false;
+  jot_refresh_editor();
+  window_stack_pop(true);
 }
 
 void jot_init(void) {
