@@ -28,7 +28,7 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
-## Touch-responsive note list (v1.7 — physical testing pending)
+## Touch-responsive note list (v1.7 tested; v1.7.1 focus refinement awaiting watch test)
 
 The note cards now scroll in their own **clipped Pebble Layer** beneath
 the fixed `+ NEW` header and backup/status footer. Instead of advancing
@@ -46,10 +46,28 @@ or in the fixed footer is ignored. The `+ NEW` header tap still works.
 **Drag:** after more than 10 pixels of vertical movement, Jot changes to
 a scrolling gesture and stops treating that stroke as a possible tap.
 Once the stroke has moved far enough, returning to the starting point
-cannot accidentally open a note. The highlighted note follows the
-visible cards so the hardware Up/Down/Select controls remain useful after
-dragging; physical navigation re-centers the selected note in the familiar
-one-card-at-a-time fashion.
+cannot accidentally open a note.
+
+**Jot 1.7.1 focus policy (#22):** As soon as dragging begins, the yellow
+selection highlight disappears (including any focus on `+ NEW`). The list
+keeps its precise pixel scroll position when the gesture ends, with no
+highlight. A separate `s_list_focus_valid` flag distinguishes this state
+from actual `+ NEW` focus (`JOT_LIST_FOCUS_NEW == -1`).
+
+The **first** physical **Up or Down** after a drag performs *the same action*:
+highlight the **topmost completely visible note card**. This uses the
+actual painted card's 3px vertical inset, not merely the first logical row,
+so a card whose margin is clipped can still count as fully visible.
+That first button press deliberately does **not** move the viewport, avoiding
+a jump. Subsequent button presses restore the usual one-note-at-a-time
+movement and positioning; Up from the newest note can still select `+ NEW`.
+
+While touch browsing has no selection, physical Select or long Select first
+restores focus and never acts on an invisible, stale note. Back returns focus
+to the newest note at the top (rather than accidentally exiting); the next
+Back exits Jot as before. Tapping any card continues to open it directly,
+reinstating focus on that exact note so Reader Back returns to the same
+scroll position. Empty lists restore `+ NEW` on button press.
 
 Only gestures beginning within the card viewport can scroll it. Touch
 scrolling and card taps are suppressed during delete confirmation and
@@ -60,11 +78,13 @@ changed.
 New `src/c/jot/list_touch.c` is a dependency-free, host-tested source
 of truth for scroll bounds and card hitboxes. Automated tests cover
 the empty list, 1–16 notes, card gaps, clipped top/bottom edges,
-fractional scrolling and scroll-position-dependent hits. On-watch
-verification is still needed before closing
-[issue #7](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/7).
-A kinetic fling can be explored after the drag gestures are proven
-reliable on Emery.
+fractional scrolling and scroll-position-dependent hits. The original
+tap/drag behavior was verified on Emery and
+[issue #7](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/7)
+is complete. New Jot 1.7.1 host cases test full-card focus after a partial
+scroll, and [issue #22](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/22)
+tracks the on-watch focus refinement.
+A kinetic fling remains optional future polish.
 
 ## Context-aware screen navigation (v1.6 — Emery testing pending)
 
