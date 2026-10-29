@@ -21,6 +21,23 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
+## Maintenance fixes (v1.3.1)
+
+- Note deletion now follows Pebble's `persist_delete()` API contract: a
+  successful delete returns `S_TRUE`. Deleting a just-created note or an
+  older note updates both on-device storage and the in-memory list. The editor
+  is refreshed when an active note is deleted. A native host regression test
+  covers these cases and subsequent note entry.
+- Up/Down in the notebook list moves the selection by **one note**, and the
+  visible card window now slides one item at a time instead of jumping by
+  groups of three.
+- Notes from **today** display the local time (`HH:MM`). Older notes display
+  the local month/day (`MM/DD`) in the narrow timestamp column. The
+  full-screen reader still shows the full note timestamp.
+
+All saved-note keys and record structures are unchanged. Verify the fixes on
+the watch before closing Issues #1, #8, and #13.
+
 ## Persistence and limitations
 
 The app stores notes in Pebble's per-app persistent storage, currently capped at **16 notes** of **159 UTF-8 bytes** each. A note's byte count may differ from its character count. The app refuses to allocate a seventeenth note instead of silently overwriting existing notes.
@@ -117,6 +134,6 @@ published, the watch-to-phone transfer can work but the viewer won't open.
 
 1. Verify end-to-end phone backup and export on real hardware (including Unicode, disconnects and failure recovery).
 2. Device testing of note persistence, full capacity, relaunch, and deletion.
-3. Test the enlarged reader type, always-current typing tail and tap-to-peek on Emery, keeping the keyboard layout unchanged.
+3. Verify the 1.3.1 deletion and list usability fixes on Emery, then prioritize multiline and cursor editing.
 
 The earlier `jot-v0.1.patch` instructions are historical; this repository now contains the Jot source directly. Simply pull and build the branch.
