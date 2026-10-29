@@ -19,6 +19,9 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | Editor | Type on touchscreen | Enter or delete text with gestures |
 | Editor | Select | Save the current note and start a new one |
 | Editor | Tap the text strip above keyboard | Peek at the entire current note without changing it |
+| Editor | Space swipe left / right | Move the insertion cursor one Unicode character |
+| Editor | I swipe up / S swipe down | Move cursor to previous / next explicit text line |
+| Editor | I up-and-return / S down-and-return | Move cursor to start / end of note |
 | Editor | Up / Down | Open the notes list |
 | Editor | Tap **KB** | Open the notes list |
 | Editor | Back | Exit and save on normal app shutdown |
@@ -40,7 +43,9 @@ Select a note in the notes list to open a **read-only paper page**, with its tim
 
 Jot 1.3 adds **tap-to-peek** from the text strip above the keyboard. The preview copies the current draft without saving or switching notes; tap again (or press Select/Back) to return to typing. Reader text uses a larger, bold font for legibility.
 
-**Jot 1.4 introduces a true multiline editing preview.** The 40-pixel text strip now displays the actual note with word wrapping and line breaks, scrolling automatically to keep the last line and its `|` caret in view. A newline moves that caret onto a fresh line; backspace removes the newline as usual. The status badge appears only when necessary. This is a display/typing improvement: editing still appends at the end, and moving the cursor into existing text remains planned in [issue #3](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/3). The keyboard gesture map, touch targets, and 159-byte storage limit are unchanged.
+**Jot 1.4 introduces a true multiline editing preview.** The 40-pixel text strip now displays the actual note with word wrapping and line breaks, scrolling automatically to keep the last line and its `|` caret in view. A newline moves that caret onto a fresh line; backspace removes the newline as usual. The status badge appears only when necessary. This is a display/typing improvement: editing still appends at the end, and moving the cursor into existing text remains planned in [issue #3](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/3). **Jot 1.5 introduces cursor editing** through six controls already assigned in the original gesture-map spreadsheet: Space left/right moves by one UTF-8 character; I up / S down moves between explicit newline-separated lines; I up-and-return / S down-and-return jumps to the start or end of the note. Text insertion and backspace now operate at the cursor, and the tiny editor viewport follows it. Word-wrapped visual-line navigation and touch-to-place-cursor are future refinements.
+
+The keyboard's layout, recognizer thresholds, note storage format and 159-byte limit remain unchanged. See the [complete readable gesture map](docs/gesture-map.md) and its [CSV source](docs/gesture-map.csv). This map records original design intent—including commands not yet implemented—not a list of features currently working on a watch.
 
 ## Export notes to your phone (v0.2)
 
@@ -87,6 +92,6 @@ See [README-JOT.md](README-JOT.md) for detailed controls and limits, and [TOUCH_
 
 ## Next steps
 
-The immediate priorities are **on-watch verification of Jot 1.4's multiline viewport**, then cursor-based editing, more durable backups, and storage expansion. The keyboard's touch targets remain unchanged.
+The immediate priorities are **on-watch verification of cursor editing**, then typography, touch-to-caret positioning, more durable backups, and storage expansion. The keyboard's touch targets remain unchanged.
 
 Pebble SDK documentation: <https://developer.repebble.com>
