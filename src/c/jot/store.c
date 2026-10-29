@@ -135,7 +135,10 @@ bool jot_store_open(int slot) {
 bool jot_store_delete(int slot) {
   if (slot < 0 || slot >= JOT_NOTE_CAPACITY || !s_index[slot].used) return false;
   if (!jot_store_flush()) return false;
-  if (persist_delete(JOT_FIRST_KEY + slot) != S_SUCCESS) return false;
+  // Pebble's persist_delete() returns S_TRUE (not S_SUCCESS) on success.
+  // An incorrect check leaves a ghost index entry after the watch has
+  // already deleted the record, and can poison subsequent editing.
+  if (persist_delete(JOT_FIRST_KEY + slot) != S_TRUE) return false;
   s_index[slot] = (NoteIndex) {0};
   if (s_active_slot == slot) {
     s_active_slot = -1;
