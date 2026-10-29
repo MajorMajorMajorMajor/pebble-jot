@@ -20,6 +20,8 @@ jobs:
           node-version: '22'
       - name: Test phone backup protocol
         run: node tests/backup-js.test.js
+      - name: Check canonical gesture mapping
+        run: node tests/gesture-map.test.js
       - name: Compile and test persistent note storage
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I tests/fake -I src/c \
