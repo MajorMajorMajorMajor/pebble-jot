@@ -5,6 +5,7 @@
 #include "jot/jot.h"
 #include "jot/store.h"
 #include "jot/reader.h"
+#include "jot/reader_touch.h"
 
 // Temporary on-device trace recorder. Nothing is logged while a trial is running:
 // emitting APP_LOG messages inside the callback would disturb touch timing.
@@ -95,6 +96,13 @@ static bool s_list_touch_dragging;
 static bool s_list_touch_can_drag;
 static int16_t s_list_touch_x, s_list_touch_y, s_list_touch_last_y;
 static uint32_t s_list_touch_ms;
+// Track the reader's Back tap independently of list and keyboard gestures.
+// Movement cancellation is sticky, so returning to the start still cannot
+// accidentally activate Back on release.
+static bool s_reader_touch_active;
+static bool s_reader_touch_moved;
+static int16_t s_reader_touch_x, s_reader_touch_y;
+static uint32_t s_reader_touch_ms;
 // src/c/ui/touch.c describes the currently implemented bindings only.
 // docs/gesture-map.md and docs/gesture-map.csv preserve the complete original
 // English-LH keyboard design, including reserved-but-not-yet-implemented
@@ -526,12 +534,36 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
   if (!event) return;
 
   if (s_mode == MODE_JOT && jot_reader_is_open()) {
-    // A peek is a temporary page: tapping anywhere returns to the keyboard.
-    // An ordinary saved-note reader still uses its physical buttons.
-    if (jot_reader_is_peek() && event->type == TouchEvent_Liftoff)
-      jot_reader_dismiss_peek();
+    const uint32_t now_ms = prv_now_ms();
+    if (event->type == TouchEvent_Touchdown) {
+      s_reader_touch_active = true;
+      s_reader_touch_moved = false;
+      s_reader_touch_x = event->x;
+      s_reader_touch_y = event->y;
+      s_reader_touch_ms = now_ms;
+    } else if ((event->type == TouchEvent_PositionUpdate ||
+                event->type == TouchEvent_Liftoff) && s_reader_touch_active) {
+      const int dx = event->x - s_reader_touch_x;
+      const int dy = event->y - s_reader_touch_y;
+      // An excursion beyond tap slop is permanent for this stroke.
+      if (dx > JOT_READER_TAP_SLOP || dx < -JOT_READER_TAP_SLOP ||
+          dy > JOT_READER_TAP_SLOP || dy < -JOT_READER_TAP_SLOP)
+        s_reader_touch_moved = true;
+
+      if (event->type == TouchEvent_Liftoff) {
+        const JotReaderTouchAction action = jot_reader_touch_action(
+            jot_reader_is_peek(), s_reader_touch_x, s_reader_touch_y,
+            event->x, event->y, s_reader_touch_moved,
+            now_ms - s_reader_touch_ms);
+        s_reader_touch_active = false;
+        if (action == JOT_READER_TOUCH_BACK ||
+            action == JOT_READER_TOUCH_DISMISS_PEEK) jot_reader_back();
+        // Other saved-reader taps are intentionally inert until #23.
+      }
+    }
     return;
   }
+  s_reader_touch_active = false;
 
   if (s_mode == MODE_JOT && jot_list_is_open()) {
     const uint32_t now_ms = prv_now_ms();
