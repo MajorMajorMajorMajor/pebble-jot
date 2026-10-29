@@ -317,6 +317,9 @@ static void prv_list_select(ClickRecognizerRef ref, void *context) {
         --s_selected_rank;
     }
     s_confirm_delete = false;
+    // Deleting the active note clears its editor buffer. Paint that change
+    // before returning from the list; never show a phantom deleted draft.
+    jot_refresh_editor();
     prv_redraw_list();
     return;
   }
