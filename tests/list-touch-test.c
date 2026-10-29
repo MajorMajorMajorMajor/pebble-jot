@@ -47,7 +47,7 @@ static void test_layout(void) {
   assert(jot_list_touch_first_full_card(30, 0, H) == -1);
   assert(jot_list_touch_first_full_card(0, 1, H) == 0);
   assert(jot_list_touch_first_full_card(300, 2, H) == 0);
-  assert(jot_list_touch_first_full_card(5, 3, H) == 1);
+  assert(jot_list_touch_first_full_card(5, 3, H) == 0); // Short list cannot scroll.
   assert(jot_list_touch_first_full_card(30, 4, H) == 1);
   assert(jot_list_touch_first_full_card(52, 4, H) == 1);
 }
