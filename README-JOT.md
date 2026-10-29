@@ -6,6 +6,7 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 - **Launch:** go directly to a blank editor.
 - **Editor Select:** save this note and start a new one.
+- **Editor text strip tap:** peek at the full current draft without saving or switching notes.
 - **Editor Up / Down or KB touch target:** show saved notes.
 - **Editor Back:** exit, saving pending changes during normal shutdown.
 - **Editor long Select (~1.2 s):** open the inherited typing/trace diagnostic menu.
@@ -16,6 +17,7 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Reader Up / Down:** scroll the note vertically, 45 pixels per press (when it exceeds the screen).
 - **Reader Select:** open that note in the existing keyboard editor.
 - **Reader Back:** return to the notes list without modifying the note.
+- **Draft peek tap, Select or Back:** return to the same keyboard editor.
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
@@ -53,7 +55,29 @@ Selecting a saved note now opens its **full text** on a cream paper screen with 
 
 Press **Select** to open that note for editing with the existing keyboard, or **Back** to return to the list at the same selection. If a note cannot be read or opened, Jot remains on the list or reader and shows a failure indicator. Touchscreen typing is ignored while the reader is on screen.
 
-This first installment deliberately **does not** change the 159-byte note limit, storage format, keyboard geometry or gesture classifier. The reader is pending first on-watch validation. Tap-to-peek from the editor is planned as the next independent installment.
+This installment **does not** change the 159-byte note limit, storage format, keyboard geometry or gesture classifier. The reader has now been demonstrated on real Pebble hardware; the enlarged body font and draft peek are the next on-watch test.
+
+## Editor live tail and draft peek (v1.3)
+
+The tiny 40 px editor strip previously showed a long suffix that could be
+clipped by the text layer, leaving the latest keystrokes invisible. It now
+shows **up to the last 16 UTF-8 codepoints** in a single preview line, with
+an ellipsis at the beginning when the note is longer. Newlines in this preview
+are shown as spaces; the underlying note is unchanged.
+
+**Tap the text strip above the keyboard** (a short, stationary tap). Jot opens
+the same full-screen paper reader with a **DRAFT** badge and a read-only copy
+of the current editor contents. Up / Down scroll. Tap the reader, press Select,
+or press Back to return to exactly the same editing session.
+
+This peek does **not** flush, allocate, edit, or switch notes. Autosave still
+runs independently as usual. The gesture classifier and keyboard touch
+targets are unchanged.
+
+The reader's body type is now **Gothic 24 Bold** (formerly Gothic 18) with
+larger metadata; it will wrap and scroll more often, intentionally trading
+page density for readability. This release needs an on-watch typography and
+touch-hit-area check.
 
 ## Watch notes list appearance
 
@@ -93,6 +117,6 @@ published, the watch-to-phone transfer can work but the viewer won't open.
 
 1. Verify end-to-end phone backup and export on real hardware (including Unicode, disconnects and failure recovery).
 2. Device testing of note persistence, full capacity, relaunch, and deletion.
-3. Validate the full-screen reader on Emery, then add tap-to-peek from the typing strip, keeping the keyboard layout unchanged.
+3. Test the enlarged reader type, always-current typing tail and tap-to-peek on Emery, keeping the keyboard layout unchanged.
 
 The earlier `jot-v0.1.patch` instructions are historical; this repository now contains the Jot source directly. Simply pull and build the branch.
