@@ -10,7 +10,7 @@ int main(void) {
   // New notes list always opens on the saved/newest note, not NEW.
   assert(jot_list_focus_initial(0, 15) == 0);
   assert(jot_list_focus_initial(4, 15) == 4);
-  assert(jot_list_focus_initial(99, 15) == 0);
+  assert(jot_list_focus_initial(99, 15) == 14);
   assert(jot_list_focus_initial(-1, 15) == 0);
   assert(jot_list_focus_initial(0, 0) == JOT_LIST_FOCUS_NEW);
 
@@ -37,9 +37,10 @@ int main(void) {
   assert(jot_list_focus_initial(0, 0) == JOT_LIST_FOCUS_NEW);
   assert(jot_list_focus_down(JOT_LIST_FOCUS_NEW, 0) ==
          JOT_LIST_FOCUS_NEW);
-  // After deleting a middle item, stay on that new current rank.
+  // After deleting a middle item, stay on the replacement at that rank.
   assert(jot_list_focus_initial(5, 7) == 5);
-  assert(jot_list_focus_initial(7, 7) == 0);
+  // Deleting the last item selects its former predecessor, not the top.
+  assert(jot_list_focus_initial(7, 7) == 6);
 
   puts("List NEW-focus navigation tests passed");
   return 0;
