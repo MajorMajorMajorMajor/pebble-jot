@@ -126,6 +126,15 @@ static bool prv_jot_cursor_command(int key, int gesture) {
   return true;
 }
 
+// In the canonical English-LH map, Backspace NE/E/SE/S deletes the next
+// character. Keep the diagnostic typing mode's legacy bindings intact.
+static bool prv_jot_forward_delete_command(int key, int gesture) {
+  if (key != 10 || (gesture != 2 && gesture != 3 &&
+                    gesture != 4 && gesture != 5)) return false;
+  jot_delete_forward();
+  return true;
+}
+
 static TraceEvent s_events[TRACE_MAX_EVENTS];
 static size_t s_event_count;
 static uint32_t s_overflow_count;
@@ -466,7 +475,8 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
         if (s_mode == MODE_JOT) {
           // The KB corner is also a convenient touch shortcut to note history.
           if (s_touch_key == 13 && gesture_index == 0) jot_show_list();
-          else if (!prv_jot_cursor_command(s_touch_key, gesture_index))
+          else if (!prv_jot_cursor_command(s_touch_key, gesture_index) &&
+                   !prv_jot_forward_delete_command(s_touch_key, gesture_index))
             jot_input(binding);
           break;
         }
