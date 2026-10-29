@@ -22,12 +22,21 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | Editor | Tap **KB** | Open the notes list |
 | Editor | Back | Exit and save on normal app shutdown |
 | Notes list | Up / Down | Move through saved notes |
-| Notes list | Select | Open the highlighted note for editing |
+| Notes list | Select | Read the highlighted note full-screen |
 | Notes list | Long Select | Request deletion; Select confirms, Back cancels |
 | Notes list | Back | Return to editor |
+| Reader | Up / Down | Scroll the full note |
+| Reader | Select | Open the note in the keyboard editor |
+| Reader | Back | Return to the notes list |
 | Editor | Long Select (~1.2 s) | Open the legacy typing / trace diagnostics |
 
 The `JOT *` heading means there are unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` indicates the storage write did not succeed.
+
+## Read your notes full-screen (v1.2)
+
+Select a note in the notes list to open a **read-only paper page**, with its timestamp and complete text. Scroll with Up / Down. Select opens that note for editing using the unchanged gesture keyboard; Back returns to the same place in the list. Browsing a page does not overwrite or resave your current draft.
+
+The current 159-byte-per-note limit is unchanged. Tap-to-peek from the keyboard is planned separately after testing the reader on a real Pebble.
 
 ## Export notes to your phone (v0.2)
 
