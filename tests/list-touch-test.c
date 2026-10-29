@@ -27,12 +27,29 @@ static void test_layout(void) {
   assert(jot_list_touch_scroll_for_focus(15, 16, H) == 676);
   assert(jot_list_touch_scroll_for_focus(2, 2, H) == 0);
 
-  // Dragged scroll highlights a visible note, leaving button navigation
-  // continuous from the new position.
-  assert(jot_list_touch_focus_at_scroll(0, 16, H) == 1);
-  assert(jot_list_touch_focus_at_scroll(52, 16, H) == 2);
-  assert(jot_list_touch_focus_at_scroll(676, 16, H) == 14);
-  assert(jot_list_touch_focus_at_scroll(30, 0, H) == -1);
+  // When touch browsing ends, *either* Up or Down must focus the
+  // topmost fully visible card, not the middle or a clipped top card.
+  // The card itself begins 3px into its row, so the first 3 pixels of
+  // scrolling still leave the first card fully visible.
+  assert(jot_list_touch_first_full_card(0, 16, H) == 0);
+  assert(jot_list_touch_first_full_card(1, 16, H) == 0);
+  assert(jot_list_touch_first_full_card(3, 16, H) == 0);
+  assert(jot_list_touch_first_full_card(4, 16, H) == 1);
+  assert(jot_list_touch_first_full_card(26, 16, H) == 1);
+  assert(jot_list_touch_first_full_card(52, 16, H) == 1);
+  assert(jot_list_touch_first_full_card(55, 16, H) == 1);
+  assert(jot_list_touch_first_full_card(56, 16, H) == 2);
+  assert(jot_list_touch_first_full_card(75, 16, H) == 2);
+  assert(jot_list_touch_first_full_card(676, 16, H) == 13);
+  assert(jot_list_touch_first_full_card(9999, 16, H) == 13);
+
+  // Empty and short lists still return appropriate button focus.
+  assert(jot_list_touch_first_full_card(30, 0, H) == -1);
+  assert(jot_list_touch_first_full_card(0, 1, H) == 0);
+  assert(jot_list_touch_first_full_card(300, 2, H) == 0);
+  assert(jot_list_touch_first_full_card(5, 3, H) == 1);
+  assert(jot_list_touch_first_full_card(30, 4, H) == 1);
+  assert(jot_list_touch_first_full_card(52, 4, H) == 1);
 }
 
 static void test_hits(void) {
@@ -68,6 +85,7 @@ static void test_hits(void) {
 
 static void test_short_viewport(void) {
   assert(jot_list_touch_row_height(74) == 0);
+  assert(jot_list_touch_first_full_card(0, 10, 74) == -1);
   assert(jot_list_touch_max_scroll(10, 74) == 0);
   assert(jot_list_touch_hit_card(50, 44, 200, 74, 10, 0) == -1);
 }
