@@ -2,7 +2,8 @@
 
 int jot_list_focus_initial(int rank, int count) {
   if (count <= 0) return JOT_LIST_FOCUS_NEW;
-  return rank >= 0 && rank < count ? rank : 0;
+  if (rank < 0) return 0;
+  return rank < count ? rank : count - 1;
 }
 
 int jot_list_focus_up(int focus) {
