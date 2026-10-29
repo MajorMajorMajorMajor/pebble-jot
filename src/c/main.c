@@ -22,18 +22,8 @@ int main(void) {
   Layer *alert_layer = alert_ui_init(frame);
   PEBBLE_ASSERT(alert_layer);
 
-  /** 
-    Note that TextLayer can be safely type-casted to `Layer` (or `Layer *` in case of a pointer). 
-    The `layer_...` functions can then be used with the data structures of these subclasses.   
-    
-    For example, the following is legal:
-
-    ```
-    TextLayer \*text\_layer;...layer\_set\_hidden((Layer \*)text\_layer, true);
-    ```
-
-    See: https://developer.repebble.com/docs/c/User_Interface/Layers.md
-  */
+  // A clipped Layer owns the editor TextLayer and its save-status badge.
+  // Keyboard geometry and key hit areas stay exactly the same.
   keyboard_set_content_layer(keyboard, alert_layer);  
 
   // Push the keyboard window  
