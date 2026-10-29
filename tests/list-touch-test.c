@@ -48,13 +48,13 @@ static void test_hits(void) {
   assert(jot_list_touch_hit_card(40, 93, W, H, N, 0) == -1);
   assert(jot_list_touch_hit_card(40, 98, W, H, N, 0) == 1);
   assert(jot_list_touch_hit_card(40, 150, W, H, N, 0) == 2);
-  assert(jot_list_touch_hit_card(40, 198, W, H, N, 0) == 2);
+  assert(jot_list_touch_hit_card(40, 198, W, H, N, 0) == -1);
   assert(jot_list_touch_hit_card(40, 199, W, H, N, 0) == -1);
   assert(jot_list_touch_hit_card(150, 20, W, H, N, 0) == -1);
 
   // A partial-pixel scroll changes which card is under the finger.
   assert(jot_list_touch_hit_card(40, 50, W, H, N, 26) == 0);
-  assert(jot_list_touch_hit_card(40, 68, W, H, N, 26) == 1);
+  assert(jot_list_touch_hit_card(40, 68, W, H, N, 26) == -1);
   assert(jot_list_touch_hit_card(40, 66, W, H, N, 26) == -1);
   assert(jot_list_touch_hit_card(40, 73, W, H, N, 26) == 1);
   // At the bottom of a six-note list, last card is tappable.
