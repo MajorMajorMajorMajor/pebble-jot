@@ -14,7 +14,7 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Notes list Select:** open a saved note in the new full-screen, read-only paper reader.
 - **Notes list long Select:** begin a two-step delete; Select confirms and Back cancels.
 - **Notes list Back:** return to the editor.
-- **Reader Up / Down:** scroll the note vertically, 45 pixels per press (when it exceeds the screen).
+- **Reader Up / Down:** scroll the note vertically, 60 pixels per press (when it exceeds the screen).
 - **Reader Select:** open that note in the existing keyboard editor.
 - **Reader Back:** return to the notes list without modifying the note.
 - **Draft peek tap, Select or Back:** return to the same keyboard editor.
@@ -35,14 +35,14 @@ The keyboard supports taps, directional swipes, directional drag-and-returns, an
   the local month/day (`MM/DD`) in the narrow timestamp column. The
   full-screen reader still shows the full note timestamp.
 
-All saved-note keys and record structures are unchanged. Verify the fixes on
-the watch before closing Issues #1, #8, and #13.
+All saved-note keys and record structures are unchanged. Issues #1, #8, and
+#13 were verified on the watch and closed.
 
 ## Persistence and limitations
 
 The app stores notes in Pebble's per-app persistent storage, currently capped at **16 notes** of **159 UTF-8 bytes** each. A note's byte count may differ from its character count. The app refuses to allocate a seventeenth note instead of silently overwriting existing notes.
 
-A pending change is indicated by `JOT *`. Autosave fires approximately 1.8 seconds after the last edit, and saves are also attempted at navigation boundaries. `SAVE ERROR` means a write was not accepted; do not assume the affected note is safely stored. Note order is newest-first.
+A pending edit is indicated by a small `*` at the top right of the input strip. Autosave fires approximately 1.8 seconds after the last edit, and saves are also attempted at navigation boundaries. `SAVE ERROR` means a write was not accepted; do not assume the affected note is safely stored. `FULL` means a character was rejected because the note is at capacity. Note order is newest-first.
 
 **Manual phone export is available and has been demonstrated on real hardware.** The watch keeps its local notes; the phone companion keeps one complete snapshot in its local storage. It is not automatic synchronization. Copy or save a separate file before relying on a backup. Uninstalling Jot may delete the on-watch notes.
 
@@ -74,27 +74,38 @@ Press **Select** to open that note for editing with the existing keyboard, or **
 
 This installment **does not** change the 159-byte note limit, storage format, keyboard geometry or gesture classifier. The reader has now been demonstrated on real Pebble hardware; the enlarged body font and draft peek are the next on-watch test.
 
-## Editor live tail and draft peek (v1.3)
+## Multiline editing preview (v1.4)
 
-The tiny 40 px editor strip previously showed a long suffix that could be
-clipped by the text layer, leaving the latest keystrokes invisible. It now
-shows **up to the last 16 UTF-8 codepoints** in a single preview line, with
-an ellipsis at the beginning when the note is longer. Newlines in this preview
-are shown as spaces; the underlying note is unchanged.
+The 40-pixel editor strip now uses both rows for the **real note text**, not
+a `JOT` heading followed by a flattened tail. It preserves actual newline
+characters, uses Pebble's own word wrapping, and automatically scrolls the
+text behind a clipped 40-pixel viewport to keep the end visible. A `|` caret
+marks where the *next* character will be appended. If the most recent
+character is a newline, the caret appears on the next line. Backspace
+deletes the newline and returns it to the preceding line.
 
-**Tap the text strip above the keyboard** (a short, stationary tap). Jot opens
-the same full-screen paper reader with a **DRAFT** badge and a read-only copy
-of the current editor contents. Up / Down scroll. Tap the reader, press Select,
-or press Back to return to exactly the same editing session.
+At this stage, the caret is **end-of-note only**; positioning and inserting
+mid-note will follow as part of [cursor editing issue #3](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/3).
+The strip continues to open a read-only preview on tap. The small `*`
+marker appears while dirty; `SAVE ERROR` and `FULL` are prominent status
+badges. The normal editor no longer spends an entire line displaying `JOT`.
 
-This peek does **not** flush, allocate, edit, or switch notes. Autosave still
-runs independently as usual. The gesture classifier and keyboard touch
-targets are unchanged.
+The editor display is now a clipping Layer with a word-wrapped TextLayer
+child; the surrounding keyboard and its 40-pixel touch boundary have not
+changed. The note storage format, save schedule, gesture bindings and limits
+remain unchanged. The multiline viewport awaits on-watch visual testing.
 
-The reader's body type is now **Gothic 24 Bold** (formerly Gothic 18) with
-larger metadata; it will wrap and scroll more often, intentionally trading
-page density for readability. This release needs an on-watch typography and
-touch-hit-area check.
+### Draft peek and typography (v1.3)
+
+**Tap the strip above the keyboard** to open the full-screen paper reader
+with a `DRAFT` badge and read-only snapshot of the current buffer. Up / Down
+scroll; tap the reader, Select, or Back to return to the same editor.
+Peeking does **not** flush, allocate, edit, or switch notes. Autosave runs
+independently as before.
+
+The full-screen reader uses Gothic 24 Bold for legibility, with Gothic 18
+Bold metadata. Its large text wraps naturally; it is unaffected by the
+editor's smaller two-line viewport.
 
 ## Watch notes list appearance
 
@@ -134,6 +145,6 @@ published, the watch-to-phone transfer can work but the viewer won't open.
 
 1. Verify end-to-end phone backup and export on real hardware (including Unicode, disconnects and failure recovery).
 2. Device testing of note persistence, full capacity, relaunch, and deletion.
-3. Verify the 1.3.1 deletion and list usability fixes on Emery, then prioritize multiline and cursor editing.
+3. Verify the 1.4.0 multiline editor display on real Emery, then implement safe cursor editing in stages.
 
 The earlier `jot-v0.1.patch` instructions are historical; this repository now contains the Jot source directly. Simply pull and build the branch.
