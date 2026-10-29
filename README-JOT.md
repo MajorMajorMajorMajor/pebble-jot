@@ -23,10 +23,46 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Notes list Back:** from older notes or **+ NEW**, return to the newest note; at the newest note, exit Jot. From an empty list, Back exits.
 - **Reader Up / Down:** scroll the note vertically, 60 pixels per press (when it exceeds the screen).
 - **Reader Select:** open that note in the keyboard editor; its origin is remembered until the edit is safely saved.
-- **Reader Back:** return to the notes list without modifying the note.
-- **Draft peek tap, Select or Back:** return to the same keyboard editor.
+- **Reader Back or tap the upper-left ← NOTES key:** return to the notes list without modifying the note.
+- **Draft peek short tap anywhere, Select, Back, or upper-left ← EDIT:** return to the same unsaved keyboard draft.
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
+
+## Contextual reader Back key (v1.7.2 — Emery testing pending)
+
+The reader's decorative pencil in the yellow upper-left header has been
+replaced with a visible, cream-paper **Back arrow** outlined in ink, with
+a contextual destination label beside it:
+
+- **Saved note:** `← NOTES` takes you back to the notes list; list scroll
+  offset and note selection remain where they were.
+- **Draft Peek:** `← EDIT` returns to the *same unsaved editor draft*,
+  without flushing, allocating a note or entering saved-note edit mode.
+
+Both header-tap and hardware Back invoke `jot_reader_back()`, which
+closes only the current reader window. The Back hit target is the
+**42 × 42px top-left corner**; its visible cream key is inset within that
+area, for a finger-friendly target without crowding the note header.
+Only a short stationary tap counts. In `src/c/jot/reader_touch.c`,
+either a sticky gesture-movement flag, a movement of more than 10px, or a
+duration of 700ms or longer cancels activation. A gesture must **start
+and end within the Back target**, so swiping into it won't navigate.
+A tap on the remaining header, date, note text or footer of a normal
+saved reader does *not* accidentally enter editing: that's deliberately
+reserved for [#23](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/23).
+
+The temporary Peek retains its earlier **short tap anywhere to dismiss**
+behavior, now with the same stationary-gesture safeguard. Long presses and
+scroll swipes are not interpreted as Back. The reader's physical Select
+remains immediate edit, and Up/Down remain note scrolling.
+
+A dependency-free host C test covers exact Back rectangle boundaries,
+peek-versus-saved behavior, tap timing, movement and sticky swipe
+cancellation; the source-level navigation test ensures the two Back paths
+stay unified. The Pebble SDK build and interaction feel must still be
+verified on real Emery hardware before
+[issue #12](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/12)
+is complete.
 
 ## Touch-responsive note list (v1.7 tested; v1.7.1 focus refinement awaiting watch test)
 
