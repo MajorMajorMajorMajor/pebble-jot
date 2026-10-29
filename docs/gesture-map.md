@@ -27,6 +27,24 @@ This is a readable transcription of the **English-LH** worksheet in the original
 
 These are **pre-existing design assignments**. They are not available for unrelated new shortcuts, even if Jot's current binding array contains an empty string. Other planned actions in this map include forward delete, word navigation, case cycling, alternate layouts, copy/paste, and more; they should not be advertised as implemented until tested.
 
+## Jot-specific SAVE tap override (v1.7.4)
+
+The workbook labels the upper-left special key **hand** and assigns its
+**Tap** gesture to **[Hide keyboard]**. This remains the authoritative
+*original keyboard design intent* in the CSV and the tables below.
+The current Jot app, however, never implemented the workbook's
+hide-keyboard action: its old on-screen **KB** tap instead opened note
+history. With the explicit Jot touch-flow redesign in
+[issue #24](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/24),
+that **one stationary tap in Jot mode** has deliberately been repurposed
+as **SAVE**: commit the current note and open its saved reader directly.
+
+This is a **Jot-specific runtime exception**, not a correction to the
+original spreadsheet. The CSV has **not** been changed. The remaining
+hand-key directional/return gesture intentions are still reserved, and
+diagnostic typing/trace bindings have not been remapped. The displayed
+key label in the Jot keyboard has changed from `KB` to `SAVE`.
+
 ## Per-key reference
 
 Choose a key to expand all eight swipe and return directions. Entries are intentionally preserved as written, including unresolved actions and unusual characters.
