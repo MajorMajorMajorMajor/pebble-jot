@@ -1,16 +1,16 @@
-// vim: set sw=2 ts=2 et:
 #pragma once
-
 #include <pebble.h>
 
-// limits
-enum {
-    ALERT_MAX_LENGTH = 200
-};
+// The editor text may contain a complete 159-byte note and a visible caret.
+enum { ALERT_MAX_LENGTH = 200 };
 
-// show an alert
+// Diagnostic/trace display (retains its independent mode).
 void alert_set_text(const char *new_text);
 
-// functions to build and break down the ui
-TextLayer* alert_ui_init(GRect frame);
+// Multiline note editor: renders actual newlines, wraps long lines and
+// follows the insertion point at the end of the note. Never changes notes.
+void alert_set_editor(const char *note, bool dirty, bool save_error, bool full);
+
+// Owns the keyboard's existing 40-pixel content area. Geometry is unchanged.
+Layer *alert_ui_init(GRect frame);
 void alert_ui_deinit(void);
