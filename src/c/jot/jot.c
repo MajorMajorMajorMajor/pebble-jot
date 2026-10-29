@@ -299,6 +299,19 @@ static void prv_redraw_list(void) {
   if (s_cards_layer) layer_mark_dirty(s_cards_layer);
 }
 
+// Keep button navigation familiar: one card at a time with the focused note
+// near the middle. Dragging, by contrast, retains a fractional pixel offset.
+static int prv_list_screen_height(void) {
+  return s_list_window ?
+      layer_get_bounds(window_get_root_layer(s_list_window)).size.h : 0;
+}
+
+static void prv_follow_list_focus(void) {
+  s_list_scroll_px = jot_list_touch_scroll_for_focus(
+      s_selected_rank, jot_store_count(), prv_list_screen_height());
+  prv_redraw_list();
+}
+
 void jot_backup_ui_changed(void) {
   prv_redraw_list();
 }
@@ -323,13 +336,27 @@ static void prv_list_new_note(void) {
 static void prv_list_up(ClickRecognizerRef ref, void *context) {
   if (s_confirm_delete || jot_backup_active()) return;
   s_selected_rank = jot_list_focus_up(s_selected_rank);
-  prv_redraw_list();
+  prv_follow_list_focus();
 }
 static void prv_list_down(ClickRecognizerRef ref, void *context) {
   if (s_confirm_delete || jot_backup_active()) return;
   s_selected_rank = jot_list_focus_down(s_selected_rank, jot_store_count());
-  prv_redraw_list();
+  prv_follow_list_focus();
 }
+// Select and touch taps use the same guarded reader-opening path.
+static void prv_open_list_note(int rank) {
+  if (s_confirm_delete || jot_backup_active()) return;
+  const int count = jot_store_count();
+  const int slot = jot_store_slot_at(rank);
+  if (slot < 0) return;
+  s_selected_rank = rank;
+  prv_redraw_list();
+  if (!jot_reader_show(slot, rank, count)) {
+    s_storage_error = true;
+    prv_redraw_list();
+  }
+}
+
 static void prv_list_select(ClickRecognizerRef ref, void *context) {
   if (jot_backup_active()) return;
   if (s_selected_rank == JOT_LIST_FOCUS_NEW) {
@@ -345,6 +372,8 @@ static void prv_list_select(ClickRecognizerRef ref, void *context) {
       s_input_full = false;
       s_selected_rank = jot_list_focus_initial(
           s_selected_rank, jot_store_count());
+      s_list_scroll_px = jot_list_touch_clamp_scroll(
+          s_list_scroll_px, jot_store_count(), prv_list_screen_height());
     }
     s_confirm_delete = false;
     // Deleting the active note clears its editor buffer. Paint that change
@@ -354,10 +383,7 @@ static void prv_list_select(ClickRecognizerRef ref, void *context) {
     return;
   }
   // Browsing is read-only. The reader makes its own copy of this note.
-  if (!jot_reader_show(slot, s_selected_rank, jot_store_count())) {
-    s_storage_error = true;
-    prv_redraw_list();
-  }
+  prv_open_list_note(s_selected_rank);
 }
 static void prv_list_hold(ClickRecognizerRef ref, void *context) {
   if (jot_backup_active()) return;
@@ -377,7 +403,7 @@ static void prv_list_back(ClickRecognizerRef ref, void *context) {
   const int focus = jot_list_focus_back(s_selected_rank, jot_store_count());
   if (focus != JOT_LIST_FOCUS_EXIT) {
     s_selected_rank = focus;
-    prv_redraw_list();
+    prv_follow_list_focus();
     return;
   }
   // At the newest note, or NEW on an empty list, leave Jot as before.
@@ -399,15 +425,31 @@ static void prv_list_clicks(void *context) {
   window_single_click_subscribe(BUTTON_ID_BACK, prv_list_back);
 }
 static void prv_list_load(Window *window) {
-  GRect bounds = layer_get_bounds(window_get_root_layer(window));
+  const GRect bounds = layer_get_bounds(window_get_root_layer(window));
   s_list_layer = layer_create(bounds);
   if (!s_list_layer) return;
   layer_set_update_proc(s_list_layer, prv_list_draw);
   layer_add_child(window_get_root_layer(window), s_list_layer);
+
+  // Cards cannot paint past the notebook header or footer, even if the
+  // finger drags them partially outside the viewport.
+  s_cards_layer = layer_create(GRect(
+      0, LIST_HEADER_H, bounds.size.w,
+      bounds.size.h - LIST_HEADER_H - LIST_FOOTER_H));
+  if (s_cards_layer) {
+    layer_set_clips(s_cards_layer, true);
+    layer_set_update_proc(s_cards_layer, prv_cards_draw);
+    layer_add_child(s_list_layer, s_cards_layer);
+  }
+  s_list_scroll_px = jot_list_touch_scroll_for_focus(
+      s_selected_rank, jot_store_count(), bounds.size.h);
 }
 static void prv_list_unload(Window *window) {
+  if (s_cards_layer) layer_destroy(s_cards_layer);
+  s_cards_layer = NULL;
   if (s_list_layer) layer_destroy(s_list_layer);
   s_list_layer = NULL;
+  s_list_scroll_px = 0;
   s_confirm_delete = false;
 }
 
@@ -443,6 +485,8 @@ static void prv_push_list_at(int rank) {
   if (!s_list_window) return;
   s_selected_rank = jot_list_focus_initial(rank, jot_store_count());
   s_confirm_delete = false;
+  s_list_scroll_px = jot_list_touch_scroll_for_focus(
+      s_selected_rank, jot_store_count(), prv_list_screen_height());
   window_stack_push(s_list_window, true);
 }
 
@@ -524,12 +568,41 @@ bool jot_list_is_open(void) {
 void jot_list_tap(int16_t x, int16_t y) {
   if (!jot_list_is_open() || !s_list_layer ||
       s_confirm_delete || jot_backup_active()) return;
-  const int width = layer_get_bounds(s_list_layer).size.w;
-  if (x < width - LIST_NEW_PILL_X_RIGHT ||
-      x >= width - LIST_NEW_PILL_X_RIGHT + LIST_NEW_PILL_W ||
-      y < LIST_NEW_PILL_Y || y >= LIST_NEW_PILL_Y + LIST_NEW_PILL_H)
+  const GRect screen = layer_get_bounds(s_list_layer);
+  // Header NEW remains a distinct tappable action.
+  if (x >= screen.size.w - LIST_NEW_PILL_X_RIGHT &&
+      x < screen.size.w - LIST_NEW_PILL_X_RIGHT + LIST_NEW_PILL_W &&
+      y >= LIST_NEW_PILL_Y && y < LIST_NEW_PILL_Y + LIST_NEW_PILL_H) {
+    prv_list_new_note();
     return;
-  prv_list_new_note();
+  }
+
+  // Use precisely the same row height, scroll pixels and card margins as
+  // the clipped drawing layer. Neither the paper gaps nor footer are links.
+  const int rank = jot_list_touch_hit_card(
+      x, y, screen.size.w, screen.size.h, jot_store_count(), s_list_scroll_px);
+  if (rank >= 0) prv_open_list_note(rank);
+}
+
+bool jot_list_can_drag(int16_t y) {
+  if (!jot_list_is_open() || !s_list_layer || !s_cards_layer ||
+      s_confirm_delete || jot_backup_active()) return false;
+  const int height = layer_get_bounds(s_list_layer).size.h;
+  return y >= LIST_HEADER_H && y < height - LIST_FOOTER_H;
+}
+
+void jot_list_drag(int16_t delta_y) {
+  if (!jot_list_is_open() || !s_cards_layer || s_confirm_delete ||
+      jot_backup_active() || delta_y == 0) return;
+  const int count = jot_store_count();
+  const int height = prv_list_screen_height();
+  const int next = jot_list_touch_clamp_scroll(
+      s_list_scroll_px - delta_y, count, height);
+  if (next == s_list_scroll_px) return;
+  s_list_scroll_px = next;
+  // The button focus follows the visible notes after touch scrolling.
+  s_selected_rank = jot_list_touch_focus_at_scroll(next, count, height);
+  prv_redraw_list();
 }
 
 void jot_init(void) {
