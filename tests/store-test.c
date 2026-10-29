@@ -17,6 +17,7 @@ typedef struct {
 
 static FakeEntry s_entries[JOT_NOTE_CAPACITY];
 static bool s_fail_next_delete;
+static bool s_fail_next_write;
 
 static FakeEntry *prv_entry(uint32_t key) {
   if (key < STORAGE_KEY_FIRST ||
@@ -33,6 +34,10 @@ int persist_read_data(uint32_t key, void *buffer, size_t buffer_size) {
 }
 
 int persist_write_data(uint32_t key, const void *data, size_t size) {
+  if (s_fail_next_write) {
+    s_fail_next_write = false;
+    return E_ERROR;
+  }
   FakeEntry *entry = prv_entry(key);
   if (!entry || !data || size > SLOT_CAPACITY) return E_ERROR;
   memcpy(entry->bytes, data, size);
@@ -290,6 +295,41 @@ int main(void) {
   assert(jot_store_input("Z"));
   assert(jot_store_length() == JOT_NOTE_TEXT_BYTES - 1);
   assert(jot_store_text()[80] == 'Z');
+
+  // Navigation depends on the active slot to highlight the right note.
+  // This remains stable across flushing and changes on reopening a note.
+  assert(jot_store_new());
+  assert(jot_store_active_slot() == -1);
+  assert(jot_store_input("navigation test"));
+  const int navigation_slot = jot_store_active_slot();
+  assert(navigation_slot >= 0);
+  assert(jot_store_flush());
+  assert(jot_store_active_slot() == navigation_slot);
+
+  // A failed write must *never* drop the only unsaved draft. The navigation
+  // controller refuses to leave the editor if either flush or new fails.
+  assert(jot_store_input(" preserved"));
+  assert(jot_store_dirty());
+  const size_t navigation_cursor = jot_store_cursor();
+  s_fail_next_write = true;
+  assert(!jot_store_flush());
+  assert(jot_store_dirty());
+  assert(jot_store_active_slot() == navigation_slot);
+  assert(jot_store_cursor() == navigation_cursor);
+  assert(strcmp(jot_store_text(), "navigation test preserved") == 0);
+  s_fail_next_write = true;
+  assert(!jot_store_new()); // A reset must not discard an unsaved note.
+  assert(jot_store_dirty());
+  assert(jot_store_active_slot() == navigation_slot);
+  assert(strcmp(jot_store_text(), "navigation test preserved") == 0);
+  assert(jot_store_flush());
+  assert(jot_store_new());
+  assert(jot_store_active_slot() == -1);
+  assert(jot_store_length() == 0);
+  assert(jot_store_open(navigation_slot));
+  assert(strcmp(jot_store_text(), "navigation test preserved") == 0);
+  assert(jot_store_active_slot() == navigation_slot);
+  assert(!jot_store_dirty());
 
   puts("Jot storage regression tests passed");
   return 0;
