@@ -23,6 +23,9 @@ static Layer *s_cards_layer;
 static int s_list_scroll_px;
 static AppTimer *s_save_timer;
 static int s_selected_rank;
+// A finger drag puts the list in touch-browsing mode: no note or NEW pill
+// is button-selected until an explicit hardware navigation action.
+static bool s_list_focus_valid = true;
 static bool s_confirm_delete;
 static bool s_storage_error;
 static bool s_input_full;
@@ -179,7 +182,7 @@ static void prv_cards_draw(Layer *layer, GContext *ctx) {
     const int y = rank * row_h - s_list_scroll_px + JOT_LIST_CARD_Y_PAD;
     const int w = width - 14;
     const int h = row_h - 6;
-    const bool selected = rank == s_selected_rank;
+    const bool selected = s_list_focus_valid && rank == s_selected_rank;
     if (selected) {
       graphics_context_set_fill_color(ctx, ink);
       graphics_fill_rect(ctx, GRect(x + 2, y + 2, w, h),
@@ -252,7 +255,8 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
   // NEW is a button-focusable action just before the newest note.
   // A selected dark pill is unmistakable; inactive is cream with ink text.
   // The previous capacity badge has been removed to give the action room.
-  const bool new_selected = s_selected_rank == JOT_LIST_FOCUS_NEW;
+  const bool new_selected =
+      s_list_focus_valid && s_selected_rank == JOT_LIST_FOCUS_NEW;
   const GRect new_pill = GRect(width - LIST_NEW_PILL_X_RIGHT,
                                LIST_NEW_PILL_Y,
                                LIST_NEW_PILL_W, LIST_NEW_PILL_H);
@@ -282,6 +286,7 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
       s_confirm_delete ? "DELETE?  SEL yes  BACK no" :
       s_storage_error ? "SAVE ERROR" :
       *jot_backup_status() ? jot_backup_status() :
+      !s_list_focus_valid ? "UP/DOWN select  TAP open" :
       s_selected_rank == JOT_LIST_FOCUS_NEW ?
         (count ? "SEL new  DOWN notes" : "SEL new note") :
       s_selected_rank == 0 ? "UP new  SEL open" :
@@ -312,6 +317,20 @@ static void prv_follow_list_focus(void) {
   prv_redraw_list();
 }
 
+// First physical Up *or* Down after touching resumes at the first
+// completely visible card. Do not move the scroll position on that first
+// press; after this, ordinary one-card-at-a-time button navigation resumes.
+static bool prv_restore_list_focus(void) {
+  if (s_list_focus_valid) return false;
+  const int count = jot_store_count();
+  const int first = jot_list_touch_first_full_card(
+      s_list_scroll_px, count, prv_list_screen_height());
+  s_selected_rank = jot_list_focus_initial(first, count);
+  s_list_focus_valid = true;
+  prv_redraw_list();
+  return true;
+}
+
 void jot_backup_ui_changed(void) {
   prv_redraw_list();
 }
@@ -335,11 +354,13 @@ static void prv_list_new_note(void) {
 
 static void prv_list_up(ClickRecognizerRef ref, void *context) {
   if (s_confirm_delete || jot_backup_active()) return;
+  if (prv_restore_list_focus()) return;
   s_selected_rank = jot_list_focus_up(s_selected_rank);
   prv_follow_list_focus();
 }
 static void prv_list_down(ClickRecognizerRef ref, void *context) {
   if (s_confirm_delete || jot_backup_active()) return;
+  if (prv_restore_list_focus()) return;
   s_selected_rank = jot_list_focus_down(s_selected_rank, jot_store_count());
   prv_follow_list_focus();
 }
@@ -350,6 +371,7 @@ static void prv_open_list_note(int rank) {
   const int slot = jot_store_slot_at(rank);
   if (slot < 0) return;
   s_selected_rank = rank;
+  s_list_focus_valid = true;
   prv_redraw_list();
   if (!jot_reader_show(slot, rank, count)) {
     s_storage_error = true;
@@ -359,6 +381,9 @@ static void prv_open_list_note(int rank) {
 
 static void prv_list_select(ClickRecognizerRef ref, void *context) {
   if (jot_backup_active()) return;
+  // An unhighlighted card must not open unexpectedly based on a stale rank.
+  // First Select restores visible focus, just like first Up or Down.
+  if (prv_restore_list_focus()) return;
   if (s_selected_rank == JOT_LIST_FOCUS_NEW) {
     prv_list_new_note();
     return;
@@ -387,6 +412,8 @@ static void prv_list_select(ClickRecognizerRef ref, void *context) {
 }
 static void prv_list_hold(ClickRecognizerRef ref, void *context) {
   if (jot_backup_active()) return;
+  // Never request deletion of a stale, unhighlighted note after dragging.
+  if (prv_restore_list_focus()) return;
   // NEW is an action, not a note; it must never enter delete confirmation.
   if (s_selected_rank >= 0 && jot_store_count() > 0) {
     s_confirm_delete = true;
@@ -398,6 +425,14 @@ static void prv_list_back(ClickRecognizerRef ref, void *context) {
   if (s_confirm_delete) {
     s_confirm_delete = false;
     prv_redraw_list();
+    return;
+  }
+  // From touch-browsing mode, Back re-establishes newest-note focus at
+  // the top instead of using a stale rank or exiting unexpectedly.
+  if (!s_list_focus_valid) {
+    s_selected_rank = jot_list_focus_initial(0, jot_store_count());
+    s_list_focus_valid = true;
+    prv_follow_list_focus();
     return;
   }
   const int focus = jot_list_focus_back(s_selected_rank, jot_store_count());
@@ -484,6 +519,7 @@ static int prv_rank_of_slot(int slot) {
 static void prv_push_list_at(int rank) {
   if (!s_list_window) return;
   s_selected_rank = jot_list_focus_initial(rank, jot_store_count());
+  s_list_focus_valid = true;
   s_confirm_delete = false;
   s_list_scroll_px = jot_list_touch_scroll_for_focus(
       s_selected_rank, jot_store_count(), prv_list_screen_height());
@@ -598,10 +634,16 @@ void jot_list_drag(int16_t delta_y) {
   const int height = prv_list_screen_height();
   const int next = jot_list_touch_clamp_scroll(
       s_list_scroll_px - delta_y, count, height);
-  if (next == s_list_scroll_px) return;
+  // Clear the yellow highlight as soon as touch movement becomes a drag,
+  // even at a scroll boundary. Keep s_selected_rank as dormant metadata,
+  // NOT as NEW (-1), which is a genuine keyboard focus target.
+  const bool had_focus = s_list_focus_valid;
+  s_list_focus_valid = false;
+  if (next == s_list_scroll_px) {
+    if (had_focus) prv_redraw_list();
+    return;
+  }
   s_list_scroll_px = next;
-  // The button focus follows the visible notes after touch scrolling.
-  s_selected_rank = jot_list_touch_focus_at_scroll(next, count, height);
   prv_redraw_list();
 }
 
