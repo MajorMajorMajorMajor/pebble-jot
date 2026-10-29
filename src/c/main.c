@@ -19,7 +19,7 @@ int main(void) {
 
   // set up content layer
   GRect frame = keyboard_get_content_frame(keyboard);
-  TextLayer *alert_layer = alert_ui_init(frame);
+  Layer *alert_layer = alert_ui_init(frame);
   PEBBLE_ASSERT(alert_layer);
 
   /** 
@@ -34,7 +34,7 @@ int main(void) {
 
     See: https://developer.repebble.com/docs/c/User_Interface/Layers.md
   */
-  keyboard_set_content_layer(keyboard, (Layer *)alert_layer);  
+  keyboard_set_content_layer(keyboard, alert_layer);  
 
   // Push the keyboard window  
   const bool animated = true;
