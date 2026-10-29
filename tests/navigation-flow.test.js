@@ -66,8 +66,23 @@ assert.match(functionBody(touch, 'void touch_recorder_select(void)'),
 assert.match(functionBody(touch, 'void touch_recorder_back(void)'),
              /jot_editor_back\(\)/);
 assert.match(click, /window_single_click_subscribe\(BUTTON_ID_BACK,\s*prv_back_click_handler\)/);
+// The saved reader's physical Select and content tap share exactly one
+// existing-note edit transition, with a preserved reader on failure.
 assert.match(functionBody(reader, 'static void prv_reader_select('),
-             /jot_reader_edit\(s_slot\)/);
+             /jot_reader_edit_current\(\)/);
+const sharedEdit = functionBody(reader, 'bool jot_reader_edit_current(void)');
+assert.match(sharedEdit, /!jot_reader_is_open\(\)\s*\|\|\s*s_is_peek\s*\|\|\s*s_slot\s*<\s*0/);
+assert.match(sharedEdit, /if \(!jot_reader_edit\(s_slot\)\)/);
+assert.match(sharedEdit, /s_open_error\s*=\s*true/);
+assert.match(sharedEdit, /window_stack_pop\(true\)/);
+assert.ok(sharedEdit.indexOf('if (!jot_reader_edit(s_slot))') <
+          sharedEdit.indexOf('window_stack_pop(true)'),
+          'only successful saved-note opens may leave the reader');
+const touchLayout = functionBody(reader, 'JotReaderTouchLayout jot_reader_touch_layout(void)');
+assert.match(touchLayout, /layout\.screen_width\s*=\s*bounds\.size\.w/);
+assert.match(touchLayout, /layout\.screen_height\s*=\s*bounds\.size\.h/);
+assert.match(touchLayout, /layout\.text_height\s*=\s*s_text_height/);
+assert.match(touchLayout, /layout\.scroll_y\s*=\s*s_scroll/);
 assert.match(functionBody(reader, 'static void prv_reader_back('),
              /jot_reader_back\(\)/);
 assert.match(functionBody(reader, 'void jot_reader_back(void)'),
@@ -152,6 +167,9 @@ assert.match(functionBody(reader, 'void jot_reader_dismiss_peek(void)'),
 const readerTouch = fs.readFileSync('src/c/jot/reader_touch.c', 'utf8');
 assert.match(readerTouch, /JOT_READER_TOUCH_BACK/);
 assert.match(readerTouch, /JOT_READER_TOUCH_DISMISS_PEEK/);
+assert.match(readerTouch, /JOT_READER_TOUCH_EDIT/);
+assert.match(readerTouch, /prv_visible_text_hit\(start_x,\s*start_y,\s*layout\)/);
+assert.match(readerTouch, /prv_visible_text_hit\(end_x,\s*end_y,\s*layout\)/);
 assert.match(readerTouch, /duration_ms\s*>=\s*JOT_READER_TAP_MAX_MS/);
 
 const touchHandler = functionBody(touch, 'static void prv_touch_handler(');
@@ -160,8 +178,11 @@ assert.match(touchHandler, /jot_reader_touch_action\(/);
 assert.match(touchHandler, /s_reader_touch_moved\s*=\s*true/);
 assert.match(touchHandler, /JOT_READER_TOUCH_BACK/);
 assert.match(touchHandler, /JOT_READER_TOUCH_DISMISS_PEEK/);
+assert.match(touchHandler, /JOT_READER_TOUCH_EDIT/);
+assert.match(touchHandler, /jot_reader_touch_layout\(\)/);
 assert.match(touchHandler, /jot_reader_back\(\)/);
-assert.doesNotMatch(touchHandler, /jot_reader_edit\(/); // #23 is separate.
+assert.match(touchHandler, /jot_reader_edit_current\(\)/);
+assert.doesNotMatch(touchHandler, /jot_reader_edit\(s_slot\)/); // One shared route.
 assert.match(touchHandler, /s_list_touch_active/);
 assert.match(touchHandler, /now_ms\s*-\s*s_list_touch_ms\s*<\s*700/);
 assert.match(touchHandler, /if \(tap\) jot_list_tap\(event->x, event->y\)/);
