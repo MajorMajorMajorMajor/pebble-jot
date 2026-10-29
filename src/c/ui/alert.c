@@ -35,7 +35,7 @@ static void prv_reflow(void) {
   int height = bounds.size.h;
   if (s_editor_mode) {
     const GSize text_size = graphics_text_layout_get_content_size(
-        s_text, font, GRect(0, 0, width, 1000),
+        s_text, font, GRect(0, 0, width, 4096),
         GTextOverflowModeWordWrap, GTextAlignmentLeft);
     if (text_size.h + 2 > height) height = text_size.h + 2;
   }
