@@ -72,24 +72,39 @@ assert.match(functionBody(reader, 'static void prv_reader_back('),
              /window_stack_pop\(true\)/);
 
 
-// A list-only Back must have a way out: at a nonzero rank go to the top;
-// at the top, safely finish the app (rather than bouncing to the editor).
+// The NEW row is focusable directly above the first saved note.
+const listUp = functionBody(jot, 'static void prv_list_up(');
+const listDown = functionBody(jot, 'static void prv_list_down(');
+const listSelect = functionBody(jot, 'static void prv_list_select(');
+const listHold = functionBody(jot, 'static void prv_list_hold(');
+assert.match(listUp, /jot_list_focus_up\(s_selected_rank\)/);
+assert.match(listDown, /jot_list_focus_down\(s_selected_rank,\s*jot_store_count\(\)\)/);
+assert.match(listSelect, /s_selected_rank\s*==\s*JOT_LIST_FOCUS_NEW/);
+assert.match(listSelect, /prv_list_new_note\(\)/);
+assert.match(listHold, /s_selected_rank\s*>=\s*0/);
+assert.match(jot, /graphics_draw_text\(ctx,\s*"\+ NEW"/);
+assert.match(jot, /new_selected\s*=\s*s_selected_rank\s*==\s*JOT_LIST_FOCUS_NEW/);
+assert.doesNotMatch(jot, /char usage\[16\]/); // No longer shows x/16.
+
 const listBack = functionBody(jot, 'static void prv_list_back(');
 assert.match(listBack, /if \(s_confirm_delete\)/);
-assert.match(listBack, /s_selected_rank\s*>\s*0/);
-assert.match(listBack, /s_selected_rank\s*=\s*0/);
+assert.match(listBack, /jot_list_focus_back\(s_selected_rank,\s*jot_store_count\(\)\)/);
+assert.match(listBack, /if \(focus != JOT_LIST_FOCUS_EXIT\)/);
 assert.match(listBack, /if \(prv_flush\(\)\) window_stack_pop_all\(true\)/);
 
-// The list '+' returns to a fresh editor only after saving an existing
-// draft, and ignores touch gestures outside the pill.
+// One safe note creation path serves both Select on NEW and a stationary tap.
+// It preserves unsaved text on any failed save.
+const listNew = functionBody(jot, 'static void prv_list_new_note(void)');
+assert.match(listNew, /if \(!prv_flush\(\)\)/);
+assert.match(listNew, /if \(!jot_store_new\(\)\)/);
+assert.match(listNew, /s_editing_slot\s*=\s*-1/);
+assert.match(listNew, /window_stack_pop\(true\)/);
+
 const listTap = functionBody(jot, 'void jot_list_tap(int16_t x, int16_t y)');
 assert.match(listTap, /jot_list_is_open\(\)/);
 assert.match(listTap, /s_confirm_delete\s*\|\|\s*jot_backup_active\(\)/);
-assert.match(listTap, /x\s*<\s*width\s*-\s*101/);
-assert.match(listTap, /if \(!prv_flush\(\)\)/);
-assert.match(listTap, /if \(!jot_store_new\(\)\)/);
-assert.match(listTap, /s_editing_slot\s*=\s*-1/);
-assert.match(listTap, /window_stack_pop\(true\)/);
+assert.match(listTap, /x\s*<\s*width\s*-\s*LIST_NEW_PILL_X_RIGHT/);
+assert.match(listTap, /prv_list_new_note\(\)/);
 
 const touchHandler = functionBody(touch, 'static void prv_touch_handler(');
 assert.match(touchHandler, /jot_list_is_open\(\)/);
