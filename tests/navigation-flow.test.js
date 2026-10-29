@@ -69,7 +69,9 @@ assert.match(click, /window_single_click_subscribe\(BUTTON_ID_BACK,\s*prv_back_c
 assert.match(functionBody(reader, 'static void prv_reader_select('),
              /jot_reader_edit\(s_slot\)/);
 assert.match(functionBody(reader, 'static void prv_reader_back('),
-             /window_stack_pop\(true\)/);
+             /jot_reader_back\(\)/);
+assert.match(functionBody(reader, 'void jot_reader_back(void)'),
+             /if \(jot_reader_is_open\(\)\) window_stack_pop\(true\)/);
 
 
 // The NEW row is focusable directly above the first saved note.
@@ -138,8 +140,28 @@ assert.match(functionBody(jot, 'static void prv_list_select('),
              /prv_open_list_note\(s_selected_rank\)/);
 assert.match(listTap, /prv_list_new_note\(\)/);
 
+// Both ordinary reader and draft peek display a contextual Back target,
+// but the label reflects the actual destination. The reader's physical
+// and touch routes use the same pop helper and never save note bytes.
+const readerChrome = functionBody(reader, 'static void prv_draw_chrome(');
+assert.match(readerChrome, /s_is_peek\s*\?\s*"EDIT"\s*:\s*"NOTES"/);
+assert.match(readerChrome, /prv_draw_back\(ctx\)/);
+assert.doesNotMatch(readerChrome, /prv_draw_pencil\(ctx\)/);
+assert.match(functionBody(reader, 'void jot_reader_dismiss_peek(void)'),
+             /if \(jot_reader_is_peek\(\)\) jot_reader_back\(\)/);
+const readerTouch = fs.readFileSync('src/c/jot/reader_touch.c', 'utf8');
+assert.match(readerTouch, /JOT_READER_TOUCH_BACK/);
+assert.match(readerTouch, /JOT_READER_TOUCH_DISMISS_PEEK/);
+assert.match(readerTouch, /duration_ms\s*>=\s*JOT_READER_TAP_MAX_MS/);
+
 const touchHandler = functionBody(touch, 'static void prv_touch_handler(');
 assert.match(touchHandler, /jot_list_is_open\(\)/);
+assert.match(touchHandler, /jot_reader_touch_action\(/);
+assert.match(touchHandler, /s_reader_touch_moved\s*=\s*true/);
+assert.match(touchHandler, /JOT_READER_TOUCH_BACK/);
+assert.match(touchHandler, /JOT_READER_TOUCH_DISMISS_PEEK/);
+assert.match(touchHandler, /jot_reader_back\(\)/);
+assert.doesNotMatch(touchHandler, /jot_reader_edit\(/); // #23 is separate.
 assert.match(touchHandler, /s_list_touch_active/);
 assert.match(touchHandler, /now_ms\s*-\s*s_list_touch_ms\s*<\s*700/);
 assert.match(touchHandler, /if \(tap\) jot_list_tap\(event->x, event->y\)/);
