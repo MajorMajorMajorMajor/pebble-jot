@@ -22,7 +22,7 @@ The app stores notes in Pebble's per-app persistent storage, currently capped at
 
 A pending change is indicated by `JOT *`. Autosave fires approximately 1.8 seconds after the last edit, and saves are also attempted at navigation boundaries. `SAVE ERROR` means a write was not accepted; do not assume the affected note is safely stored. Note order is newest-first.
 
-**No backup/export or phone synchronization exists yet.** The watch stores notes locally, and uninstalling Jot may delete them. Avoid irreplaceable notes during development.
+**Manual phone export is available and has been demonstrated on real hardware.** The watch keeps its local notes; the phone companion keeps one complete snapshot in its local storage. It is not automatic synchronization. Copy or save a separate file before relying on a backup. Uninstalling Jot may delete the on-watch notes.
 
 ## Development and verification
 
@@ -43,6 +43,10 @@ Relevant modules:
 - `src/c/jot/store.c` and `store.h` — local note persistence.
 - `src/c/keyboard/` — gesture bindings and keyboard state.
 - `src/c/ui/touch.c` — gesture recording and recognition.
+
+## Watch notes list appearance
+
+The browser uses a notebook-style yellow header, cream paper, three note-preview cards per page, a yellow selection card, and a charcoal status footer. **Up/Down, Select, long Select, Back and long Up** retain their previous actions; the keyboard geometry and gesture thresholds are unchanged. This visual redesign is awaiting an on-watch appearance check.
 
 ## Phone backup — experimental (v0.2)
 
@@ -72,12 +76,12 @@ published, the watch-to-phone transfer can work but the viewer won't open.
 - When opening the viewer, the snapshot is carried in the URL **fragment** (after `#`), which is not included in HTTP requests for the page. The viewer clears the fragment after reading it. Nonetheless, a copied URL, screenshots, or browser history could expose the notes. **Do not share the export URL.**
 - The static page has no trackers or external scripts; the page's HTML is public but your notes are not committed to GitHub.
 - This is a **manual snapshot**, not ongoing background sync. Re-export after editing notes, and copy to a separate permanent location before relying on it as a backup.
-- AppMessage and the new phone viewer require on-device testing. The source has been implemented but a successful phone transfer is not yet verified.
+- An end-to-end export of one note has been demonstrated on the real watch and Android phone, including the `Phone copy saved` indicator and the rendered viewer. Multi-note transfers, disconnect recovery, and full-capacity exports still require broader device testing.
 
 ## Roadmap
 
 1. Verify end-to-end phone backup and export on real hardware (including Unicode, disconnects and failure recovery).
 2. Device testing of note persistence, full capacity, relaunch, and deletion.
-3. Refinement of Jot's visual identity without reducing keyboard touch targets.
+3. Review the revised paper-and-card notes list on real Emery hardware; keep keyboard touch targets unchanged.
 
 The earlier `jot-v0.1.patch` instructions are historical; this repository now contains the Jot source directly. Simply pull and build the branch.
