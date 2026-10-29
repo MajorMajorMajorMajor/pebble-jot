@@ -34,8 +34,8 @@ static bool prv_flush(void) {
 
 // Render the actual note in the 40px editing viewport.
 void jot_refresh_editor(void) {
-  alert_set_editor(jot_store_text(), jot_store_dirty(),
-                   s_storage_error, s_input_full);
+  alert_set_editor(jot_store_text(), jot_store_cursor(),
+                   jot_store_dirty(), s_storage_error, s_input_full);
 }
 
 static void prv_autosave(void *context) {
