@@ -18,6 +18,7 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | --- | --- | --- |
 | Editor | Type on touchscreen | Enter or delete text with gestures |
 | Editor | Select | Save the current note and start a new one |
+| Editor | Tap the text strip above keyboard | Peek at the entire current note without changing it |
 | Editor | Up / Down | Open the notes list |
 | Editor | Tap **KB** | Open the notes list |
 | Editor | Back | Exit and save on normal app shutdown |
@@ -28,6 +29,7 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | Reader | Up / Down | Scroll the full note |
 | Reader | Select | Open the note in the keyboard editor |
 | Reader | Back | Return to the notes list |
+| Draft peek | Tap, Select, or Back | Return to the same editor |
 | Editor | Long Select (~1.2 s) | Open the legacy typing / trace diagnostics |
 
 The `JOT *` heading means there are unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` indicates the storage write did not succeed.
@@ -36,7 +38,7 @@ The `JOT *` heading means there are unsaved edits. Jot automatically saves after
 
 Select a note in the notes list to open a **read-only paper page**, with its timestamp and complete text. Scroll with Up / Down. Select opens that note for editing using the unchanged gesture keyboard; Back returns to the same place in the list. Browsing a page does not overwrite or resave your current draft.
 
-The current 159-byte-per-note limit is unchanged. Tap-to-peek from the keyboard is planned separately after testing the reader on a real Pebble.
+Jot 1.3 adds **tap-to-peek** from the text strip above the keyboard. The preview copies the current draft without saving or switching notes; tap again (or press Select/Back) to return to typing. The editor strip now displays the latest 16 UTF-8 codepoints rather than truncating an older portion of long notes. Reader text uses a larger, bold font for legibility. The 159-byte-per-note storage limit is unchanged.
 
 ## Export notes to your phone (v0.2)
 
@@ -83,6 +85,6 @@ See [README-JOT.md](README-JOT.md) for detailed controls and limits, and [TOUCH_
 
 ## Next steps
 
-The immediate priorities are hardware verification of the v0.2 manual export, a more durable backup destination, real-watch testing of persistence, and UI polish that keeps the keyboard touch targets intact.
+The immediate priorities are on-watch verification of the enlarged reader and tap-to-peek, more durable note backup, and storage reliability. The keyboard's touch targets remain unchanged.
 
 Pebble SDK documentation: <https://developer.repebble.com>
