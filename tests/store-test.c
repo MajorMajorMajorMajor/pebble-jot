@@ -122,29 +122,29 @@ int main(void) {
   // Multiline notes are represented by literal LF bytes. Backspace must
   // remove an entire UTF-8 codepoint, including a newline, in one gesture.
   assert(jot_store_new());
-  assert(jot_store_input("first line\\n"));
-  assert(strcmp(jot_store_text(), "first line\\n") == 0);
-  assert(jot_store_input("\\b"));
+  assert(jot_store_input("first line\n"));
+  assert(strcmp(jot_store_text(), "first line\n") == 0);
+  assert(jot_store_input("\b"));
   assert(strcmp(jot_store_text(), "first line") == 0);
-  assert(jot_store_input("\\n\\n"));
-  assert(jot_store_input("\\xC3\\xA9")); // e-acute, two UTF-8 bytes
-  assert(strcmp(jot_store_text(), "first line\\n\\n\\xC3\\xA9") == 0);
-  assert(jot_store_input("\\b"));
-  assert(strcmp(jot_store_text(), "first line\\n\\n") == 0);
-  assert(jot_store_input("\\b"));
-  assert(strcmp(jot_store_text(), "first line\\n") == 0);
-  assert(jot_store_input("\\b"));
+  assert(jot_store_input("\n\n"));
+  assert(jot_store_input("\xC3\xA9")); // e-acute, two UTF-8 bytes
+  assert(strcmp(jot_store_text(), "first line\n\n\xC3\xA9") == 0);
+  assert(jot_store_input("\b"));
+  assert(strcmp(jot_store_text(), "first line\n\n") == 0);
+  assert(jot_store_input("\b"));
+  assert(strcmp(jot_store_text(), "first line\n") == 0);
+  assert(jot_store_input("\b"));
   assert(strcmp(jot_store_text(), "first line") == 0);
-  assert(jot_store_input("\\nsecond line"));
+  assert(jot_store_input("\nsecond line"));
   assert(jot_store_flush());
   const int multiline_slot = jot_store_slot_at(0);
   assert(multiline_slot >= 0);
-  expect_note(multiline_slot, "first line\\nsecond line");
+  expect_note(multiline_slot, "first line\nsecond line");
   jot_store_init();
   assert(jot_store_open(multiline_slot));
-  assert(strcmp(jot_store_text(), "first line\\nsecond line") == 0);
-  assert(jot_store_input("\\b"));
-  assert(strcmp(jot_store_text(), "first line\\nsecond lin") == 0);
+  assert(strcmp(jot_store_text(), "first line\nsecond line") == 0);
+  assert(jot_store_input("\b"));
+  assert(strcmp(jot_store_text(), "first line\nsecond lin") == 0);
 
   puts("Jot storage regression tests passed");
   return 0;
