@@ -78,7 +78,11 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
       switch (key_label->slot) {
         case KEY_LABEL_CENTER: {
           const UIFont *ui_font;
-          ui_font = style->label_center_font;
+          // Four-letter SAVE needs the compact bold face within the
+          // existing 50px menu cell; all other key sizes stay unchanged.
+          ui_font = label->key == get_key(KEY_ENGLISH_MENU) ?
+                    style->label_peripheral_font :
+                    style->label_center_font;
           text_font = ui_font->gfont;
           text_color = special ? GColorWhite : style->label_center_color;
 
