@@ -744,7 +744,7 @@ void touch_recorder_select(void) {
     return;
   }
   if (s_mode == MODE_TYPING) { s_mode = MODE_MENU; prv_show_menu(); return; }
-  if (s_mode == MODE_JOT) { jot_new_note(); return; }
+  if (s_mode == MODE_JOT) { jot_editor_select(); return; }
   if (!s_touch_enabled) {
     return;
   }
@@ -778,6 +778,15 @@ void touch_recorder_select(void) {
   snprintf(message, sizeof message, "REC %s\nTouch key; Select:stop",
            prv_trace_label());
   alert_set_text(message);
+}
+
+void touch_recorder_back(void) {
+  if (s_mode == MODE_JOT) {
+    jot_editor_back();
+  } else {
+    // Diagnostic/trace modes retain their normal OS Back behavior.
+    window_stack_pop(true);
+  }
 }
 
 void touch_recorder_next_type(void) {
