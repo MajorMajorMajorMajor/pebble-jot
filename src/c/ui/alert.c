@@ -145,13 +145,17 @@ static void prv_reflow(void) {
 
       char through_caret[ALERT_MAX_LENGTH];
       memcpy(through_caret, s_text, visual_end);
-      if (before_newline) {
+      // An empty line before an LF still needs a probe to make the blank
+      // line measurable; otherwise a preceding LF can vanish from sizing.
+      const bool blank_before_lf =
+          before_newline && visual_end > 0 &&
+          s_text[visual_end - 1] == '\n';
+      if (before_newline && !blank_before_lf) {
         // No probe here: one more glyph can falsely trigger a soft wrap
         // immediately before the explicit newline.
         through_caret[visual_end] = '\0';
       } else {
-        // Do use a probe at the start of a fresh line (after an LF), so
-        // Pebble counts an otherwise empty final row.
+        // Probe fresh/empty lines without drawing an actual character.
         through_caret[visual_end] = 'i';
         through_caret[visual_end + 1] = '\0';
       }
