@@ -228,12 +228,13 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
   const GColor ink = GColorFromRGB(41, 40, 43);
   const GColor yellow = GColorFromRGB(255, 209, 88);
   const GColor paper = GColorFromRGB(249, 242, 219);
+  const GColor white_paper = GColorFromRGB(255, 250, 239);
 
   // The clipped cards child paints the ruled-paper middle section.
   graphics_context_set_fill_color(ctx, paper);
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
-  // Yellow notebook band with an ink edge, pencil mark and count badge.
+  // Yellow notebook band with ink edge, pencil mark and + NEW action.
   graphics_context_set_fill_color(ctx, yellow);
   graphics_fill_rect(ctx, GRect(0, 0, width, LIST_HEADER_H - 3),
                      0, GCornerNone);
