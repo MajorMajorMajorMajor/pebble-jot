@@ -8,10 +8,25 @@ void jot_store_init(void);
 const char *jot_store_text(void);
 size_t jot_store_length(void);
 bool jot_store_dirty(void);
+
+// The insertion cursor is a UTF-8 byte boundary in the active note.
+// It is transient editor state, never written to the on-watch record.
+typedef enum {
+  JOT_CURSOR_LEFT,
+  JOT_CURSOR_RIGHT,
+  JOT_CURSOR_UP,
+  JOT_CURSOR_DOWN,
+  JOT_CURSOR_HOME,
+  JOT_CURSOR_END
+} JotCursorMove;
+
+size_t jot_store_cursor(void);
+bool jot_store_set_cursor(size_t offset);
+bool jot_store_move_cursor(JotCursorMove movement);
 int jot_store_count(void);
 
-// UTF-8 characters (or \b to delete the final codepoint). Refuses to
-// create a seventeenth note rather than silently overwriting existing text.
+// UTF-8 text is inserted at the cursor; \\b removes the previous codepoint.
+// Refuses to create a seventeenth note rather than silently overwriting text.
 bool jot_store_input(const char *binding);
 bool jot_store_flush(void);
 bool jot_store_new(void);
