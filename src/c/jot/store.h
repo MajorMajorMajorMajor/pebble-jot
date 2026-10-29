@@ -28,6 +28,8 @@ int jot_store_count(void);
 // UTF-8 text is inserted at the cursor; \\b removes the previous codepoint.
 // Refuses to create a seventeenth note rather than silently overwriting text.
 bool jot_store_input(const char *binding);
+// Delete next UTF-8 codepoint; returns false when already at end.
+bool jot_store_delete_forward(void);
 bool jot_store_flush(void);
 bool jot_store_new(void);
 bool jot_store_open(int slot);
