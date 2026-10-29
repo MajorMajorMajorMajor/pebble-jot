@@ -1,5 +1,5 @@
 // Run with:
-// cc -std=c11 -Wall -Wextra -Werror -I src/c \
+// Build: cc -std=c11 -Wall -Wextra -Werror -I src/c
 //   tests/list-focus-test.c src/c/jot/list_focus.c -o /tmp/jot-list-focus-test
 // /tmp/jot-list-focus-test
 #include <assert.h>
