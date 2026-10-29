@@ -3,6 +3,7 @@
 #include "ui/alert.h"
 #include "ui/touch.h"
 #include "jot/jot.h"
+#include "jot/store.h"
 #include "jot/reader.h"
 
 // Temporary on-device trace recorder. Nothing is logged while a trial is running:
@@ -86,6 +87,10 @@ static int s_touch_key = -1;
 static bool s_header_touch_active;
 static int16_t s_header_touch_x, s_header_touch_y;
 static uint32_t s_header_touch_ms;
+// src/c/ui/touch.c describes the currently implemented bindings only.
+// docs/gesture-map.md and docs/gesture-map.csv preserve the complete original
+// English-LH keyboard design, including reserved-but-not-yet-implemented
+// gestures. Do not treat blank entries here as available shortcuts.
 static const char *const s_bindings[14][19] = {
   { "a", "", "", "-", "v", "", "$", "", "", "", "", "÷", "V", "", "¥", "", "", "7", "A" }, // a
   { "n", "^", "´", "!", "\\", "l", "/", "+", "`", "ˇ", "’", "¡", "—", "L", "–", "×", "‘", "8", "N" }, // n
@@ -102,6 +107,25 @@ static const char *const s_bindings[14][19] = {
   { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" }, // 123
   { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" }, // hand
 };
+// Existing, reserved cursor gestures from docs/gesture-map.csv.
+// These are not newly claimed shortcuts: the original workbook assigns
+// Space E/W, I N/Return N, and S S/Return S to these commands.
+static bool prv_jot_cursor_command(int key, int gesture) {
+  JotCursorMove move;
+  if (key == 9 && gesture == 3) move = JOT_CURSOR_RIGHT;         // Space E
+  else if (key == 9 && gesture == 7) move = JOT_CURSOR_LEFT;     // Space W
+  else if (key == 2 && gesture == 1) move = JOT_CURSOR_UP;       // I N
+  else if (key == 8 && gesture == 5) move = JOT_CURSOR_DOWN;     // S S
+  else if (key == 2 && gesture == 9) move = JOT_CURSOR_HOME;     // I Return N
+  else if (key == 8 && gesture == 13) move = JOT_CURSOR_END;     // S Return S
+  else return false;
+
+  // Movement never changes note contents or marks a clean note dirty.
+  jot_store_move_cursor(move);
+  jot_refresh_editor();
+  return true;
+}
+
 static TraceEvent s_events[TRACE_MAX_EVENTS];
 static size_t s_event_count;
 static uint32_t s_overflow_count;
@@ -442,7 +466,8 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
         if (s_mode == MODE_JOT) {
           // The KB corner is also a convenient touch shortcut to note history.
           if (s_touch_key == 13 && gesture_index == 0) jot_show_list();
-          else jot_input(binding);
+          else if (!prv_jot_cursor_command(s_touch_key, gesture_index))
+            jot_input(binding);
           break;
         }
         APP_LOG(APP_LOG_LEVEL_INFO, "TYPE,%lu,%s,%s,%s,%lu,%u,%d,%d,%d,%d,%lu,%ld,%d,%d,%ld,%ld",
