@@ -26,6 +26,11 @@ jobs:
         run: node tests/editor-caret.test.js
       - name: Verify screen navigation wiring
         run: node tests/navigation-flow.test.js
+      - name: Test selectable NEW item in notes list
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/list-focus-test.c src/c/jot/list_focus.c -o /tmp/jot-list-focus-test
+          /tmp/jot-list-focus-test
       - name: Compile and test persistent note storage
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I tests/fake -I src/c \
