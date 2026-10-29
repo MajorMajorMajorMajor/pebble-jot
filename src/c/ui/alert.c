@@ -9,6 +9,7 @@ static TextLayer *s_textbox;
 static TextLayer *s_statusbox;
 static char s_text[ALERT_MAX_LENGTH];
 static bool s_editor_mode;
+static size_t s_caret_index;
 
 static void prv_background(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
@@ -29,19 +30,33 @@ static void prv_reflow(void) {
   text_layer_set_overflow_mode(s_textbox, GTextOverflowModeWordWrap);
   text_layer_set_text(s_textbox, s_text);
 
-  // For diagnostics, show the original top of the message. In the editor,
-  // align the bottom of the full text with the bottom of the 40px viewport.
-  // Appending a caret ensures a trailing newline produces a visible line.
+  // Compute height for the entire note, but scroll to the insertion caret,
+  // not invariably to the end of the note. A prefix ending in the drawn '|'
+  // includes the caret's current line even after a trailing newline.
   int height = bounds.size.h;
+  int offset_y = 0;
   if (s_editor_mode) {
     const GSize text_size = graphics_text_layout_get_content_size(
         s_text, font, GRect(0, 0, width, 4096),
         GTextOverflowModeWordWrap, GTextAlignmentLeft);
     if (text_size.h + 2 > height) height = text_size.h + 2;
+
+    char through_caret[ALERT_MAX_LENGTH];
+    size_t prefix_bytes = s_caret_index + 1;
+    if (prefix_bytes >= sizeof through_caret)
+      prefix_bytes = sizeof through_caret - 1;
+    memcpy(through_caret, s_text, prefix_bytes);
+    through_caret[prefix_bytes] = '\0';
+    const GSize caret_size = graphics_text_layout_get_content_size(
+        through_caret, font, GRect(0, 0, width, 4096),
+        GTextOverflowModeWordWrap, GTextAlignmentLeft);
+    offset_y = caret_size.h + 2 - bounds.size.h;
+    if (offset_y < 0) offset_y = 0;
+    const int max_offset = height - bounds.size.h;
+    if (offset_y > max_offset) offset_y = max_offset;
   }
-  const int y = s_editor_mode ? bounds.size.h - height : 0;
   layer_set_frame(text_layer_get_layer(s_textbox),
-                  GRect(3, y, width, height));
+                  GRect(3, -offset_y, width, height));
 }
 
 static void prv_status(bool dirty, bool save_error, bool full) {
@@ -73,23 +88,27 @@ void alert_set_text(const char *new_text) {
   prv_reflow();
 }
 
-void alert_set_editor(const char *note, bool dirty, bool save_error, bool full) {
+void alert_set_editor(const char *note, size_t cursor,
+                      bool dirty, bool save_error, bool full) {
   s_editor_mode = true;
   if (!note) note = "";
-  // No clipping, no newline substitution. The active note's max size is
-  // JOT_NOTE_TEXT_BYTES (160), leaving ample space for our visual caret.
+  // Jot's note data is untouched. Insert the visual caret into a private
+  // display buffer at a UTF-8 boundary. Both halves of the text stay visible
+  // and editable, including explicit newlines in either half.
+  const size_t length = strlen(note);
+  if (cursor > length) cursor = length;
   if (!*note) {
     snprintf(s_text, sizeof s_text, "Write something...|");
+    s_caret_index = strlen(s_text) - 1;
+  } else if (length + 2 <= sizeof s_text) {
+    memcpy(s_text, note, cursor);
+    s_text[cursor] = '|';
+    memcpy(s_text + cursor + 1, note + cursor, length - cursor + 1);
+    s_caret_index = cursor;
   } else {
-    const size_t length = strlen(note);
-    if (length + 2 <= sizeof s_text) {
-      memcpy(s_text, note, length);
-      s_text[length] = '|';
-      s_text[length + 1] = '\0';
-    } else {
-      // Defensive fallback. The store currently forbids such a long note.
-      snprintf(s_text, sizeof s_text, "%s", note);
-    }
+    // Defensive fallback; 159-byte Jot notes always fit.
+    snprintf(s_text, sizeof s_text, "%s", note);
+    s_caret_index = strlen(s_text);
   }
   prv_reflow();
   prv_status(dirty, save_error, full);
