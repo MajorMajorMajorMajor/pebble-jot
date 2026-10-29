@@ -1,6 +1,7 @@
 #include <pebble.h>
 #include "jot/jot.h"
 #include "jot/store.h"
+#include "jot/list_focus.h"
 #include "jot/backup.h"
 #include "jot/reader.h"
 #include "ui/alert.h"
@@ -9,6 +10,10 @@
 #define LIST_ROWS 3
 #define LIST_HEADER_H 43
 #define LIST_FOOTER_H 29
+#define LIST_NEW_PILL_X_RIGHT 99
+#define LIST_NEW_PILL_W 91
+#define LIST_NEW_PILL_Y 8
+#define LIST_NEW_PILL_H 25
 
 static Window *s_list_window;
 static Layer *s_list_layer;
@@ -150,31 +155,27 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
   graphics_context_set_text_color(ctx, ink);
   graphics_draw_text(ctx, "Jot",
                      fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
-                     GRect(37, 3, width - 112, 33),
+                     GRect(37, 3, width - 141, 33),
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentLeft, NULL);
 
-  char usage[16];
-  snprintf(usage, sizeof usage, "%d / %d", count, JOT_NOTE_CAPACITY);
-  graphics_context_set_fill_color(ctx, ink);
-  graphics_fill_rect(ctx, GRect(width - 67, 8, 59, 25),
-                     5, GCornersAll);
-  graphics_context_set_text_color(ctx, yellow);
-  graphics_draw_text(ctx, usage,
-                     fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-                     GRect(width - 65, 11, 55, 20),
-                     GTextOverflowModeTrailingEllipsis,
-                     GTextAlignmentCenter, NULL);
-
-  // Notebook-style add pill sits between the Jot title and note count.
-  // Only a stationary tap on this header target opens a fresh editor.
-  graphics_context_set_fill_color(ctx, ink);
-  graphics_fill_rect(ctx, GRect(width - 101, 8, 29, 25),
-                     10, GCornersAll);
-  graphics_context_set_text_color(ctx, yellow);
-  graphics_draw_text(ctx, "+",
+  // NEW is a button-focusable action just before the newest note.
+  // A selected dark pill is unmistakable; inactive is cream with ink text.
+  // The previous capacity badge has been removed to give the action room.
+  const bool new_selected = s_selected_rank == JOT_LIST_FOCUS_NEW;
+  const GRect new_pill = GRect(width - LIST_NEW_PILL_X_RIGHT,
+                               LIST_NEW_PILL_Y,
+                               LIST_NEW_PILL_W, LIST_NEW_PILL_H);
+  graphics_context_set_fill_color(ctx, new_selected ? ink : white_paper);
+  graphics_fill_rect(ctx, new_pill, 8, GCornersAll);
+  graphics_context_set_stroke_color(ctx, ink);
+  graphics_context_set_stroke_width(ctx, new_selected ? 2 : 1);
+  graphics_draw_round_rect(ctx, new_pill, 8);
+  graphics_context_set_text_color(ctx, new_selected ? yellow : ink);
+  graphics_draw_text(ctx, "+ NEW",
                      fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                     GRect(width - 101, 8, 29, 24),
+                     GRect(new_pill.origin.x + 3, new_pill.origin.y,
+                           new_pill.size.w - 6, new_pill.size.h),
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentCenter, NULL);
 
@@ -194,7 +195,7 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
                        GRect(22, card_y + 18, width - 44, 30),
                        GTextOverflowModeTrailingEllipsis,
                        GTextAlignmentCenter, NULL);
-    graphics_draw_text(ctx, "Back to write.",
+    graphics_draw_text(ctx, "Select NEW above.",
                        fonts_get_system_font(FONT_KEY_GOTHIC_14),
                        GRect(22, card_y + 47, width - 44, 20),
                        GTextOverflowModeTrailingEllipsis,
@@ -268,6 +269,9 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
       s_confirm_delete ? "DELETE?  SEL yes  BACK no" :
       s_storage_error ? "SAVE ERROR" :
       *jot_backup_status() ? jot_backup_status() :
+      s_selected_rank == JOT_LIST_FOCUS_NEW ?
+        (count ? "SEL new  DOWN notes" : "SEL new note") :
+      s_selected_rank == 0 ? "UP new  SEL open" :
       "HOLD UP backup  SEL open";
   graphics_draw_text(ctx, status,
                      fonts_get_system_font(FONT_KEY_GOTHIC_14),
@@ -285,18 +289,39 @@ void jot_backup_ui_changed(void) {
   prv_redraw_list();
 }
 
+// One new-note path shared by Select on focused NEW and a tap on its pill.
+static void prv_list_new_note(void) {
+  if (s_confirm_delete || jot_backup_active()) return;
+  // Do not clear a pending quick-capture draft unless it was saved.
+  if (!prv_flush()) { prv_redraw_list(); return; }
+  if (!jot_store_new()) {
+    s_storage_error = true;
+    prv_redraw_list();
+    return;
+  }
+  s_editing_slot = -1;
+  s_input_full = false;
+  s_storage_error = false;
+  jot_refresh_editor();
+  window_stack_pop(true);
+}
+
 static void prv_list_up(ClickRecognizerRef ref, void *context) {
   if (s_confirm_delete || jot_backup_active()) return;
-  if (s_selected_rank > 0) --s_selected_rank;
+  s_selected_rank = jot_list_focus_up(s_selected_rank);
   prv_redraw_list();
 }
 static void prv_list_down(ClickRecognizerRef ref, void *context) {
   if (s_confirm_delete || jot_backup_active()) return;
-  if (s_selected_rank + 1 < jot_store_count()) ++s_selected_rank;
+  s_selected_rank = jot_list_focus_down(s_selected_rank, jot_store_count());
   prv_redraw_list();
 }
 static void prv_list_select(ClickRecognizerRef ref, void *context) {
   if (jot_backup_active()) return;
+  if (s_selected_rank == JOT_LIST_FOCUS_NEW) {
+    prv_list_new_note();
+    return;
+  }
   int slot = jot_store_slot_at(s_selected_rank);
   if (slot < 0) return;
   if (s_confirm_delete) {
@@ -304,8 +329,8 @@ static void prv_list_select(ClickRecognizerRef ref, void *context) {
     else {
       s_storage_error = false;
       s_input_full = false;
-      if (s_selected_rank >= jot_store_count() && s_selected_rank)
-        --s_selected_rank;
+      s_selected_rank = jot_list_focus_initial(
+          s_selected_rank, jot_store_count());
     }
     s_confirm_delete = false;
     // Deleting the active note clears its editor buffer. Paint that change
@@ -322,7 +347,8 @@ static void prv_list_select(ClickRecognizerRef ref, void *context) {
 }
 static void prv_list_hold(ClickRecognizerRef ref, void *context) {
   if (jot_backup_active()) return;
-  if (jot_store_count() > 0) {
+  // NEW is an action, not a note; it must never enter delete confirmation.
+  if (s_selected_rank >= 0 && jot_store_count() > 0) {
     s_confirm_delete = true;
     prv_redraw_list();
   }
@@ -332,16 +358,17 @@ static void prv_list_back(ClickRecognizerRef ref, void *context) {
   if (s_confirm_delete) {
     s_confirm_delete = false;
     prv_redraw_list();
-  } else if (s_selected_rank > 0) {
-    // Back in history first returns to its newest page.
-    s_selected_rank = 0;
-    prv_redraw_list();
-  } else {
-    // The editor is underneath the list; popping only the list would
-    // bounce Back between two Jot screens forever. At the top, exit.
-    if (prv_flush()) window_stack_pop_all(true);
-    else prv_redraw_list();
+    return;
   }
+  const int focus = jot_list_focus_back(s_selected_rank, jot_store_count());
+  if (focus != JOT_LIST_FOCUS_EXIT) {
+    s_selected_rank = focus;
+    prv_redraw_list();
+    return;
+  }
+  // At the newest note, or NEW on an empty list, leave Jot as before.
+  if (prv_flush()) window_stack_pop_all(true);
+  else prv_redraw_list();
 }
 static void prv_list_export(ClickRecognizerRef ref, void *context) {
   if (s_confirm_delete || jot_backup_active()) return;
@@ -400,7 +427,7 @@ static int prv_rank_of_slot(int slot) {
 
 static void prv_push_list_at(int rank) {
   if (!s_list_window) return;
-  s_selected_rank = rank >= 0 ? rank : 0;
+  s_selected_rank = jot_list_focus_initial(rank, jot_store_count());
   s_confirm_delete = false;
   window_stack_push(s_list_window, true);
 }
@@ -484,21 +511,11 @@ void jot_list_tap(int16_t x, int16_t y) {
   if (!jot_list_is_open() || !s_list_layer ||
       s_confirm_delete || jot_backup_active()) return;
   const int width = layer_get_bounds(s_list_layer).size.w;
-  if (x < width - 101 || x >= width - 72 || y < 8 || y >= 33) return;
-
-  // Fresh note is a deliberate action, not a consequence of browsing.
-  // Refuse to switch if a dirty draft cannot be committed safely.
-  if (!prv_flush()) { prv_redraw_list(); return; }
-  if (!jot_store_new()) {
-    s_storage_error = true;
-    prv_redraw_list();
+  if (x < width - LIST_NEW_PILL_X_RIGHT ||
+      x >= width - LIST_NEW_PILL_X_RIGHT + LIST_NEW_PILL_W ||
+      y < LIST_NEW_PILL_Y || y >= LIST_NEW_PILL_Y + LIST_NEW_PILL_H)
     return;
-  }
-  s_editing_slot = -1;
-  s_input_full = false;
-  s_storage_error = false;
-  jot_refresh_editor();
-  window_stack_pop(true);
+  prv_list_new_note();
 }
 
 void jot_init(void) {
