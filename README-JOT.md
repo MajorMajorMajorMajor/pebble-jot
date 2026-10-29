@@ -62,6 +62,30 @@ These are **visual-only fixes**, not a change to cursor movement, saved text,
 or keyboard geometry. They pass CI's source-level layout checks, but await
 another real-watch visual inspection; issue #16 remains open until confirmed.
 
+**On-watch findings (v1.5.2):** The user confirmed that the caret height and
+bottom-row clearance are now right. However, the horizontal caret position
+still jumps far to the right at soft wraps, including after moving left
+across LF following a wrapped line. Screenshots are now available directly
+in the development conversation as well as the issue.
+
+**v1.5.3 follow-up — visual-line layout:** The previous caret routine
+searched backward for the first suffix that *could* fit on a line. When a
+short word wrapped, that suffix could contain words from the preceding line,
+yielding a caret position near the right edge even though the word rendered
+on the left. The replacement `src/c/ui/caret_layout.c` walks forward through
+whole words, uses the same native font-width measurements as the TextLayer,
+and explicitly tracks the starts of visible rows. Overlong words are split
+on UTF-8 boundaries; hard LF breaks and trailing spaces are handled
+separately. The 1px caret stroke, font, bottom clearance and keyboard
+geometry confirmed in 1.5.2 remain unchanged.
+
+This layout helper is compiled and exercised in CI with regression cases
+modeled on the watch screenshots, including short words wrapping after long
+lines, crossing explicit line breaks, empty lines, trailing spaces and
+UTF-8 codepoints. The source-level overlay safeguards also remain.
+It is still a model of Pebble's word-wrapping behavior, so physical Emery
+testing is necessary before closing issue #16.
+
 ## Cursor editing (v1.5 — watch verified)
 
 The original `messagease keys.xlsx` design map is now preserved in
@@ -217,6 +241,6 @@ published, the watch-to-phone transfer can work but the viewer won't open.
 
 1. Verify end-to-end phone backup and export on real hardware (including Unicode, disconnects and failure recovery).
 2. Device testing of note persistence, full capacity, relaunch, and deletion.
-3. Verify the 1.5.2 caret-placement refinements on real Emery, then implement forward delete and navigation polish.
+3. Verify the 1.5.3 visual-line caret placement on real Emery, then implement forward delete and navigation polish.
 
 The earlier `jot-v0.1.patch` instructions are historical; this repository now contains the Jot source directly. Simply pull and build the branch.
