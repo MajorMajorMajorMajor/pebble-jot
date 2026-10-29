@@ -6,9 +6,9 @@
 
 enum {
   READER_HEADER_H = JOT_READER_HEADER_H,
-  READER_FOOTER_H = 30,
-  READER_META_H = 33,
-  READER_TEXT_PADDING = 12,
+  READER_FOOTER_H = JOT_READER_FOOTER_H,
+  READER_META_H = JOT_READER_META_H,
+  READER_TEXT_PADDING = JOT_READER_TEXT_PADDING,
   READER_SCROLL_STEP = 60
 };
 
@@ -112,8 +112,8 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
   const char *hint = s_open_error ? "COULD NOT OPEN NOTE" :
                      s_is_peek ? (s_scroll_max ? "UP/DN scroll  TAP return" :
                                                  "TAP to return to typing") :
-                     s_scroll_max ? "UP/DN scroll   SEL edit" :
-                                    "SEL edit    BACK list";
+                     s_scroll_max ? "UP/DN scroll  TAP edit" :
+                                    "TAP text  SEL edit";
   graphics_draw_text(ctx, hint,
                      fonts_get_system_font(FONT_KEY_GOTHIC_14),
                      GRect(5, footer_y + 5, width - 10, READER_FOOTER_H - 8),
@@ -146,7 +146,7 @@ static void prv_update_scroll(void) {
   if (!s_text_layer || !s_viewport) return;
   const int width = layer_get_bounds(s_viewport).size.w;
   layer_set_frame(text_layer_get_layer(s_text_layer),
-                  GRect(READER_TEXT_PADDING, 2 - s_scroll,
+                  GRect(READER_TEXT_PADDING, JOT_READER_TEXT_TOP_INSET - s_scroll,
                         width - 2 * READER_TEXT_PADDING, s_text_height));
   if (s_chrome) layer_mark_dirty(s_chrome);
 }
@@ -181,20 +181,40 @@ static void prv_reader_down(ClickRecognizerRef ref, void *context) {
   prv_update_scroll();
 }
 
-static void prv_reader_select(ClickRecognizerRef ref, void *context) {
-  if (s_is_peek) {
-    window_stack_pop(true);
-    return;
-  }
+JotReaderTouchLayout jot_reader_touch_layout(void) {
+  JotReaderTouchLayout layout = {0};
+  if (!jot_reader_is_open() || !s_chrome || !s_viewport || !s_text_layer)
+    return layout;
+  const GRect bounds = layer_get_bounds(s_chrome);
+  layout.screen_width = bounds.size.w;
+  layout.screen_height = bounds.size.h;
+  layout.text_height = s_text_height;
+  layout.scroll_y = s_scroll;
+  return layout;
+}
+
+bool jot_reader_edit_current(void) {
+  // Keep physical Select and touch text-edit on the exact same route.
+  // A Peek is not an existing saved note and cannot become one here.
+  if (!jot_reader_is_open() || s_is_peek || s_slot < 0) return false;
   if (!jot_reader_edit(s_slot)) {
     s_open_error = true;
     if (s_chrome) layer_mark_dirty(s_chrome);
+    return false; // Leave the reader visible on a failed open.
+  }
+  // The edit origin and slot are retained by jot_reader_edit(). Popping
+  // the reader reveals the keyboard, and completing an edit later
+  // reconstructs a fresh reader using the committed note.
+  window_stack_pop(true);
+  return true;
+}
+
+static void prv_reader_select(ClickRecognizerRef ref, void *context) {
+  if (s_is_peek) {
+    jot_reader_back();
     return;
   }
-  // The edit origin and note slot are retained by jot_reader_edit().
-  // Removing the list and popping this reader reveals the keyboard; on
-  // completion the editor will rebuild this reader from saved note data.
-  window_stack_pop(true);
+  jot_reader_edit_current();
 }
 
 static void prv_reader_back(ClickRecognizerRef ref, void *context) {
