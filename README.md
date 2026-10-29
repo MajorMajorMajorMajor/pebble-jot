@@ -27,11 +27,11 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | Editor | Up / Down | Open the notes list |
 | Editor | Tap **KB** | Open the notes list |
 | Editor | Back | Save and show notes list; while editing an existing note, save and return to its reader |
-| Notes list | Up / Down | Move through saved notes |
-| Notes list | Select | Read the highlighted note full-screen |
+| Notes list | Up / Down | Move through saved notes; **Up** from the newest note focuses **+ NEW** |
+| Notes list | Select | Open the highlighted note, or create a note when **+ NEW** is focused |
 | Notes list | Long Select | Request deletion; Select confirms, Back cancels |
-| Notes list | Tap the **+** pill in the header | Open a fresh blank editor |
-| Notes list | Back | If scrolled, return to newest note; if already at top, exit Jot |
+| Notes list | Tap **+ NEW** in the header | Open a fresh blank editor (touch remains optional) |
+| Notes list | Back | From older notes or **+ NEW**, return to newest; from newest, exit Jot |
 | Reader | Up / Down | Scroll the full note |
 | Reader | Select | Open the note in the keyboard editor |
 | Reader | Back | Return to the notes list |
@@ -44,7 +44,7 @@ The editor uses a small `*` in its upper-right corner to indicate unsaved edits.
 
 The editor now remembers when it was opened from a saved-note reader. **Select and Back after editing** first commit the draft, then reopen the *same reader* using the newly persisted text instead of an outdated snapshot. **Select on a quick-capture note** saves it, resets the editor to an empty note and opens the notes list with the saved note selected. **Back on a quick-capture note** saves and opens the list but keeps the current editor buffer; only pressing Select finishes that capture.
 
-The notes list has a small **+** pill in the top header for starting a fresh note. Pressing Back while viewing an older list position jumps to the top first; pressing Back from the top exits to PebbleOS. The full-screen reader's Back still returns to the notes list. Tap-to-peek remains read-only and returns to the same draft. If a save fails, Jot keeps the editor and text on screen, showing **SAVE ERROR** rather than discarding any writing.
+**Jot 1.6.1** makes the header's **+ NEW** pill button-selectable as an item immediately above the newest note. Press **Up** from the newest note to focus it, then **Select** to begin writing; **Down** returns to the newest note. The former `x / 16` badge has been removed for a larger, clearer button; tapping the pill still works. If the list is empty, **+ NEW** starts selected automatically. Pressing Back while viewing an older list position jumps to the top first; pressing Back from the top exits to PebbleOS. The full-screen reader's Back still returns to the notes list. Tap-to-peek remains read-only and returns to the same draft. If a save fails, Jot keeps the editor and text on screen, showing **SAVE ERROR** rather than discarding any writing.
 
 The keyboard geometry, recognizer, caret rendering, note storage format, and existing backup flow are unchanged. These stack transitions still need a physical Pebble Time 2 check.
 
