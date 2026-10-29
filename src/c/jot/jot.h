@@ -13,6 +13,10 @@ void jot_new_note(void);
 // On storage failure, keep editor and its draft visible.
 void jot_editor_select(void);
 void jot_editor_back(void);
+// Keyboard SAVE touch target: commit then display the exact saved-note reader.
+// Unlike physical Select, a new note goes directly to its reader, not list.
+// Failure preserves the current draft/editor without changing screens.
+void jot_editor_touch_save(void);
 void jot_show_list(void);
 bool jot_list_is_open(void);
 // Handle a short, stationary tap on the notes-list + pill.
