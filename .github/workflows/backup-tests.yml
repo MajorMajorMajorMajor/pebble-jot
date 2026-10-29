@@ -29,3 +29,8 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -I tests/fake -I src/c \
             tests/store-test.c src/c/jot/store.c -o /tmp/jot-store-test
           /tmp/jot-store-test
+      - name: Test wrap-aware caret geometry
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/caret-layout-test.c src/c/ui/caret_layout.c -o /tmp/jot-caret-layout-test
+          /tmp/jot-caret-layout-test
