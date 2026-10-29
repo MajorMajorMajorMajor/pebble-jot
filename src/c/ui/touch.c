@@ -3,6 +3,7 @@
 #include "ui/alert.h"
 #include "ui/touch.h"
 #include "jot/jot.h"
+#include "jot/reader.h"
 
 // Temporary on-device trace recorder. Nothing is logged while a trial is running:
 // emitting APP_LOG messages inside the callback would disturb touch timing.
@@ -79,6 +80,12 @@ static char s_typed[160];
 static size_t s_typed_len;
 static uint32_t s_typing_id;
 static int s_touch_key = -1;
+
+// A touch originating in the 40 px editor text strip is reserved for
+// peek/read mode, never for keyboard gestures.
+static bool s_header_touch_active;
+static int16_t s_header_touch_x, s_header_touch_y;
+static uint32_t s_header_touch_ms;
 static const char *const s_bindings[14][19] = {
   { "a", "", "", "-", "v", "", "$", "", "", "", "", "÷", "V", "", "¥", "", "", "7", "A" }, // a
   { "n", "^", "´", "!", "\\", "l", "/", "+", "`", "ˇ", "’", "¡", "—", "L", "–", "×", "‘", "8", "N" }, // n
@@ -473,12 +480,46 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
 }
 
 static void prv_touch_handler(const TouchEvent *event, void *context) {
-  if ((s_mode == MODE_TRACE && !s_recording) || s_mode == MODE_MENU ||
-      (s_mode == MODE_JOT && jot_list_is_open()) || !event) {
+  if (!event) return;
+
+  if (s_mode == MODE_JOT && jot_reader_is_open()) {
+    // A peek is a temporary page: tapping anywhere returns to the keyboard.
+    // An ordinary saved-note reader still uses its physical buttons.
+    if (jot_reader_is_peek() && event->type == TouchEvent_Liftoff)
+      jot_reader_dismiss_peek();
     return;
   }
 
+  if ((s_mode == MODE_TRACE && !s_recording) || s_mode == MODE_MENU ||
+      (s_mode == MODE_JOT && jot_list_is_open())) return;
+
   const uint32_t now_ms = prv_now_ms();
+
+  if (s_mode == MODE_JOT) {
+    if (event->type == TouchEvent_Touchdown) {
+      s_header_touch_active = event->y >= 0 && event->y < 40;
+      if (s_header_touch_active) {
+        s_header_touch_x = event->x;
+        s_header_touch_y = event->y;
+        s_header_touch_ms = now_ms;
+        s_stroke.active = false;
+        return;
+      }
+    }
+    if (s_header_touch_active) {
+      if (event->type == TouchEvent_Liftoff) {
+        const int dx = event->x - s_header_touch_x;
+        const int dy = event->y - s_header_touch_y;
+        const bool tap = event->y >= 0 && event->y < 40 &&
+                         dx >= -12 && dx <= 12 &&
+                         dy >= -12 && dy <= 12 &&
+                         now_ms - s_header_touch_ms < 700;
+        s_header_touch_active = false;
+        if (tap) jot_reader_peek();
+      }
+      return;
+    }
+  }
 
   if (s_mode == MODE_TYPING || s_mode == MODE_JOT) {
     prv_update_stroke(event, now_ms);
