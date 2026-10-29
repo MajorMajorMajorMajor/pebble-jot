@@ -50,7 +50,7 @@ The editor now remembers when it was opened from a saved-note reader. **Select a
 
 The keyboard geometry, recognizer, caret rendering, note storage format, and existing backup flow are unchanged. These stack transitions still need a physical Pebble Time 2 check.
 
-## Touch the notebook (v1.7 — watch test pending)
+## Touch the notebook (v1.7 — confirmed on Emery; v1.7.1 focus polish awaits test)
 
 The saved-notes list now responds to **taps and vertical drags** as well as the
 physical buttons. Tap an actual note card to open it directly in the reader,
@@ -60,16 +60,21 @@ stay fixed. Swipes don't accidentally open notes: after a gesture crosses a
 10-pixel movement threshold, release is never treated as a tap. Blank paper,
 the spaces between cards, and header/footer areas are not note-card targets.
 
-The highlighted note follows the visible list while dragging, and physical
-Up/Down/Select/Back continue to work afterward. The original **+ NEW**
-button-and-touch interaction, deletion confirmation, and backup controls
-are preserved. Scrolling currently follows the finger directly rather than
-continuing with kinetic/inertial momentum after release; that's optional
-future polish depending on real-watch feedback.
+**Jot 1.7.1:** The yellow highlight now **disappears during a drag**
+instead of chasing the finger. When you release, the list stays where you
+left it, with no card selected. The first physical **Up or Down** press
+highlights the **topmost completely visible note card**, without moving the
+scroll position; further presses navigate a note at a time. Select and
+long-Select cannot open or delete a stale, unhighlighted note. Back from
+touch browsing restores the newest note at the top, preserving the
+existing Back-to-top flow.
 
-The new pure-C geometry tests cover card edges, partially scrolled cards,
-scroll bounds and empty lists. Pixel interaction still needs checking on
-Pebble Time 2.
+The original **+ NEW** button-and-touch action, delete confirmation, and
+backup controls remain unchanged. Scrolling still follows the finger
+directly without kinetic momentum. The v1.7 touch/drag/tap behavior has been
+tested on Emery; the new v1.7.1 focus-state transition awaits its own watch
+test. Host tests cover card edges, partial scroll, exact full-card visibility,
+scroll bounds and empty lists.
 
 ## Read your notes full-screen (v1.2)
 
