@@ -106,9 +106,19 @@ void jot_new_note(void) {
 }
 
 static void prv_format_time(time_t when, char *out, size_t cap) {
-  struct tm *tm = localtime(&when);
-  if (!tm) { snprintf(out, cap, "--:--"); return; }
-  snprintf(out, cap, "%02d:%02d", tm->tm_hour, tm->tm_min);
+  // Show today's notes by time, older notes by month/day. Copy today
+  // before the second localtime() call; both calls share a static tm.
+  const time_t now = time(NULL);
+  const struct tm *current = localtime(&now);
+  if (!current) { snprintf(out, cap, "--:--"); return; }
+  const int today_year = current->tm_year;
+  const int today_yday = current->tm_yday;
+  const struct tm *note = localtime(&when);
+  if (!note) { snprintf(out, cap, "--:--"); return; }
+  if (note->tm_year == today_year && note->tm_yday == today_yday)
+    snprintf(out, cap, "%02d:%02d", note->tm_hour, note->tm_min);
+  else
+    snprintf(out, cap, "%02d/%02d", note->tm_mon + 1, note->tm_mday);
 }
 
 // The notes list uses the same paper / yellow / charcoal visual language as
@@ -129,7 +139,13 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
   const int height = bounds.size.h;
   const int row_h = (height - LIST_HEADER_H - LIST_FOOTER_H) / LIST_ROWS;
   const int count = jot_store_count();
-  const int first = (s_selected_rank / LIST_ROWS) * LIST_ROWS;
+  // Keep the selected note near the middle and advance by one card,
+  // rather than jumping an entire page every third button press.
+  int first = s_selected_rank - 1;
+  if (first < 0) first = 0;
+  int max_first = count - LIST_ROWS;
+  if (max_first < 0) max_first = 0;
+  if (first > max_first) first = max_first;
   const GColor ink = GColorFromRGB(41, 40, 43);
   const GColor yellow = GColorFromRGB(255, 209, 88);
   const GColor paper = GColorFromRGB(249, 242, 219);
