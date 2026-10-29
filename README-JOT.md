@@ -14,11 +14,11 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Editor Up / Down or KB touch target:** show saved notes.
 - **Editor Back:** save and show the notes list from quick capture; while editing a saved note, save and return to that note's reader.
 - **Editor long Select (~1.2 s):** open the inherited typing/trace diagnostic menu.
-- **Notes list Up / Down:** browse saved notes.
-- **Notes list Select:** open a saved note in the new full-screen, read-only paper reader.
+- **Notes list Up / Down:** browse saved notes. Up from the newest note focuses **+ NEW**, Down from **+ NEW** returns to the newest note.
+- **Notes list Select:** open the selected saved note in the full-screen reader, or choose **+ NEW** to start a blank note.
 - **Notes list long Select:** begin a two-step delete; Select confirms and Back cancels.
-- **Notes list tap +:** open a new blank editor (only a stationary tap activates it).
-- **Notes list Back:** when browsing older notes, scroll to newest; when already at the top, exit Jot.
+- **Notes list tap + NEW:** open a new blank editor (only a stationary tap activates it; buttons work too).
+- **Notes list Back:** from older notes or **+ NEW**, return to the newest note; at the newest note, exit Jot. From an empty list, Back exits.
 - **Reader Up / Down:** scroll the note vertically, 60 pixels per press (when it exceeds the screen).
 - **Reader Select:** open that note in the keyboard editor; its origin is remembered until the edit is safely saved.
 - **Reader Back:** return to the notes list without modifying the note.
@@ -44,11 +44,20 @@ and keyboard are reused; no new screen type or note record is introduced.
   the *committed* record. The new reader cannot display the stale snapshot
   from before the edit.
 - **Reader Back:** return to the list, preserving its selection.
-- **List + pill:** tap near the top header between Jot and the note count.
-  This flushes any pending draft, resets the editor and pops the list so
-  typing can begin immediately. Gestures or swipes do not activate it.
-- **List Back:** if the selected note is below the first, jump to the newest.
-  From the newest position, exit Jot with `window_stack_pop_all(true)`.
+- **List + NEW pill (v1.6.1):** this is now a selectable header action,
+  not a touch-only control. From the newest note, press **Up** to focus it,
+  then **Select** to open a blank editor. Press **Down** to return to the
+  newest note. A stationary tap is still an alternative. The `x / 16`
+  capacity badge was removed to provide room for a clearly labeled
+  **+ NEW** pill; the focused pill is drawn with stronger contrast.
+  From an empty notes list, this action is the default selection.
+  The shared action flushes any pending draft, resets the editor, then
+  pops the notes list so typing can begin immediately. Gestures or swipes
+  do not activate it.
+- **List Back:** if the selected note is below the first, or **+ NEW** is
+  focused while notes exist, jump to the newest note. From the newest note,
+  exit Jot with `window_stack_pop_all(true)`. When the list is empty,
+  Back from **+ NEW** exits directly.
   If delete confirmation is active, Back *cancels* it instead; active backup
   is cancelled via the existing flow.
 
@@ -59,7 +68,10 @@ buffer and cursor; there is no silent discard or forced page transition.
 The note's old saved version is never replaced by a failed write.
 
 Host regressions cover the active note's slot and a simulated save failure
-across `jot_store_new()`. CI also checks the button/event wiring and stack
+across `jot_store_new()`. v1.6.1 adds a pure-C focus navigator with host tests for
+the `note → + NEW → note` button sequence, empty lists, Back/exit behavior
+and removing the last note. Source-level checks ensure Select and touch
+share the same save-safe new-note action and the capacity badge is gone. CI also checks the button/event wiring and stack
 transition sequence. Actual windows, touch hitboxes, and the Back behavior
 must still be tested on Emery. See
 [issue #14](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/14).
