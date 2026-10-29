@@ -5,25 +5,64 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 ## Current controls
 
 - **Launch:** go directly to a blank editor.
-- **Editor Select:** save this note and start a new one.
+- **Editor Select:** save a quick-capture note and show it in the list, or save an existing-note edit and return to its reader.
 - **Editor text strip tap:** peek at the full current draft without saving or switching notes.
 - **Editor Space swipe left / right:** move the insertion cursor by one UTF-8 codepoint.
 - **Editor Backspace NE / E / SE / S:** delete the following UTF-8 character; tapping Backspace or swiping NW / N / SW / W deletes backward.
 - **Editor I swipe up / S swipe down:** move between explicit newline-separated text lines, retaining a preferred column.
 - **Editor I up-and-return / S down-and-return:** jump to the beginning / end of the active note.
 - **Editor Up / Down or KB touch target:** show saved notes.
-- **Editor Back:** exit, saving pending changes during normal shutdown.
+- **Editor Back:** save and show the notes list from quick capture; while editing a saved note, save and return to that note's reader.
 - **Editor long Select (~1.2 s):** open the inherited typing/trace diagnostic menu.
 - **Notes list Up / Down:** browse saved notes.
 - **Notes list Select:** open a saved note in the new full-screen, read-only paper reader.
 - **Notes list long Select:** begin a two-step delete; Select confirms and Back cancels.
-- **Notes list Back:** return to the editor.
+- **Notes list tap +:** open a new blank editor (only a stationary tap activates it).
+- **Notes list Back:** when browsing older notes, scroll to newest; when already at the top, exit Jot.
 - **Reader Up / Down:** scroll the note vertically, 60 pixels per press (when it exceeds the screen).
-- **Reader Select:** open that note in the existing keyboard editor.
+- **Reader Select:** open that note in the keyboard editor; its origin is remembered until the edit is safely saved.
 - **Reader Back:** return to the notes list without modifying the note.
 - **Draft peek tap, Select or Back:** return to the same keyboard editor.
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
+
+## Context-aware screen navigation (v1.6 — Emery testing pending)
+
+Jot still launches into a **blank, immediate editor**. The existing reader
+and keyboard are reused; no new screen type or note record is introduced.
+
+- **Quick capture, Select:** flush pending text. If it is a real note, reset
+  the keyboard to a blank draft and open the notes list with that exact note
+  highlighted. If nothing was typed, just open the list without allocating
+  a phantom note. Opening the list must not overwrite the saved text.
+- **Quick capture, Back:** flush and show the list, but leave the underlying
+  editor buffer available until the next deliberate fresh-note action.
+- **From a saved-note reader, Select to edit:** load that note into the
+  existing keyboard and remember its persistent slot. When editor **Select
+  or Back** is pressed, flush the changes, reset the underlying editor to a
+  fresh draft, open the list on the same note, then reopen its reader using
+  the *committed* record. The new reader cannot display the stale snapshot
+  from before the edit.
+- **Reader Back:** return to the list, preserving its selection.
+- **List + pill:** tap near the top header between Jot and the note count.
+  This flushes any pending draft, resets the editor and pops the list so
+  typing can begin immediately. Gestures or swipes do not activate it.
+- **List Back:** if the selected note is below the first, jump to the newest.
+  From the newest position, exit Jot with `window_stack_pop_all(true)`.
+  If delete confirmation is active, Back *cancels* it instead; active backup
+  is cancelled via the existing flow.
+
+**No lost writing:** Every navigation step that could abandon or reset a
+draft checks `jot_store_flush()` first. When a persistent write fails,
+`SAVE ERROR` is displayed and the editor stays open with its original
+buffer and cursor; there is no silent discard or forced page transition.
+The note's old saved version is never replaced by a failed write.
+
+Host regressions cover the active note's slot and a simulated save failure
+across `jot_store_new()`. CI also checks the button/event wiring and stack
+transition sequence. Actual windows, touch hitboxes, and the Back behavior
+must still be tested on Emery. See
+[issue #14](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/14).
 
 ## Forward deletion (v1.5.4 — awaiting watch verification)
 
