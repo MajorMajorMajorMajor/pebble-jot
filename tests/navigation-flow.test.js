@@ -77,17 +77,32 @@ const listUp = functionBody(jot, 'static void prv_list_up(');
 const listDown = functionBody(jot, 'static void prv_list_down(');
 const listSelect = functionBody(jot, 'static void prv_list_select(');
 const listHold = functionBody(jot, 'static void prv_list_hold(');
+assert.match(listUp, /if \(prv_restore_list_focus\(\)\) return;/);
 assert.match(listUp, /jot_list_focus_up\(s_selected_rank\)/);
+assert.match(listDown, /if \(prv_restore_list_focus\(\)\) return;/);
 assert.match(listDown, /jot_list_focus_down\(s_selected_rank,\s*jot_store_count\(\)\)/);
+
+const resume = functionBody(jot, 'static bool prv_restore_list_focus(void)');
+assert.match(resume, /if \(s_list_focus_valid\) return false/);
+assert.match(resume, /jot_list_touch_first_full_card\(/);
+assert.match(resume, /s_selected_rank\s*=\s*jot_list_focus_initial\(first,\s*count\)/);
+assert.match(resume, /s_list_focus_valid\s*=\s*true/);
+assert.doesNotMatch(resume, /prv_follow_list_focus\(\)/); // First press preserves exact drag offset
+assert.match(jot, /const bool selected\s*=\s*s_list_focus_valid\s*&&\s*rank\s*==\s*s_selected_rank/);
+
+assert.match(listSelect, /if \(prv_restore_list_focus\(\)\) return;/);
 assert.match(listSelect, /s_selected_rank\s*==\s*JOT_LIST_FOCUS_NEW/);
 assert.match(listSelect, /prv_list_new_note\(\)/);
+assert.match(listHold, /if \(prv_restore_list_focus\(\)\) return;/);
 assert.match(listHold, /s_selected_rank\s*>=\s*0/);
 assert.match(jot, /graphics_draw_text\(ctx,\s*"\+ NEW"/);
-assert.match(jot, /new_selected\s*=\s*s_selected_rank\s*==\s*JOT_LIST_FOCUS_NEW/);
+assert.match(jot, /new_selected\s*=\s*s_list_focus_valid\s*&&\s*s_selected_rank\s*==\s*JOT_LIST_FOCUS_NEW/);
 assert.doesNotMatch(jot, /char usage\[16\]/); // No longer shows x/16.
 
 const listBack = functionBody(jot, 'static void prv_list_back(');
 assert.match(listBack, /if \(s_confirm_delete\)/);
+assert.match(listBack, /if \(!s_list_focus_valid\)/);
+assert.match(listBack, /prv_follow_list_focus\(\)/);
 assert.match(listBack, /jot_list_focus_back\(s_selected_rank,\s*jot_store_count\(\)\)/);
 assert.match(listBack, /if \(focus != JOT_LIST_FOCUS_EXIT\)/);
 assert.match(listBack, /if \(prv_flush\(\)\) window_stack_pop_all\(true\)/);
@@ -111,9 +126,13 @@ assert.match(jot, /layer_set_update_proc\(s_cards_layer,\s*prv_cards_draw\)/);
 assert.match(jot, /rank \* row_h - s_list_scroll_px \+ JOT_LIST_CARD_Y_PAD/);
 const listDrag = functionBody(jot, 'void jot_list_drag(int16_t delta_y)');
 assert.match(listDrag, /jot_list_touch_clamp_scroll\(/);
-assert.match(listDrag, /jot_list_touch_focus_at_scroll\(/);
+assert.match(listDrag, /s_list_focus_valid\s*=\s*false/);
+assert.match(listDrag, /const bool had_focus = s_list_focus_valid/);
+assert.doesNotMatch(listDrag, /s_selected_rank\s*=/);
+assert.match(listDrag, /if \(had_focus\) prv_redraw_list\(\)/);
 assert.match(listDrag, /jot_backup_active\(\)/);
 const openNote = functionBody(jot, 'static void prv_open_list_note(int rank)');
+assert.match(openNote, /s_list_focus_valid\s*=\s*true/);
 assert.match(openNote, /jot_reader_show\(slot,\s*rank,\s*count\)/);
 assert.match(functionBody(jot, 'static void prv_list_select('),
              /prv_open_list_note\(s_selected_rank\)/);
