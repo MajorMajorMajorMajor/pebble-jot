@@ -24,6 +24,8 @@ jobs:
         run: node tests/gesture-map.test.js
       - name: Verify editor caret overlay invariants
         run: node tests/editor-caret.test.js
+      - name: Verify screen navigation wiring
+        run: node tests/navigation-flow.test.js
       - name: Compile and test persistent note storage
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I tests/fake -I src/c \
