@@ -37,7 +37,7 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | Reader | Up / Down | Scroll the full note |
 | Reader | Select | Open the note in the keyboard editor |
 | Reader | Back or tap **← NOTES** in top-left header | Return to the notes list |
-| Reader | Tap note text | Reserved for future touch-to-edit (#23); physical Select edits today |
+| Reader | Tap visible note text | Open that saved note in the keyboard editor (same as Select) |
 | Draft peek | Tap anywhere briefly, Select, Back, or tap **← EDIT** | Return to the same draft editor |
 | Editor | Long Select (~1.2 s) | Open the legacy typing / trace diagnostics |
 
@@ -77,7 +77,7 @@ tested on Emery; the new v1.7.1 focus-state transition awaits its own watch
 test. Host tests cover card edges, partial scroll, exact full-card visibility,
 scroll bounds and empty lists.
 
-## Contextual reader Back (v1.7.2 — awaiting watch test)
+## Contextual reader Back (v1.7.2 — verified on Emery)
 
 The upper-left yellow reader header now contains a **real Back control**,
 drawn as a small charcoal arrow on a cream-paper key. Its label describes
@@ -94,7 +94,26 @@ Existing note data, screen scrolling, physical buttons and list touch
 selection remain unchanged.
 
 Host tests cover the Back target's boundaries and tap-versus-swipe behavior.
-The actual button appearance and touch sensitivity require an Emery check.
+The visual appearance and touch behavior were verified on Emery.
+
+## Touch to edit a saved note (v1.7.3 — watch test pending)
+
+A brief tap on the **visible text of a saved note** opens that exact note
+in the keyboard editor—the same transition as physical Select. The edit
+origin is remembered, so finishing the edit with Back or Select still
+saves the revision and returns to an up-to-date reader.
+
+The tap target follows the TextLayer's measured visible height and current
+scroll offset, clipped between the date strip and the bottom footer.
+Tapping the date, header, blank page below a short note, gutters, or footer
+does not open the editor. A swipe, long press or finger movement exceeding
+10 pixels cannot accidentally activate editing, even after returning to
+the starting point. The existing **← NOTES** header Back action retains
+priority. Tapping a temporary **DRAFT Peek** still returns to the same
+unsaved editor buffer, never to saved-note editing.
+
+Host tests cover these targets, gestures and the shared Select/edit path.
+The new content tap needs a physical Emery test before closing #23.
 
 ## Read your notes full-screen (v1.2)
 
