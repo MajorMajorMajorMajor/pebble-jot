@@ -10,9 +10,12 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Editor Back:** exit, saving pending changes during normal shutdown.
 - **Editor long Select (~1.2 s):** open the inherited typing/trace diagnostic menu.
 - **Notes list Up / Down:** browse saved notes.
-- **Notes list Select:** open a note for editing.
+- **Notes list Select:** open a saved note in the new full-screen, read-only paper reader.
 - **Notes list long Select:** begin a two-step delete; Select confirms and Back cancels.
 - **Notes list Back:** return to the editor.
+- **Reader Up / Down:** scroll the note vertically, 45 pixels per press (when it exceeds the screen).
+- **Reader Select:** open that note in the existing keyboard editor.
+- **Reader Back:** return to the notes list without modifying the note.
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
@@ -43,6 +46,14 @@ Relevant modules:
 - `src/c/jot/store.c` and `store.h` — local note persistence.
 - `src/c/keyboard/` — gesture bindings and keyboard state.
 - `src/c/ui/touch.c` — gesture recording and recognition.
+
+## Full-screen reading mode (v1.2)
+
+Selecting a saved note now opens its **full text** on a cream paper screen with ruled lines, a timestamp, a yellow Jot header, an ink navigation footer and a note-position badge. This is a read-only view: it does not alter the editor's current draft, note contents or storage. Up and Down scroll the text when necessary.
+
+Press **Select** to open that note for editing with the existing keyboard, or **Back** to return to the list at the same selection. If a note cannot be read or opened, Jot remains on the list or reader and shows a failure indicator. Touchscreen typing is ignored while the reader is on screen.
+
+This first installment deliberately **does not** change the 159-byte note limit, storage format, keyboard geometry or gesture classifier. The reader is pending first on-watch validation. Tap-to-peek from the editor is planned as the next independent installment.
 
 ## Watch notes list appearance
 
@@ -82,6 +93,6 @@ published, the watch-to-phone transfer can work but the viewer won't open.
 
 1. Verify end-to-end phone backup and export on real hardware (including Unicode, disconnects and failure recovery).
 2. Device testing of note persistence, full capacity, relaunch, and deletion.
-3. Review the revised paper-and-card notes list on real Emery hardware; keep keyboard touch targets unchanged.
+3. Validate the full-screen reader on Emery, then add tap-to-peek from the typing strip, keeping the keyboard layout unchanged.
 
 The earlier `jot-v0.1.patch` instructions are historical; this repository now contains the Jot source directly. Simply pull and build the branch.
