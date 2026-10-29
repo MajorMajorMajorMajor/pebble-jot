@@ -9,6 +9,10 @@ void jot_input(const char *binding);
 // Delete forward at the cursor without advancing it.
 void jot_delete_forward(void);
 void jot_new_note(void);
+// Context-aware editor actions: save then show list or originating reader.
+// On storage failure, keep editor and its draft visible.
+void jot_editor_select(void);
+void jot_editor_back(void);
 void jot_show_list(void);
 bool jot_list_is_open(void);
 void jot_refresh_editor(void);
