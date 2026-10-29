@@ -26,6 +26,11 @@ jobs:
         run: node tests/editor-caret.test.js
       - name: Verify screen navigation wiring
         run: node tests/navigation-flow.test.js
+      - name: Test contextual reader Back touch controls
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/reader-touch-test.c src/c/jot/reader_touch.c -o /tmp/jot-reader-touch-test
+          /tmp/jot-reader-touch-test
       - name: Test selectable NEW item in notes list
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
