@@ -1,5 +1,6 @@
 #include <pebble.h>
 #include "ui/alert.h"
+#include "ui/caret_layout.h"
 
 // The 40px strip is a clipped viewport containing a TextLayer for the
 // actual note and a separate, transparent 1px insertion-caret overlay.
@@ -52,54 +53,18 @@ static void prv_draw_caret(Layer *layer, GContext *ctx) {
                      GPoint(s_caret_x, s_caret_y + s_caret_height - 1));
 }
 
-// Only navigate UTF-8 codepoint boundaries when finding visual line starts.
-// Measure a portion of the note without altering the actual TextLayer data.
-static GSize prv_measure_range(const char *text, size_t first, size_t last,
-                               GFont font, int width) {
+// Use the very same Pebble font as the actual TextLayer for unwrapped word
+// widths; the pure C helper handles line breaks and UTF-8 boundaries.
+static int prv_caret_measure_width(const char *text, size_t first,
+                                  size_t last, void *context) {
+  if (last <= first) return 0;
   char piece[ALERT_MAX_LENGTH];
-  size_t length = last - first;
-  if (length >= sizeof piece) length = sizeof piece - 1;
-  memcpy(piece, text + first, length);
-  piece[length] = '\0';
-  return prv_measure(piece, font, width);
-}
-
-// Use the same Pebble font metrics as the word-wrapped TextLayer. Try
-// whole-word boundaries first, then character boundaries when a single
-// very long word requires wrapping. Notes are bounded at 159 bytes, so
-// this search is small, and it runs only when an explicit line overflows.
-static size_t prv_visual_line_start(const char *text, size_t cursor,
-                                     GFont font, int width, int caret_h) {
-  size_t logical_start = cursor;
-  while (logical_start > 0 && text[logical_start - 1] != '\n')
-    --logical_start;
-
-  // Common case: the whole explicit line fits without soft wrapping.
-  if (prv_measure_range(text, logical_start, cursor, font, LAYOUT_MAX_H).w
-      <= width) return logical_start;
-
-  for (size_t at = logical_start; at < cursor; ++at) {
-    if (text[at] != ' ' && text[at] != '\t') continue;
-    const size_t candidate = at + 1;
-    if (prv_measure_range(text, candidate, cursor, font, LAYOUT_MAX_H).w
-        > width) continue;
-    if (prv_measure_range(text, 0, candidate, font, width).h < caret_h)
-      return candidate;
-  }
-
-  size_t candidate = logical_start;
-  while (candidate < cursor) {
-    if (prv_measure_range(text, candidate, cursor, font, LAYOUT_MAX_H).w
-        <= width &&
-        prv_measure_range(text, 0, candidate, font, width).h < caret_h)
-      return candidate;
-    // Advance one codepoint, not one byte.
-    size_t next = candidate + 1;
-    while (next < cursor && ((unsigned char)text[next] & 0xC0) == 0x80)
-      ++next;
-    candidate = next;
-  }
-  return cursor;
+  size_t count = last - first;
+  if (count >= sizeof piece) count = sizeof piece - 1;
+  memcpy(piece, text + first, count);
+  piece[count] = '\0';
+  const GFont font = *(const GFont *)context;
+  return prv_measure(piece, font, LAYOUT_MAX_H).w;
 }
 
 static void prv_reflow(void) {
@@ -129,46 +94,15 @@ static void prv_reflow(void) {
 
     int caret_top = 1;
     if (!s_placeholder) {
-      // When moving left across an explicit newline, the cursor lands
-      // *before* that LF: it belongs at the end of the preceding line,
-      // not on an extra row created by the measurement-only 'i' probe.
-      const bool before_newline = s_text[s_caret_index] == '\n';
-      size_t visual_end = s_caret_index;
-      if (before_newline) {
-        // Pebble's word wrapping can collapse trailing horizontal whitespace
-        // at a hard break. Anchor the caret beside the last visible glyph,
-        // rather than out in blank space to the right.
-        while (visual_end > 0 &&
-               (s_text[visual_end - 1] == ' ' ||
-                s_text[visual_end - 1] == '\t')) --visual_end;
-      }
-
-      char through_caret[ALERT_MAX_LENGTH];
-      memcpy(through_caret, s_text, visual_end);
-      // An empty line before an LF still needs a probe to make the blank
-      // line measurable; otherwise a preceding LF can vanish from sizing.
-      const bool blank_before_lf =
-          before_newline && visual_end > 0 &&
-          s_text[visual_end - 1] == '\n';
-      if (before_newline && !blank_before_lf) {
-        // No probe here: one more glyph can falsely trigger a soft wrap
-        // immediately before the explicit newline.
-        through_caret[visual_end] = '\0';
-      } else {
-        // Probe fresh/empty lines without drawing an actual character.
-        through_caret[visual_end] = 'i';
-        through_caret[visual_end + 1] = '\0';
-      }
-      int measured_h = prv_measure(through_caret, font, width).h;
-      if (measured_h < one_line_h) measured_h = one_line_h;
-      caret_top = measured_h - one_line_h + 1;
-      if (caret_top < 1) caret_top = 1;
-
-      const size_t line_start = prv_visual_line_start(
-          s_text, visual_end, font, width, measured_h);
-      const GSize line_prefix = prv_measure_range(
-          s_text, line_start, visual_end, font, LAYOUT_MAX_H);
-      s_caret_x = EDITOR_PADDING_X + line_prefix.w;
+      // Walk forward through whole words, explicit LF and overlong words,
+      // tracking the actual displayed row containing the cursor. The old
+      // reverse-suffix search could place 'ar' at the right of the screen
+      // even when Pebble had wrapped it to a new row on the left.
+      const JotCaretLayout caret = jot_caret_layout(
+          s_text, s_caret_index, width, prv_caret_measure_width,
+          (void *)&font);
+      caret_top += caret.row * step;
+      s_caret_x = EDITOR_PADDING_X + caret.x;
     }
     if (s_caret_x >= bounds.size.w - 1) s_caret_x = bounds.size.w - 2;
     // Descenders reach below the ink's ordinary baseline. The original
