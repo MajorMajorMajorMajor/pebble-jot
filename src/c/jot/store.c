@@ -24,7 +24,113 @@ static int s_active_slot;
 static time_t s_active_time;
 static char s_text[JOT_NOTE_TEXT_BYTES];
 static size_t s_length;
+static size_t s_cursor;
+static size_t s_vertical_column;
+static bool s_keep_vertical_column;
 static bool s_dirty;
+
+static bool prv_continuation(unsigned char byte) {
+  return (byte & 0xC0) == 0x80;
+}
+
+static size_t prv_previous(size_t pos) {
+  if (pos == 0) return 0;
+  do { --pos; }
+  while (pos > 0 && prv_continuation((unsigned char)s_text[pos]));
+  return pos;
+}
+
+static size_t prv_next(size_t pos) {
+  if (pos >= s_length) return s_length;
+  ++pos;
+  while (pos < s_length && prv_continuation((unsigned char)s_text[pos]))
+    ++pos;
+  return pos;
+}
+
+static size_t prv_line_start(size_t pos) {
+  while (pos > 0 && s_text[pos - 1] != '\n') --pos;
+  return pos;
+}
+
+static size_t prv_line_end(size_t pos) {
+  while (pos < s_length && s_text[pos] != '\n') pos = prv_next(pos);
+  return pos;
+}
+
+static size_t prv_column(size_t line_start, size_t pos) {
+  size_t column = 0;
+  for (size_t at = line_start; at < pos; at = prv_next(at)) ++column;
+  return column;
+}
+
+static size_t prv_to_column(size_t start, size_t end, size_t col) {
+  size_t at = start;
+  while (col && at < end) {
+    at = prv_next(at);
+    --col;
+  }
+  return at;
+}
+
+size_t jot_store_cursor(void) { return s_cursor; }
+
+bool jot_store_set_cursor(size_t offset) {
+  if (offset > s_length ||
+      (offset < s_length &&
+       prv_continuation((unsigned char)s_text[offset]))) return false;
+  s_cursor = offset;
+  s_keep_vertical_column = false;
+  return true;
+}
+
+bool jot_store_move_cursor(JotCursorMove movement) {
+  size_t target = s_cursor;
+  switch (movement) {
+    case JOT_CURSOR_LEFT:
+      target = prv_previous(s_cursor);
+      break;
+    case JOT_CURSOR_RIGHT:
+      target = prv_next(s_cursor);
+      break;
+    case JOT_CURSOR_HOME:
+      target = 0;
+      break;
+    case JOT_CURSOR_END:
+      target = s_length;
+      break;
+    case JOT_CURSOR_UP: {
+      const size_t start = prv_line_start(s_cursor);
+      if (start == 0) return false;
+      if (!s_keep_vertical_column)
+        s_vertical_column = prv_column(start, s_cursor);
+      const size_t previous_end = start - 1; // The preceding newline.
+      target = prv_to_column(prv_line_start(previous_end),
+                             previous_end, s_vertical_column);
+      s_keep_vertical_column = true;
+      s_cursor = target;
+      return true;
+    }
+    case JOT_CURSOR_DOWN: {
+      const size_t end = prv_line_end(s_cursor);
+      if (end == s_length) return false;
+      if (!s_keep_vertical_column)
+        s_vertical_column = prv_column(prv_line_start(s_cursor), s_cursor);
+      const size_t next_start = end + 1;
+      target = prv_to_column(next_start, prv_line_end(next_start),
+                             s_vertical_column);
+      s_keep_vertical_column = true;
+      s_cursor = target;
+      return true;
+    }
+    default:
+      return false;
+  }
+  s_keep_vertical_column = false;
+  if (target == s_cursor) return false;
+  s_cursor = target;
+  return true;
+}
 
 static bool prv_read(int slot, NoteRecord *record) {
   if (slot < 0 || slot >= JOT_NOTE_CAPACITY) return false;
@@ -40,6 +146,8 @@ void jot_store_init(void) {
   s_next_serial = 1;
   s_active_slot = -1;
   s_length = 0;
+  s_cursor = 0;
+  s_keep_vertical_column = false;
   s_text[0] = '\0';
   s_dirty = false;
   for (int i = 0; i < JOT_NOTE_CAPACITY; ++i) {
@@ -72,17 +180,26 @@ static int prv_free_slot(void) {
 bool jot_store_input(const char *binding) {
   if (!binding || !*binding) return true;
   if (binding[0] == '\b') {
-    if (!s_length) return true;
-    do { --s_length; } while (s_length &&
-      (((unsigned char)s_text[s_length] & 0xC0) == 0x80));
-    s_text[s_length] = '\0';
+    if (!s_cursor) return true;
+    const size_t previous = prv_previous(s_cursor);
+    const size_t removed = s_cursor - previous;
+    // Include the NUL terminator so deletion works at any point.
+    memmove(s_text + previous, s_text + s_cursor,
+            s_length - s_cursor + 1);
+    s_length -= removed;
+    s_cursor = previous;
   } else {
-    size_t added = strlen(binding);
+    const size_t added = strlen(binding);
     if (s_length + added >= sizeof s_text) return false;
     if (s_active_slot < 0 && prv_free_slot() < 0) return false;
-    memcpy(s_text + s_length, binding, added + 1);
+    // Move the suffix and NUL before copying the inserted characters.
+    memmove(s_text + s_cursor + added, s_text + s_cursor,
+            s_length - s_cursor + 1);
+    memcpy(s_text + s_cursor, binding, added);
     s_length += added;
+    s_cursor += added;
   }
+  s_keep_vertical_column = false;
   if (s_active_slot < 0 && s_length) {
     s_active_slot = prv_free_slot();
     s_index[s_active_slot] = (NoteIndex) {
@@ -115,6 +232,8 @@ bool jot_store_new(void) {
   if (!jot_store_flush()) return false;
   s_active_slot = -1;
   s_length = 0;
+  s_cursor = 0;
+  s_keep_vertical_column = false;
   s_text[0] = '\0';
   return true;
 }
@@ -127,6 +246,8 @@ bool jot_store_open(int slot) {
   s_active_slot = slot;
   s_active_time = (time_t)record.timestamp;
   s_length = record.length;
+  s_cursor = s_length;
+  s_keep_vertical_column = false;
   memcpy(s_text, record.text, s_length + 1);
   s_dirty = false;
   return true;
@@ -143,6 +264,8 @@ bool jot_store_delete(int slot) {
   if (s_active_slot == slot) {
     s_active_slot = -1;
     s_length = 0;
+    s_cursor = 0;
+    s_keep_vertical_column = false;
     s_text[0] = '\0';
     s_dirty = false;
   }
