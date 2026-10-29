@@ -6,6 +6,8 @@
 void jot_init(void);
 void jot_deinit(void);
 void jot_input(const char *binding);
+// Delete forward at the cursor without advancing it.
+void jot_delete_forward(void);
 void jot_new_note(void);
 void jot_show_list(void);
 bool jot_list_is_open(void);
