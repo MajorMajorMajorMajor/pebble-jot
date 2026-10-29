@@ -99,6 +99,7 @@ Layer *alert_ui_init(GRect frame) {
   s_root = layer_create(frame);
   if (!s_root) return NULL;
   layer_set_update_proc(s_root, prv_background);
+  layer_set_clips(s_root, true);  // Never paint over the gesture keyboard.
 
   s_textbox = text_layer_create(GRect(3, 0, frame.size.w - 6,
                                      frame.size.h));
