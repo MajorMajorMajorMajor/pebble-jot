@@ -9,7 +9,8 @@ void alert_set_text(const char *new_text);
 
 // Multiline note editor: renders actual newlines, wraps long lines and
 // follows the insertion point at the end of the note. Never changes notes.
-void alert_set_editor(const char *note, bool dirty, bool save_error, bool full);
+void alert_set_editor(const char *note, size_t cursor, bool dirty,
+                      bool save_error, bool full);
 
 // Owns the keyboard's existing 40-pixel content area. Geometry is unchanged.
 Layer *alert_ui_init(GRect frame);
