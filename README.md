@@ -32,13 +32,15 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | Draft peek | Tap, Select, or Back | Return to the same editor |
 | Editor | Long Select (~1.2 s) | Open the legacy typing / trace diagnostics |
 
-The `JOT *` heading means there are unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` indicates the storage write did not succeed.
+The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
 ## Read your notes full-screen (v1.2)
 
 Select a note in the notes list to open a **read-only paper page**, with its timestamp and complete text. Scroll with Up / Down. Select opens that note for editing using the unchanged gesture keyboard; Back returns to the same place in the list. Browsing a page does not overwrite or resave your current draft.
 
-Jot 1.3 adds **tap-to-peek** from the text strip above the keyboard. The preview copies the current draft without saving or switching notes; tap again (or press Select/Back) to return to typing. The editor strip now displays the latest 16 UTF-8 codepoints rather than truncating an older portion of long notes. Reader text uses a larger, bold font for legibility. The 159-byte-per-note storage limit is unchanged.
+Jot 1.3 adds **tap-to-peek** from the text strip above the keyboard. The preview copies the current draft without saving or switching notes; tap again (or press Select/Back) to return to typing. Reader text uses a larger, bold font for legibility.
+
+**Jot 1.4 introduces a true multiline editing preview.** The 40-pixel text strip now displays the actual note with word wrapping and line breaks, scrolling automatically to keep the last line and its `|` caret in view. A newline moves that caret onto a fresh line; backspace removes the newline as usual. The status badge appears only when necessary. This is a display/typing improvement: editing still appends at the end, and moving the cursor into existing text remains planned in [issue #3](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/3). The keyboard gesture map, touch targets, and 159-byte storage limit are unchanged.
 
 ## Export notes to your phone (v0.2)
 
@@ -85,6 +87,6 @@ See [README-JOT.md](README-JOT.md) for detailed controls and limits, and [TOUCH_
 
 ## Next steps
 
-The immediate priorities are on-watch verification of the enlarged reader and tap-to-peek, more durable note backup, and storage reliability. The keyboard's touch targets remain unchanged.
+The immediate priorities are **on-watch verification of Jot 1.4's multiline viewport**, then cursor-based editing, more durable backups, and storage expansion. The keyboard's touch targets remain unchanged.
 
 Pebble SDK documentation: <https://developer.repebble.com>
