@@ -18,7 +18,22 @@ assert.match(alert, /graphics_context_set_stroke_width\(ctx,\s*1\)/);
 assert.match(alert, /graphics_draw_line\(ctx,/);
 assert.match(alert, /layer_add_child\(s_root,\s*s_caret_layer\)/);
 assert.match(alert, /layer_set_hidden\(s_caret_layer,\s*!s_editor_mode\)/);
-assert.match(alert, /memcpy\(through_caret,\s*s_text,\s*s_caret_index\)/);
+assert.match(alert, /memcpy\(through_caret,\s*s_text,\s*visual_end\)/);
+
+// Before an explicit line break, the caret must be on the preceding line:
+// probe text can otherwise force an artificial wrap at the line's edge.
+assert.match(alert, /s_text\[s_caret_index\]\s*==\s*'\\n'/);
+assert.match(alert, /before_newline\s*&&\s*!blank_before_lf/);
+assert.match(alert, /through_caret\[visual_end\]\s*=\s*'\\0'/);
+// Trailing spaces may be invisible at the break: do not put the caret in
+// the far-right gutter after a long run of unrendered whitespace.
+assert.match(alert, /s_text\[visual_end\s*-\s*1\]\s*==\s*' '/);
+assert.match(alert, /s_text\[visual_end\s*-\s*1\]\s*==\s*'\\t'/);
+
+// Caret must reach below the baseline and leave space under the last line.
+assert.match(alert, /s_caret_height\s*=\s*step\s*\+\s*2/);
+assert.match(alert, /EDITOR_DESCENDER_GUARD\s*=\s*5/);
+assert.match(alert, /caret_top\s*\+\s*s_caret_height\s*\+\s*EDITOR_DESCENDER_GUARD/);
 
 // Text displayed by a TextLayer must be copied unchanged from the note.
 // No inserted pipe or other glyph may shift characters at the cursor.
