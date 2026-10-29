@@ -1,4 +1,4 @@
-name: Backup protocol tests
+name: Jot regression tests
 
 on:
   push:
@@ -20,3 +20,8 @@ jobs:
           node-version: '22'
       - name: Test phone backup protocol
         run: node tests/backup-js.test.js
+      - name: Compile and test persistent note storage
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I tests/fake -I src/c \
+            tests/store-test.c src/c/jot/store.c -o /tmp/jot-store-test
+          /tmp/jot-store-test
