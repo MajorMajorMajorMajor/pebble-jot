@@ -18,17 +18,21 @@ assert.match(alert, /graphics_context_set_stroke_width\(ctx,\s*1\)/);
 assert.match(alert, /graphics_draw_line\(ctx,/);
 assert.match(alert, /layer_add_child\(s_root,\s*s_caret_layer\)/);
 assert.match(alert, /layer_set_hidden\(s_caret_layer,\s*!s_editor_mode\)/);
-assert.match(alert, /memcpy\(through_caret,\s*s_text,\s*visual_end\)/);
+const layout = fs.readFileSync('src/c/ui/caret_layout.c', 'utf8');
+assert.match(alert, /jot_caret_layout\(/);
+assert.match(alert, /prv_caret_measure_width/);
+assert.match(alert, /caret_top\s*\+=\s*caret\.row\s*\*\s*step/);
+assert.match(alert, /s_caret_x\s*=\s*EDITOR_PADDING_X\s*\+\s*caret\.x/);
 
-// Before an explicit line break, the caret must be on the preceding line:
-// probe text can otherwise force an artificial wrap at the line's edge.
-assert.match(alert, /s_text\[s_caret_index\]\s*==\s*'\\n'/);
-assert.match(alert, /before_newline\s*&&\s*!blank_before_lf/);
-assert.match(alert, /through_caret\[visual_end\]\s*=\s*'\\0'/);
-// Trailing spaces may be invisible at the break: do not put the caret in
-// the far-right gutter after a long run of unrendered whitespace.
-assert.match(alert, /s_text\[visual_end\s*-\s*1\]\s*==\s*' '/);
-assert.match(alert, /s_text\[visual_end\s*-\s*1\]\s*==\s*'\\t'/);
+// Positioning must follow the real start of a displayed row, not the
+// longest suffix that happens to fit in an empty row.
+assert.doesNotMatch(alert, /prv_visual_line_start/);
+assert.match(layout, /const size_t word_start\s*=\s*at/);
+assert.match(layout, /const size_t word_end\s*=\s*at/);
+assert.match(layout, /prv_break_at\(&result, cursor, word_start\)/);
+assert.match(layout, /prv_break_at\(&result, cursor, pos\)/);
+assert.match(layout, /prv_break_at\(&result, cursor, line_start\)/);
+assert.match(layout, /if \(text\[cursor\] == '\\n'\)/);
 
 // Caret must reach below the baseline and leave space under the last line.
 assert.match(alert, /s_caret_height\s*=\s*step\s*\+\s*2/);
