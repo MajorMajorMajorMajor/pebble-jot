@@ -68,9 +68,20 @@ assert.equal(mapping.get('spacebar')['Return E'],
   '[Cursor Forward 1 Word]', 'word movement must remain reserved');
 assert.equal(mapping.get('spacebar')['Return W'],
   '[Cursor Backward 1 Word]', 'word movement must remain reserved');
-assert.equal(mapping.get('backspace')['NE'],
-  '[Delete character forward]', 'forward delete remains reserved');
+// Jot implements all four original forward-delete directions, without
+// remapping the other backspace gestures or the diagnostic typing mode.
+for (const [direction, index] of [['NE', 2], ['E', 3], ['SE', 4], ['S', 5]]) {
+  assert.equal(mapping.get('backspace')[direction], '[Delete character forward]');
+  assert.match(implementation, new RegExp('gesture\\s*!=\\s*' + index),
+    'missing forward-delete gesture ' + direction);
+}
+assert.match(implementation, /key\s*!=\s*10/);
+assert.match(implementation, /jot_delete_forward\(\)/);
+assert.match(implementation, /s_mode\s*==\s*MODE_JOT/);
+for (const direction of ['Tap', 'NW', 'N', 'SW', 'W']) {
+  assert.equal(mapping.get('backspace')[direction], '[Delete character backward]');
+}
 assert.equal(mapping.get('r')['N'],
   '[Cycle case]', 'case cycling remains reserved');
 
-console.log('Original gesture map: 23 keys and six protected cursor shortcuts OK');
+console.log('Original gesture map: six cursor shortcuts and four forward-delete directions OK');
