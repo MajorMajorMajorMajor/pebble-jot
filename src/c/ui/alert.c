@@ -1,15 +1,33 @@
 #include <pebble.h>
 #include "ui/alert.h"
 
-// This 40-pixel strip is shared by the Jot editor and the older diagnostic
-// harness. Use a clipping parent so a long note can scroll behind its edges,
-// with the actual newlines and wrapping handled by Pebble's own text layout.
+// The 40px strip is a clipped viewport containing a TextLayer for the
+// actual note and a separate, transparent 1px insertion-caret overlay.
+// Diagnostics still use the same viewport without a caret.
 static Layer *s_root;
 static TextLayer *s_textbox;
+static Layer *s_caret_layer;
 static TextLayer *s_statusbox;
 static char s_text[ALERT_MAX_LENGTH];
 static bool s_editor_mode;
+static bool s_placeholder;
 static size_t s_caret_index;
+static int s_caret_x, s_caret_y, s_caret_height;
+
+enum {
+  EDITOR_PADDING_X = 3,
+  LAYOUT_MAX_H = 4096
+};
+
+static GFont prv_font(void) {
+  return fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
+}
+
+static GSize prv_measure(const char *text, GFont font, int width) {
+  return graphics_text_layout_get_content_size(
+      text, font, GRect(0, 0, width, LAYOUT_MAX_H),
+      GTextOverflowModeWordWrap, GTextAlignmentLeft);
+}
 
 static void prv_background(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
@@ -20,43 +38,132 @@ static void prv_background(Layer *layer, GContext *ctx) {
                      0, GCornerNone);
 }
 
+static void prv_draw_caret(Layer *layer, GContext *ctx) {
+  if (!s_editor_mode) return;
+  const int height = layer_get_bounds(layer).size.h;
+  if (s_caret_y >= height || s_caret_y + s_caret_height <= 0) return;
+  graphics_context_set_stroke_color(ctx, GColorFromRGB(41, 40, 43));
+  graphics_context_set_stroke_width(ctx, 1);
+  graphics_draw_line(ctx,
+                     GPoint(s_caret_x, s_caret_y),
+                     GPoint(s_caret_x, s_caret_y + s_caret_height - 1));
+}
+
+// Only navigate UTF-8 codepoint boundaries when finding visual line starts.
+// Measure a portion of the note without altering the actual TextLayer data.
+static GSize prv_measure_range(const char *text, size_t first, size_t last,
+                               GFont font, int width) {
+  char piece[ALERT_MAX_LENGTH];
+  size_t length = last - first;
+  if (length >= sizeof piece) length = sizeof piece - 1;
+  memcpy(piece, text + first, length);
+  piece[length] = '\0';
+  return prv_measure(piece, font, width);
+}
+
+// Use the same Pebble font metrics as the word-wrapped TextLayer. Try
+// whole-word boundaries first, then character boundaries when a single
+// very long word requires wrapping. Notes are bounded at 159 bytes, so
+// this search is small, and it runs only when an explicit line overflows.
+static size_t prv_visual_line_start(const char *text, size_t cursor,
+                                     GFont font, int width, int caret_h) {
+  size_t logical_start = cursor;
+  while (logical_start > 0 && text[logical_start - 1] != '\n')
+    --logical_start;
+
+  // Common case: the whole explicit line fits without soft wrapping.
+  if (prv_measure_range(text, logical_start, cursor, font, LAYOUT_MAX_H).w
+      <= width) return logical_start;
+
+  for (size_t at = logical_start; at < cursor; ++at) {
+    if (text[at] != ' ' && text[at] != '\t') continue;
+    const size_t candidate = at + 1;
+    if (prv_measure_range(text, candidate, cursor, font, LAYOUT_MAX_H).w
+        > width) continue;
+    if (prv_measure_range(text, 0, candidate, font, width).h < caret_h)
+      return candidate;
+  }
+
+  size_t candidate = logical_start;
+  while (candidate < cursor) {
+    if (prv_measure_range(text, candidate, cursor, font, LAYOUT_MAX_H).w
+        <= width &&
+        prv_measure_range(text, 0, candidate, font, width).h < caret_h)
+      return candidate;
+    // Advance one codepoint, not one byte.
+    size_t next = candidate + 1;
+    while (next < cursor && ((unsigned char)text[next] & 0xC0) == 0x80)
+      ++next;
+    candidate = next;
+  }
+  return cursor;
+}
+
 static void prv_reflow(void) {
   if (!s_root || !s_textbox) return;
   const GRect bounds = layer_get_bounds(s_root);
-  const int width = bounds.size.w - 6;
-  const GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
+  const int width = bounds.size.w - 2 * EDITOR_PADDING_X;
+  const GFont font = prv_font();
 
   text_layer_set_font(s_textbox, font);
   text_layer_set_overflow_mode(s_textbox, GTextOverflowModeWordWrap);
   text_layer_set_text(s_textbox, s_text);
 
-  // Compute height for the entire note, but scroll to the insertion caret,
-  // not invariably to the end of the note. A prefix ending in the drawn '|'
-  // includes the caret's current line even after a trailing newline.
   int height = bounds.size.h;
-  int offset_y = 0;
-  if (s_editor_mode) {
-    const GSize text_size = graphics_text_layout_get_content_size(
-        s_text, font, GRect(0, 0, width, 4096),
-        GTextOverflowModeWordWrap, GTextAlignmentLeft);
-    if (text_size.h + 2 > height) height = text_size.h + 2;
+  int scroll_y = 0;
+  s_caret_x = EDITOR_PADDING_X;
+  s_caret_y = 1;
+  s_caret_height = 12;
 
-    char through_caret[ALERT_MAX_LENGTH];
-    size_t prefix_bytes = s_caret_index + 1;
-    if (prefix_bytes >= sizeof through_caret)
-      prefix_bytes = sizeof through_caret - 1;
-    memcpy(through_caret, s_text, prefix_bytes);
-    through_caret[prefix_bytes] = '\0';
-    const GSize caret_size = graphics_text_layout_get_content_size(
-        through_caret, font, GRect(0, 0, width, 4096),
-        GTextOverflowModeWordWrap, GTextAlignmentLeft);
-    offset_y = caret_size.h + 2 - bounds.size.h;
-    if (offset_y < 0) offset_y = 0;
-    const int max_offset = height - bounds.size.h;
-    if (offset_y > max_offset) offset_y = max_offset;
+  if (s_editor_mode) {
+    const GSize size = prv_measure(s_text, font, width);
+    if (size.h + 2 > height) height = size.h + 2;
+
+    const int one_line_h = prv_measure("i", font, width).h;
+    const int two_line_h = prv_measure("i\ni", font, width).h;
+    int step = two_line_h - one_line_h;
+    if (step < 8) step = 14; // Defensive fallback for missing font metrics.
+
+    int caret_top = 1;
+    if (!s_placeholder) {
+      // A probe character allows Pebble's layout to count the empty line
+      // immediately following a trailing newline, without drawing a glyph.
+      char through_caret[ALERT_MAX_LENGTH];
+      memcpy(through_caret, s_text, s_caret_index);
+      through_caret[s_caret_index] = 'i';
+      through_caret[s_caret_index + 1] = '\0';
+      const int caret_h = prv_measure(through_caret, font, width).h;
+      caret_top = caret_h - one_line_h + 1;
+      if (caret_top < 1) caret_top = 1;
+
+      const size_t line_start = prv_visual_line_start(
+          s_text, s_caret_index, font, width, caret_h);
+      const GSize line_prefix = prv_measure_range(
+          s_text, line_start, s_caret_index, font, LAYOUT_MAX_H);
+      s_caret_x = EDITOR_PADDING_X + line_prefix.w;
+    }
+    if (s_caret_x >= bounds.size.w - 1) s_caret_x = bounds.size.w - 2;
+    s_caret_height = step - 2;
+    if (s_caret_height < 8) s_caret_height = 8;
+    if (s_caret_height > 18) s_caret_height = 18;
+
+    // A trailing LF may not increase the measured text height by itself.
+    const int caret_bottom = caret_top + s_caret_height + 2;
+    if (caret_bottom > height) height = caret_bottom;
+
+    scroll_y = caret_bottom - bounds.size.h;
+    if (scroll_y < 0) scroll_y = 0;
+    if (scroll_y > height - bounds.size.h)
+      scroll_y = height - bounds.size.h;
+    s_caret_y = caret_top - scroll_y;
   }
+
   layer_set_frame(text_layer_get_layer(s_textbox),
-                  GRect(3, -offset_y, width, height));
+                  GRect(EDITOR_PADDING_X, -scroll_y, width, height));
+  if (s_caret_layer) {
+    layer_set_hidden(s_caret_layer, !s_editor_mode);
+    layer_mark_dirty(s_caret_layer);
+  }
 }
 
 static void prv_status(bool dirty, bool save_error, bool full) {
@@ -92,23 +199,18 @@ void alert_set_editor(const char *note, size_t cursor,
                       bool dirty, bool save_error, bool full) {
   s_editor_mode = true;
   if (!note) note = "";
-  // Jot's note data is untouched. Insert the visual caret into a private
-  // display buffer at a UTF-8 boundary. Both halves of the text stay visible
-  // and editable, including explicit newlines in either half.
   const size_t length = strlen(note);
   if (cursor > length) cursor = length;
-  if (!*note) {
-    snprintf(s_text, sizeof s_text, "Write something...|");
-    s_caret_index = strlen(s_text) - 1;
-  } else if (length + 2 <= sizeof s_text) {
-    memcpy(s_text, note, cursor);
-    s_text[cursor] = '|';
-    memcpy(s_text + cursor + 1, note + cursor, length - cursor + 1);
-    s_caret_index = cursor;
+
+  // Copy the *unchanged* note. The caret is drawn over it in its own layer,
+  // never inserted as a printable character or saved with the note.
+  s_placeholder = !*note;
+  if (s_placeholder) {
+    snprintf(s_text, sizeof s_text, "  Write something...");
+    s_caret_index = 0;
   } else {
-    // Defensive fallback; 159-byte Jot notes always fit.
     snprintf(s_text, sizeof s_text, "%s", note);
-    s_caret_index = strlen(s_text);
+    s_caret_index = cursor;
   }
   prv_reflow();
   prv_status(dirty, save_error, full);
@@ -132,6 +234,14 @@ Layer *alert_ui_init(GRect frame) {
   text_layer_set_background_color(s_textbox, GColorClear);
   layer_add_child(s_root, text_layer_get_layer(s_textbox));
 
+  // The transparent overlay stays at the viewport origin while the TextLayer
+  // scrolls under it; caret coordinates are already viewport-relative.
+  s_caret_layer = layer_create(GRect(0, 0, frame.size.w, frame.size.h));
+  if (s_caret_layer) {
+    layer_set_update_proc(s_caret_layer, prv_draw_caret);
+    layer_add_child(s_root, s_caret_layer);
+  }
+
   s_statusbox = text_layer_create(GRect(frame.size.w - 16, 0, 14, 19));
   if (s_statusbox) {
     text_layer_set_font(s_statusbox,
@@ -148,6 +258,10 @@ void alert_ui_deinit(void) {
   if (s_statusbox) {
     text_layer_destroy(s_statusbox);
     s_statusbox = NULL;
+  }
+  if (s_caret_layer) {
+    layer_destroy(s_caret_layer);
+    s_caret_layer = NULL;
   }
   if (s_textbox) {
     text_layer_destroy(s_textbox);
