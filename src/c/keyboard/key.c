@@ -59,7 +59,7 @@ static const Key s_keys[KEY_COUNT] = {
   },
   [KEY_ENGLISH_MENU] = {
     .labels = {
-      { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "KB" },
+      { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "SAVE" },
     }
   },
   [KEY_ENGLISH_123] = {
