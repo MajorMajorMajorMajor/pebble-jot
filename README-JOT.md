@@ -43,9 +43,24 @@ saved-note records, the 40px editor/keyboard boundary, touch targets, and
 the full-screen reader are unchanged. GitHub's regression suite now includes
 a guard against accidentally returning to printable-glyph caret rendering.
 
-Physical Emery verification is still needed, especially at long word-wrap
-boundaries, after explicit newlines, and with a *literal* `|` in a note.
-Issue #16 remains open for that test.
+**On-watch findings (v1.5.1):** The independent hairline caret works
+well, and a typed `|` is visually distinct. Hardware screenshots in
+[issue #16](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/16#issuecomment-6503088514)
+also exposed three polish needs: when moving left from a line start the
+caret sometimes jumped to blank space; its stroke stopped above descenders;
+and the last row could dip below the keyboard edge.
+
+**v1.5.2 follow-up:** A cursor positioned immediately before an LF now uses
+the preceding line's measured text without adding a fake probe character
+(which could force a spurious wrap). Trailing spaces at that hard break are
+excluded from *visual* placement, but remain completely unchanged in the
+note. For empty lines after LF, the measurement probe is still used so their
+line is counted. The caret extends two pixels past the line step, with a
+five-pixel scroll clearance for descenders along the 40px editor boundary.
+
+These are **visual-only fixes**, not a change to cursor movement, saved text,
+or keyboard geometry. They pass CI's source-level layout checks, but await
+another real-watch visual inspection; issue #16 remains open until confirmed.
 
 ## Cursor editing (v1.5 — watch verified)
 
@@ -202,6 +217,6 @@ published, the watch-to-phone transfer can work but the viewer won't open.
 
 1. Verify end-to-end phone backup and export on real hardware (including Unicode, disconnects and failure recovery).
 2. Device testing of note persistence, full capacity, relaunch, and deletion.
-3. Verify the 1.5.1 hairline caret on real Emery, then implement forward delete and navigation polish.
+3. Verify the 1.5.2 caret-placement refinements on real Emery, then implement forward delete and navigation polish.
 
 The earlier `jot-v0.1.patch` instructions are historical; this repository now contains the Jot source directly. Simply pull and build the branch.
