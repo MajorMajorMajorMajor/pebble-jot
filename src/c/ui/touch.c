@@ -489,8 +489,11 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
         const char *binding = (s_touch_key >= 0 && gesture_index >= 0) ?
                               s_bindings[s_touch_key][gesture_index] : "";
         if (s_mode == MODE_JOT) {
-          // The KB corner is also a convenient touch shortcut to note history.
-          if (s_touch_key == 13 && gesture_index == 0) jot_show_list();
+          // In Jot mode the old KB tap is now SAVE: commit and show
+          // the saved note directly, while hardware Select still opens
+          // the list for quick capture. Non-tap KB gestures are unchanged.
+          if (s_touch_key == 13 && gesture_index == 0)
+            jot_editor_touch_save();
           else if (!prv_jot_cursor_command(s_touch_key, gesture_index) &&
                    !prv_jot_forward_delete_command(s_touch_key, gesture_index))
             jot_input(binding);
