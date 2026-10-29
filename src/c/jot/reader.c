@@ -1,10 +1,11 @@
 #include <pebble.h>
 #include "jot/reader.h"
+#include "jot/reader_touch.h"
 #include "jot/jot.h"
 #include "jot/store.h"
 
 enum {
-  READER_HEADER_H = 42,
+  READER_HEADER_H = JOT_READER_HEADER_H,
   READER_FOOTER_H = 30,
   READER_META_H = 33,
   READER_TEXT_PADDING = 12,
@@ -37,18 +38,31 @@ bool jot_reader_is_peek(void) {
   return s_is_peek && jot_reader_is_open();
 }
 
-void jot_reader_dismiss_peek(void) {
-  if (jot_reader_is_peek()) window_stack_pop(true);
+void jot_reader_back(void) {
+  // Both the on-screen Back affordance and physical Back use this path.
+  // A saved reader returns to the list, a draft peek to its editor.
+  // No save, note allocation or note edit takes place here.
+  if (jot_reader_is_open()) window_stack_pop(true);
 }
 
-static void prv_draw_pencil(GContext *ctx) {
+void jot_reader_dismiss_peek(void) {
+  if (jot_reader_is_peek()) jot_reader_back();
+}
+
+static void prv_draw_back(GContext *ctx) {
+  // The actual touch rectangle is 0..41 x 0..41 (reader_touch.h).
+  // A small paper key makes the arrow obviously actionable rather than
+  // decorative. Both reader states share this exact button.
+  const GRect button = GRect(5, 7, 34, 27);
+  graphics_context_set_fill_color(ctx, GColorFromRGB(255, 250, 239));
+  graphics_fill_rect(ctx, button, 5, GCornersAll);
   graphics_context_set_stroke_color(ctx, prv_ink());
-  graphics_context_set_stroke_width(ctx, 2);
-  graphics_draw_line(ctx, GPoint(10, 27), GPoint(22, 15));
-  graphics_draw_line(ctx, GPoint(14, 31), GPoint(26, 19));
-  graphics_draw_line(ctx, GPoint(10, 27), GPoint(14, 31));
-  graphics_draw_line(ctx, GPoint(22, 15), GPoint(26, 19));
-  graphics_draw_line(ctx, GPoint(8, 33), GPoint(14, 31));
+  graphics_context_set_stroke_width(ctx, 1);
+  graphics_draw_round_rect(ctx, button, 5);
+  graphics_context_set_stroke_width(ctx, 3);
+  graphics_draw_line(ctx, GPoint(30, 20), GPoint(14, 20));
+  graphics_draw_line(ctx, GPoint(14, 20), GPoint(22, 12));
+  graphics_draw_line(ctx, GPoint(14, 20), GPoint(22, 28));
 }
 
 static void prv_draw_chrome(Layer *layer, GContext *ctx) {
@@ -65,12 +79,14 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
   graphics_context_set_fill_color(ctx, prv_ink());
   graphics_fill_rect(ctx, GRect(0, READER_HEADER_H - 3, width, 3),
                      0, GCornerNone);
-  prv_draw_pencil(ctx);
+  prv_draw_back(ctx);
 
   graphics_context_set_text_color(ctx, prv_ink());
-  graphics_draw_text(ctx, "Jot",
-                     fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
-                     GRect(37, 3, width - 112, 33),
+  // Context label tells the user where the header Back action goes.
+  // A normal saved note returns to NOTES; a temporary draft peek to EDIT.
+  graphics_draw_text(ctx, s_is_peek ? "EDIT" : "NOTES",
+                     fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                     GRect(44, 7, width - 44 - 73, 27),
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentLeft, NULL);
 
@@ -182,7 +198,7 @@ static void prv_reader_select(ClickRecognizerRef ref, void *context) {
 }
 
 static void prv_reader_back(ClickRecognizerRef ref, void *context) {
-  window_stack_pop(true);  // Return to notes list without touching note data.
+  jot_reader_back();
 }
 
 static void prv_reader_clicks(void *context) {
