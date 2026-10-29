@@ -211,6 +211,18 @@ bool jot_store_input(const char *binding) {
   return true;
 }
 
+bool jot_store_delete_forward(void) {
+  if (s_cursor >= s_length) return false;
+  // Advance by one whole UTF-8 codepoint, including newlines.
+  const size_t next = prv_next(s_cursor);
+  memmove(s_text + s_cursor, s_text + next, s_length - next + 1);
+  s_length -= next - s_cursor;
+  s_keep_vertical_column = false;
+  // A no-op at end never changes the note or marks it dirty.
+  if (s_active_slot >= 0) s_dirty = true;
+  return true;
+}
+
 bool jot_store_flush(void) {
   if (!s_dirty) return true;
   if (s_active_slot < 0) return false;
