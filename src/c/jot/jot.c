@@ -563,6 +563,66 @@ static void prv_finish_saved_edit(void) {
   }
 }
 
+void jot_editor_touch_save(void) {
+  // Unlike physical Select on a new note, the keyboard SAVE key lands
+  // directly on the *committed note's reader*. Keep the established
+  // saved-note edit path identical for both completion controls.
+  if (s_editing_slot >= 0) {
+    prv_finish_saved_edit();
+    return;
+  }
+  if (!s_list_window || jot_reader_is_open() || jot_list_is_open()) return;
+
+  // No phantom empty records, nor a reader accidentally showing the last
+  // real note when SAVE is tapped before the first character.
+  if (!jot_store_length()) {
+    s_input_full = false;
+    jot_refresh_editor();
+    return;
+  }
+
+  // Commit BEFORE any navigation or editor reset. This is also essential
+  // for an auto-saved draft: the active record slot is reused, not copied.
+  if (!prv_flush()) {
+    jot_refresh_editor();
+    return;
+  }
+  const int slot = jot_store_active_slot();
+  const int rank = prv_rank_of_slot(slot);
+  if (slot < 0 || rank < 0) {
+    s_storage_error = true;
+    jot_refresh_editor();
+    return;
+  }
+
+  // The reader's contextual NOTES Back must reveal the real notes list.
+  // Keep the original editor intact while setting up both windows: if
+  // the list/reader fails to open, unwind to the keyboard with the
+  // saved note still in its buffer.
+  prv_push_list_at(rank);
+  if (!jot_list_is_open() || !s_list_layer || !s_cards_layer ||
+      !jot_reader_show(slot, rank, jot_store_count())) {
+    if (jot_list_is_open()) window_stack_pop(false);
+    s_storage_error = true;
+    jot_refresh_editor();
+    return;
+  }
+
+  // Now a fresh full-screen reader already owns its committed snapshot.
+  // The underlying keyboard is reset only after that transition succeeds.
+  // Because the flush above succeeded, jot_store_new() cannot fail under
+  // normal single-threaded execution (it has no dirty record to write).
+  if (!jot_store_new()) {
+    s_storage_error = true;
+    jot_refresh_editor();
+    return;
+  }
+  s_editing_slot = -1;
+  s_input_full = false;
+  s_storage_error = false;
+  jot_refresh_editor();
+}
+
 void jot_editor_select(void) {
   // Select is "finish", never "create a new blank note" while editing an
   // existing saved note. Back has the same safe return path in this mode.
