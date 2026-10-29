@@ -27,9 +27,11 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | Editor | Up / Down | Open the notes list |
 | Editor | Tap **KB** | Open the notes list |
 | Editor | Back | Save and show notes list; while editing an existing note, save and return to its reader |
-| Notes list | Up / Down | Move through saved notes; **Up** from the newest note focuses **+ NEW** |
+| Notes list | Up / Down | Move one note at a time; **Up** from newest focuses **+ NEW** |
 | Notes list | Select | Open the highlighted note, or create a note when **+ NEW** is focused |
 | Notes list | Long Select | Request deletion; Select confirms, Back cancels |
+| Notes list | Tap a note card | Open that note in the full-screen reader |
+| Notes list | Drag vertically on cards | Smoothly scroll through notes; the selected note follows |
 | Notes list | Tap **+ NEW** in the header | Open a fresh blank editor (touch remains optional) |
 | Notes list | Back | From older notes or **+ NEW**, return to newest; from newest, exit Jot |
 | Reader | Up / Down | Scroll the full note |
@@ -47,6 +49,27 @@ The editor now remembers when it was opened from a saved-note reader. **Select a
 **Jot 1.6.1** makes the header's **+ NEW** pill button-selectable as an item immediately above the newest note. Press **Up** from the newest note to focus it, then **Select** to begin writing; **Down** returns to the newest note. The former `x / 16` badge has been removed for a larger, clearer button; tapping the pill still works. If the list is empty, **+ NEW** starts selected automatically. Pressing Back while viewing an older list position jumps to the top first; pressing Back from the top exits to PebbleOS. The full-screen reader's Back still returns to the notes list. Tap-to-peek remains read-only and returns to the same draft. If a save fails, Jot keeps the editor and text on screen, showing **SAVE ERROR** rather than discarding any writing.
 
 The keyboard geometry, recognizer, caret rendering, note storage format, and existing backup flow are unchanged. These stack transitions still need a physical Pebble Time 2 check.
+
+## Touch the notebook (v1.7 — watch test pending)
+
+The saved-notes list now responds to **taps and vertical drags** as well as the
+physical buttons. Tap an actual note card to open it directly in the reader,
+or slide a finger up/down across the cards to scroll with pixel-level
+movement. The yellow header (including **+ NEW**) and charcoal backup footer
+stay fixed. Swipes don't accidentally open notes: after a gesture crosses a
+10-pixel movement threshold, release is never treated as a tap. Blank paper,
+the spaces between cards, and header/footer areas are not note-card targets.
+
+The highlighted note follows the visible list while dragging, and physical
+Up/Down/Select/Back continue to work afterward. The original **+ NEW**
+button-and-touch interaction, deletion confirmation, and backup controls
+are preserved. Scrolling currently follows the finger directly rather than
+continuing with kinetic/inertial momentum after release; that's optional
+future polish depending on real-watch feedback.
+
+The new pure-C geometry tests cover card edges, partially scrolled cards,
+scroll bounds and empty lists. Pixel interaction still needs checking on
+Pebble Time 2.
 
 ## Read your notes full-screen (v1.2)
 
