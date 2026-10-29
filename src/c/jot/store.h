@@ -24,6 +24,8 @@ size_t jot_store_cursor(void);
 bool jot_store_set_cursor(size_t offset);
 bool jot_store_move_cursor(JotCursorMove movement);
 int jot_store_count(void);
+// -1 for a fresh draft; otherwise the active saved record slot.
+int jot_store_active_slot(void);
 
 // UTF-8 text is inserted at the cursor; \\b removes the previous codepoint.
 // Refuses to create a seventeenth note rather than silently overwriting text.
