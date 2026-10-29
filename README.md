@@ -19,18 +19,19 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | Editor | Type on touchscreen | Enter text with gestures |
 | Editor | Backspace tap / NW / N / SW / W | Delete character before caret |
 | Editor | Backspace swipe NE / E / SE / S | Delete character after caret (forward delete) |
-| Editor | Select | Save the current note and start a new one |
+| Editor | Select | Save a new note and open the list; when editing a saved note, save and return to its reader |
 | Editor | Tap the text strip above keyboard | Peek at the entire current note without changing it |
 | Editor | Space swipe left / right | Move the insertion cursor one Unicode character |
 | Editor | I swipe up / S swipe down | Move cursor to previous / next explicit text line |
 | Editor | I up-and-return / S down-and-return | Move cursor to start / end of note |
 | Editor | Up / Down | Open the notes list |
 | Editor | Tap **KB** | Open the notes list |
-| Editor | Back | Exit and save on normal app shutdown |
+| Editor | Back | Save and show notes list; while editing an existing note, save and return to its reader |
 | Notes list | Up / Down | Move through saved notes |
 | Notes list | Select | Read the highlighted note full-screen |
 | Notes list | Long Select | Request deletion; Select confirms, Back cancels |
-| Notes list | Back | Return to editor |
+| Notes list | Tap the **+** pill in the header | Open a fresh blank editor |
+| Notes list | Back | If scrolled, return to newest note; if already at top, exit Jot |
 | Reader | Up / Down | Scroll the full note |
 | Reader | Select | Open the note in the keyboard editor |
 | Reader | Back | Return to the notes list |
@@ -38,6 +39,14 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | Editor | Long Select (~1.2 s) | Open the legacy typing / trace diagnostics |
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
+
+## Screen navigation (v1.6 — watch test pending)
+
+The editor now remembers when it was opened from a saved-note reader. **Select and Back after editing** first commit the draft, then reopen the *same reader* using the newly persisted text instead of an outdated snapshot. **Select on a quick-capture note** saves it, resets the editor to an empty note and opens the notes list with the saved note selected. **Back on a quick-capture note** saves and opens the list but keeps the current editor buffer; only pressing Select finishes that capture.
+
+The notes list has a small **+** pill in the top header for starting a fresh note. Pressing Back while viewing an older list position jumps to the top first; pressing Back from the top exits to PebbleOS. The full-screen reader's Back still returns to the notes list. Tap-to-peek remains read-only and returns to the same draft. If a save fails, Jot keeps the editor and text on screen, showing **SAVE ERROR** rather than discarding any writing.
+
+The keyboard geometry, recognizer, caret rendering, note storage format, and existing backup flow are unchanged. These stack transitions still need a physical Pebble Time 2 check.
 
 ## Read your notes full-screen (v1.2)
 
