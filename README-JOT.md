@@ -7,6 +7,9 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Launch:** go directly to a blank editor.
 - **Editor Select:** save this note and start a new one.
 - **Editor text strip tap:** peek at the full current draft without saving or switching notes.
+- **Editor Space swipe left / right:** move the insertion cursor by one UTF-8 codepoint.
+- **Editor I swipe up / S swipe down:** move between explicit newline-separated text lines, retaining a preferred column.
+- **Editor I up-and-return / S down-and-return:** jump to the beginning / end of the active note.
 - **Editor Up / Down or KB touch target:** show saved notes.
 - **Editor Back:** exit, saving pending changes during normal shutdown.
 - **Editor long Select (~1.2 s):** open the inherited typing/trace diagnostic menu.
@@ -20,6 +23,34 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Draft peek tap, Select or Back:** return to the same keyboard editor.
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
+
+## Cursor editing (v1.5 — watch verification pending)
+
+The original `messagease keys.xlsx` design map is now preserved in
+[readable Markdown](docs/gesture-map.md) and
+[complete CSV](docs/gesture-map.csv). These include both **implemented** and
+**planned** bindings. In particular, the six navigation controls above were
+*already reserved* by the spreadsheet, even though the C binding table did not
+implement them. Blank C entries are not unassigned design space.
+
+The note store now tracks a **transient UTF-8 byte offset** for the cursor.
+Insertion and backspace operate at that position without splitting a UTF-8
+codepoint, and undoing a newline merges lines. Moving the cursor does not
+mark a clean note dirty. Opening a saved note starts at its end; starting a
+new note resets the cursor. The caret is drawn in the 40-pixel keyboard
+viewport at the correct insertion point, which scrolls to follow it.
+
+**Known limitations:** Up/Down navigates explicit LF-delimited lines, not
+individual *visually wrapped* rows yet. The editor still uses tap-to-peek
+rather than tap-to-position, and word navigation/forward delete are reserved
+by the design map but not implemented. The original gesture recognizer,
+keyboard geometry, 16-note capacity, and on-disk `JOT1` records are unchanged.
+
+Native host tests cover cursor movement, insertion/deletion in the middle
+of Unicode text, vertical-column memory, full-buffer rejection, persistence,
+and reopening saved notes. GitHub CI also checks the original gesture map
+against the six implemented cursor bindings. This release must be tested on
+a physical Emery before considering issue #3 complete.
 
 ## Maintenance fixes (v1.3.1)
 
@@ -84,8 +115,9 @@ marks where the *next* character will be appended. If the most recent
 character is a newline, the caret appears on the next line. Backspace
 deletes the newline and returns it to the preceding line.
 
-At this stage, the caret is **end-of-note only**; positioning and inserting
-mid-note will follow as part of [cursor editing issue #3](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/3).
+As of v1.5 the caret can move and mid-note editing is supported through
+the original keyboard navigation gestures. See the cursor editing section
+above for details and current limitations.
 The strip continues to open a read-only preview on tap. The small `*`
 marker appears while dirty; `SAVE ERROR` and `FULL` are prominent status
 badges. The normal editor no longer spends an entire line displaying `JOT`.
@@ -145,6 +177,6 @@ published, the watch-to-phone transfer can work but the viewer won't open.
 
 1. Verify end-to-end phone backup and export on real hardware (including Unicode, disconnects and failure recovery).
 2. Device testing of note persistence, full capacity, relaunch, and deletion.
-3. Verify the 1.4.0 multiline editor display on real Emery, then implement safe cursor editing in stages.
+3. Verify the 1.5.0 cursor movement and mid-note insertion on real Emery, then refine typography and touch-to-caret interaction.
 
 The earlier `jot-v0.1.patch` instructions are historical; this repository now contains the Jot source directly. Simply pull and build the branch.
