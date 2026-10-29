@@ -5,7 +5,9 @@
 #include "ui/alert.h"
 
 #define AUTOSAVE_DELAY_MS 1800
-#define LIST_ROWS 4
+#define LIST_ROWS 3
+#define LIST_HEADER_H 43
+#define LIST_FOOTER_H 29
 
 static Window *s_list_window;
 static Layer *s_list_layer;
@@ -86,69 +88,163 @@ static void prv_format_time(time_t when, char *out, size_t cap) {
   snprintf(out, cap, "%02d:%02d", tm->tm_hour, tm->tm_min);
 }
 
+// The notes list uses the same paper / yellow / charcoal visual language as
+// the phone backup viewer. The editor and keyboard retain their existing sizes.
+static void prv_draw_pencil(GContext *ctx) {
+  graphics_context_set_stroke_color(ctx, GColorFromRGB(41, 40, 43));
+  graphics_context_set_stroke_width(ctx, 2);
+  graphics_draw_line(ctx, GPoint(10, 29), GPoint(24, 15));
+  graphics_draw_line(ctx, GPoint(14, 33), GPoint(28, 19));
+  graphics_draw_line(ctx, GPoint(10, 29), GPoint(14, 33));
+  graphics_draw_line(ctx, GPoint(24, 15), GPoint(28, 19));
+  graphics_draw_line(ctx, GPoint(8, 35), GPoint(14, 33));
+}
+
 static void prv_list_draw(Layer *layer, GContext *ctx) {
-  GRect bounds = layer_get_bounds(layer);
+  const GRect bounds = layer_get_bounds(layer);
   const int width = bounds.size.w;
   const int height = bounds.size.h;
-  const int header_h = 34;
-  const int footer_h = 19;
-  const int row_h = (height - header_h - footer_h) / LIST_ROWS;
+  const int row_h = (height - LIST_HEADER_H - LIST_FOOTER_H) / LIST_ROWS;
   const int count = jot_store_count();
   const int first = (s_selected_rank / LIST_ROWS) * LIST_ROWS;
+  const GColor ink = GColorFromRGB(41, 40, 43);
+  const GColor yellow = GColorFromRGB(255, 209, 88);
+  const GColor paper = GColorFromRGB(249, 242, 219);
+  const GColor white_paper = GColorFromRGB(255, 250, 239);
 
-  graphics_context_set_fill_color(ctx, GColorFromRGB(249, 242, 219));
+  // Cream paper, with subtle ruled lines in the empty area.
+  graphics_context_set_fill_color(ctx, paper);
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
-  graphics_context_set_fill_color(ctx, GColorFromRGB(255, 209, 88));
-  graphics_fill_rect(ctx, GRect(0, 0, width, header_h), 0, GCornerNone);
-  graphics_context_set_text_color(ctx, GColorBlack);
-  char title[36];
-  snprintf(title, sizeof title, "JOT   %d / %d", count, JOT_NOTE_CAPACITY);
-  graphics_draw_text(ctx, title, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                     GRect(8, 4, width - 16, 28), GTextOverflowModeTrailingEllipsis,
+  graphics_context_set_stroke_color(ctx, GColorFromRGB(226, 216, 190));
+  graphics_context_set_stroke_width(ctx, 1);
+  for (int y = LIST_HEADER_H + 12; y < height - LIST_FOOTER_H; y += 24) {
+    graphics_draw_line(ctx, GPoint(0, y), GPoint(width, y));
+  }
+
+  // Yellow notebook band with an ink edge, pencil mark and count badge.
+  graphics_context_set_fill_color(ctx, yellow);
+  graphics_fill_rect(ctx, GRect(0, 0, width, LIST_HEADER_H - 3),
+                     0, GCornerNone);
+  graphics_context_set_fill_color(ctx, ink);
+  graphics_fill_rect(ctx, GRect(0, LIST_HEADER_H - 3, width, 3),
+                     0, GCornerNone);
+  prv_draw_pencil(ctx);
+  graphics_context_set_text_color(ctx, ink);
+  graphics_draw_text(ctx, "Jot",
+                     fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
+                     GRect(37, 3, width - 112, 33),
+                     GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentLeft, NULL);
 
+  char usage[16];
+  snprintf(usage, sizeof usage, "%d / %d", count, JOT_NOTE_CAPACITY);
+  graphics_context_set_fill_color(ctx, ink);
+  graphics_fill_rect(ctx, GRect(width - 67, 8, 59, 25),
+                     5, GCornersAll);
+  graphics_context_set_text_color(ctx, yellow);
+  graphics_draw_text(ctx, usage,
+                     fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+                     GRect(width - 65, 11, 55, 20),
+                     GTextOverflowModeTrailingEllipsis,
+                     GTextAlignmentCenter, NULL);
+
   if (!count) {
-    graphics_draw_text(ctx, "No notes yet.\nBack to write!",
-                       fonts_get_system_font(FONT_KEY_GOTHIC_18),
-                       GRect(10, 52, width - 20, 60), GTextOverflowModeWordWrap,
-                       GTextAlignmentLeft, NULL);
+    // An unused sheet of paper should look inviting, not like an error.
+    const int card_y = LIST_HEADER_H + 17;
+    const int card_h = height - LIST_FOOTER_H - card_y - 13;
+    graphics_context_set_fill_color(ctx, ink);
+    graphics_fill_rect(ctx, GRect(14, card_y + 3, width - 26, card_h),
+                       5, GCornersAll);
+    graphics_context_set_fill_color(ctx, white_paper);
+    graphics_fill_rect(ctx, GRect(12, card_y, width - 26, card_h),
+                       5, GCornersAll);
+    graphics_context_set_text_color(ctx, ink);
+    graphics_draw_text(ctx, "A fresh page.",
+                       fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                       GRect(22, card_y + 18, width - 44, 30),
+                       GTextOverflowModeTrailingEllipsis,
+                       GTextAlignmentCenter, NULL);
+    graphics_draw_text(ctx, "Back to write.",
+                       fonts_get_system_font(FONT_KEY_GOTHIC_14),
+                       GRect(22, card_y + 47, width - 44, 20),
+                       GTextOverflowModeTrailingEllipsis,
+                       GTextAlignmentCenter, NULL);
   }
+
+  // Three generous note cards per page: two-line previews, clock at right.
+  // Keep all hit-testing/button behavior unchanged; only the paint changes.
   for (int row = 0; row < LIST_ROWS; ++row) {
     const int rank = first + row;
     if (rank >= count) break;
     const int slot = jot_store_slot_at(rank);
-    const int y = header_h + row * row_h;
-    const bool selected = rank == s_selected_rank;
-    if (selected) {
-      graphics_context_set_fill_color(ctx, GColorFromRGB(255, 209, 88));
-      graphics_fill_rect(ctx, GRect(4, y + 1, width - 8, row_h - 2),
-                         3, GCornersAll);
-    }
     char preview[64];
     time_t created = 0;
-    if (!jot_store_preview(slot, preview, sizeof preview, &created)) continue;
+    if (slot < 0 ||
+        !jot_store_preview(slot, preview, sizeof preview, &created)) continue;
+
+    const int x = 7;
+    const int y = LIST_HEADER_H + row * row_h + 3;
+    const int w = width - 14;
+    const int h = row_h - 6;
+    const bool selected = rank == s_selected_rank;
+    if (selected) {
+      graphics_context_set_fill_color(ctx, ink);
+      graphics_fill_rect(ctx, GRect(x + 2, y + 2, w, h),
+                         5, GCornersAll);
+    }
+
+    graphics_context_set_fill_color(ctx, selected ? ink :
+                                     GColorFromRGB(170, 159, 136));
+    graphics_fill_rect(ctx, GRect(x, y, w, h), 5, GCornersAll);
+    graphics_context_set_fill_color(ctx, selected ? yellow : white_paper);
+    graphics_fill_rect(ctx, GRect(x + 2, y + 2, w - 4, h - 4),
+                       4, GCornersAll);
+
+    graphics_context_set_text_color(ctx, ink);
+    if (!*preview) strcpy(preview, "(empty)");
+    graphics_draw_text(ctx, preview,
+                       fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                       GRect(x + 10, y + 3, w - 81, h - 7),
+                       GTextOverflowModeTrailingEllipsis,
+                       GTextAlignmentLeft, NULL);
+
+    graphics_context_set_stroke_color(ctx, selected ?
+                                     GColorFromRGB(143, 111, 45) :
+                                     GColorFromRGB(213, 202, 180));
+    graphics_context_set_stroke_width(ctx, 1);
+    graphics_draw_line(ctx, GPoint(x + w - 66, y + 8),
+                       GPoint(x + w - 66, y + h - 8));
+
     char clock[8];
     prv_format_time(created, clock, sizeof clock);
-    if (!*preview) strcpy(preview, "(empty)");
-    graphics_context_set_text_color(ctx, GColorBlack);
-    graphics_draw_text(ctx, preview, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                       GRect(10, y + 1, width - 75, row_h - 2),
-                       GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
-    graphics_draw_text(ctx, clock, fonts_get_system_font(FONT_KEY_GOTHIC_14),
-                       GRect(width - 68, y + 5, 62, row_h - 4),
-                       GTextOverflowModeTrailingEllipsis, GTextAlignmentRight, NULL);
+    graphics_context_set_text_color(ctx, ink);
+    graphics_draw_text(ctx, clock,
+                       fonts_get_system_font(FONT_KEY_GOTHIC_14),
+                       GRect(x + w - 62, y + (h - 20) / 2, 56, 20),
+                       GTextOverflowModeTrailingEllipsis,
+                       GTextAlignmentCenter, NULL);
   }
-  graphics_context_set_fill_color(ctx, GColorDarkGray);
-  graphics_fill_rect(ctx, GRect(0, height - footer_h, width, footer_h),
+
+  // A permanent ink footer also carries backup progress and delete prompts.
+  graphics_context_set_fill_color(ctx, yellow);
+  graphics_fill_rect(ctx, GRect(0, height - LIST_FOOTER_H, width, 3),
+                     0, GCornerNone);
+  graphics_context_set_fill_color(ctx, ink);
+  graphics_fill_rect(ctx, GRect(0, height - LIST_FOOTER_H + 3,
+                                width, LIST_FOOTER_H - 3),
                      0, GCornerNone);
   graphics_context_set_text_color(ctx, GColorWhite);
-  graphics_draw_text(ctx,
-                     s_confirm_delete ? "Delete? Select=yes Back=no" :
-                     *jot_backup_status() ? jot_backup_status() :
-                     "Hold UP:backup  Sel:edit",
+  const char *status =
+      s_confirm_delete ? "DELETE?  SEL yes  BACK no" :
+      s_storage_error ? "SAVE ERROR" :
+      *jot_backup_status() ? jot_backup_status() :
+      "HOLD UP backup  SEL open";
+  graphics_draw_text(ctx, status,
                      fonts_get_system_font(FONT_KEY_GOTHIC_14),
-                     GRect(5, height - footer_h - 2, width - 10, footer_h + 2),
-                     GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+                     GRect(5, height - LIST_FOOTER_H + 5,
+                           width - 10, LIST_FOOTER_H - 8),
+                     GTextOverflowModeTrailingEllipsis,
+                     GTextAlignmentCenter, NULL);
 }
 
 static void prv_redraw_list(void) {
