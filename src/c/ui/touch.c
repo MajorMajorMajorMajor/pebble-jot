@@ -90,7 +90,10 @@ static uint32_t s_header_touch_ms;
 // List touch is deliberately limited to stationary taps: a scrolling
 // gesture must not accidentally activate the new-note pill.
 static bool s_list_touch_active;
-static int16_t s_list_touch_x, s_list_touch_y;
+static bool s_list_touch_moved;
+static bool s_list_touch_dragging;
+static bool s_list_touch_can_drag;
+static int16_t s_list_touch_x, s_list_touch_y, s_list_touch_last_y;
 static uint32_t s_list_touch_ms;
 // src/c/ui/touch.c describes the currently implemented bindings only.
 // docs/gesture-map.md and docs/gesture-map.csv preserve the complete original
@@ -534,23 +537,43 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
     const uint32_t now_ms = prv_now_ms();
     if (event->type == TouchEvent_Touchdown) {
       s_list_touch_active = true;
+      s_list_touch_moved = false;
+      s_list_touch_dragging = false;
+      s_list_touch_can_drag = jot_list_can_drag(event->y);
       s_list_touch_x = event->x;
       s_list_touch_y = event->y;
+      s_list_touch_last_y = event->y;
       s_list_touch_ms = now_ms;
-    } else if (event->type == TouchEvent_Liftoff) {
-      if (s_list_touch_active) {
-        const int dx = event->x - s_list_touch_x;
-        const int dy = event->y - s_list_touch_y;
-        const bool tap = dx >= -10 && dx <= 10 &&
-                         dy >= -10 && dy <= 10 &&
+    } else if ((event->type == TouchEvent_PositionUpdate ||
+                event->type == TouchEvent_Liftoff) && s_list_touch_active) {
+      const int dx = event->x - s_list_touch_x;
+      const int dy = event->y - s_list_touch_y;
+      const int abs_dx = dx < 0 ? -dx : dx;
+      const int abs_dy = dy < 0 ? -dy : dy;
+      // Once a swipe exceeds the tap slop, it stays a swipe even if the
+      // finger comes back to its starting position before release.
+      if (abs_dx > 10 || abs_dy > 10) s_list_touch_moved = true;
+      if (!s_list_touch_dragging && s_list_touch_can_drag &&
+          abs_dy > 10 && abs_dy >= abs_dx) {
+        s_list_touch_dragging = true;
+        jot_list_drag((int16_t)dy);
+      } else if (s_list_touch_dragging) {
+        jot_list_drag((int16_t)(event->y - s_list_touch_last_y));
+      }
+      s_list_touch_last_y = event->y;
+
+      if (event->type == TouchEvent_Liftoff) {
+        const bool tap = !s_list_touch_moved &&
                          now_ms - s_list_touch_ms < 700;
         s_list_touch_active = false;
+        s_list_touch_dragging = false;
         if (tap) jot_list_tap(event->x, event->y);
       }
     }
     return;
   }
   s_list_touch_active = false;
+  s_list_touch_dragging = false;
 
   if ((s_mode == MODE_TRACE && !s_recording) || s_mode == MODE_MENU) return;
 
