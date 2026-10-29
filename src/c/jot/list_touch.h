@@ -14,7 +14,10 @@ int jot_list_touch_row_height(int screen_height);
 int jot_list_touch_max_scroll(int count, int screen_height);
 int jot_list_touch_clamp_scroll(int pixels, int count, int screen_height);
 int jot_list_touch_scroll_for_focus(int focus, int count, int screen_height);
-int jot_list_touch_focus_at_scroll(int pixels, int count, int screen_height);
+// When physical navigation resumes after dragging, select the topmost note
+// whose *drawn card* (not just logical row) is fully inside the viewport.
+// Returns -1 for an empty/non-renderable list.
+int jot_list_touch_first_full_card(int pixels, int count, int screen_height);
 
 // Returns a newest-first rank only when x/y fall inside the actual drawn
 // card (not the gaps, header, footer or unfilled rows). -1 otherwise.
