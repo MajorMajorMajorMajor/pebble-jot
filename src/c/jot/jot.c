@@ -2,14 +2,15 @@
 #include "jot/jot.h"
 #include "jot/store.h"
 #include "jot/list_focus.h"
+#include "jot/list_touch.h"
 #include "jot/backup.h"
 #include "jot/reader.h"
 #include "ui/alert.h"
 
 #define AUTOSAVE_DELAY_MS 1800
-#define LIST_ROWS 3
-#define LIST_HEADER_H 43
-#define LIST_FOOTER_H 29
+#define LIST_ROWS JOT_LIST_TOUCH_ROWS
+#define LIST_HEADER_H JOT_LIST_TOUCH_HEADER_H
+#define LIST_FOOTER_H JOT_LIST_TOUCH_FOOTER_H
 #define LIST_NEW_PILL_X_RIGHT 99
 #define LIST_NEW_PILL_W 91
 #define LIST_NEW_PILL_Y 8
@@ -17,6 +18,9 @@
 
 static Window *s_list_window;
 static Layer *s_list_layer;
+static Layer *s_cards_layer;
+// Pixel position of the clipped list viewport. Only touched while list open.
+static int s_list_scroll_px;
 static AppTimer *s_save_timer;
 static int s_selected_rank;
 static bool s_confirm_delete;
@@ -117,72 +121,31 @@ static void prv_draw_pencil(GContext *ctx) {
   graphics_draw_line(ctx, GPoint(8, 35), GPoint(14, 33));
 }
 
-static void prv_list_draw(Layer *layer, GContext *ctx) {
+// The cards have their own clipped viewport so drag scrolling can move them
+// a pixel at a time without covering the fixed notebook header and footer.
+static void prv_cards_draw(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
   const int width = bounds.size.w;
   const int height = bounds.size.h;
-  const int row_h = (height - LIST_HEADER_H - LIST_FOOTER_H) / LIST_ROWS;
+  const int row_h = height / LIST_ROWS;
   const int count = jot_store_count();
-  // Keep the selected note near the middle and advance by one card,
-  // rather than jumping an entire page every third button press.
-  int first = s_selected_rank - 1;
-  if (first < 0) first = 0;
-  int max_first = count - LIST_ROWS;
-  if (max_first < 0) max_first = 0;
-  if (first > max_first) first = max_first;
   const GColor ink = GColorFromRGB(41, 40, 43);
   const GColor yellow = GColorFromRGB(255, 209, 88);
   const GColor paper = GColorFromRGB(249, 242, 219);
   const GColor white_paper = GColorFromRGB(255, 250, 239);
 
-  // Cream paper, with subtle ruled lines in the empty area.
   graphics_context_set_fill_color(ctx, paper);
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
   graphics_context_set_stroke_color(ctx, GColorFromRGB(226, 216, 190));
   graphics_context_set_stroke_width(ctx, 1);
-  for (int y = LIST_HEADER_H + 12; y < height - LIST_FOOTER_H; y += 24) {
+  for (int y = 12; y < height; y += 24) {
     graphics_draw_line(ctx, GPoint(0, y), GPoint(width, y));
   }
 
-  // Yellow notebook band with an ink edge, pencil mark and count badge.
-  graphics_context_set_fill_color(ctx, yellow);
-  graphics_fill_rect(ctx, GRect(0, 0, width, LIST_HEADER_H - 3),
-                     0, GCornerNone);
-  graphics_context_set_fill_color(ctx, ink);
-  graphics_fill_rect(ctx, GRect(0, LIST_HEADER_H - 3, width, 3),
-                     0, GCornerNone);
-  prv_draw_pencil(ctx);
-  graphics_context_set_text_color(ctx, ink);
-  graphics_draw_text(ctx, "Jot",
-                     fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
-                     GRect(37, 3, width - 141, 33),
-                     GTextOverflowModeTrailingEllipsis,
-                     GTextAlignmentLeft, NULL);
-
-  // NEW is a button-focusable action just before the newest note.
-  // A selected dark pill is unmistakable; inactive is cream with ink text.
-  // The previous capacity badge has been removed to give the action room.
-  const bool new_selected = s_selected_rank == JOT_LIST_FOCUS_NEW;
-  const GRect new_pill = GRect(width - LIST_NEW_PILL_X_RIGHT,
-                               LIST_NEW_PILL_Y,
-                               LIST_NEW_PILL_W, LIST_NEW_PILL_H);
-  graphics_context_set_fill_color(ctx, new_selected ? ink : white_paper);
-  graphics_fill_rect(ctx, new_pill, 8, GCornersAll);
-  graphics_context_set_stroke_color(ctx, ink);
-  graphics_context_set_stroke_width(ctx, new_selected ? 3 : 1);
-  graphics_draw_round_rect(ctx, new_pill, 8);
-  graphics_context_set_text_color(ctx, new_selected ? yellow : ink);
-  graphics_draw_text(ctx, "+ NEW",
-                     fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                     GRect(new_pill.origin.x + 3, new_pill.origin.y,
-                           new_pill.size.w - 6, new_pill.size.h),
-                     GTextOverflowModeTrailingEllipsis,
-                     GTextAlignmentCenter, NULL);
-
   if (!count) {
     // An unused sheet of paper should look inviting, not like an error.
-    const int card_y = LIST_HEADER_H + 17;
-    const int card_h = height - LIST_FOOTER_H - card_y - 13;
+    const int card_y = 17;
+    const int card_h = height - card_y - 13;
     graphics_context_set_fill_color(ctx, ink);
     graphics_fill_rect(ctx, GRect(14, card_y + 3, width - 26, card_h),
                        5, GCornersAll);
@@ -202,11 +165,10 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
                        GTextAlignmentCenter, NULL);
   }
 
-  // Three generous note cards per page: two-line previews, clock at right.
-  // Keep all hit-testing/button behavior unchanged; only the paint changes.
-  for (int row = 0; row < LIST_ROWS; ++row) {
-    const int rank = first + row;
-    if (rank >= count) break;
+  // Only draw the visible note cards; layer clipping prevents cards from
+  // painting over the fixed yellow header and the backup/status footer.
+  const int first = row_h ? s_list_scroll_px / row_h : 0;
+  for (int rank = first; rank < count && rank <= first + LIST_ROWS + 1; ++rank) {
     const int slot = jot_store_slot_at(rank);
     char preview[64];
     time_t created = 0;
@@ -214,7 +176,7 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
         !jot_store_preview(slot, preview, sizeof preview, &created)) continue;
 
     const int x = 7;
-    const int y = LIST_HEADER_H + row * row_h + 3;
+    const int y = rank * row_h - s_list_scroll_px + JOT_LIST_CARD_Y_PAD;
     const int w = width - 14;
     const int h = row_h - 6;
     const bool selected = rank == s_selected_rank;
@@ -256,6 +218,56 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
                        GTextAlignmentCenter, NULL);
   }
 
+}
+
+static void prv_list_draw(Layer *layer, GContext *ctx) {
+  const GRect bounds = layer_get_bounds(layer);
+  const int width = bounds.size.w;
+  const int height = bounds.size.h;
+  const int count = jot_store_count();
+  const GColor ink = GColorFromRGB(41, 40, 43);
+  const GColor yellow = GColorFromRGB(255, 209, 88);
+  const GColor paper = GColorFromRGB(249, 242, 219);
+
+  // The clipped cards child paints the ruled-paper middle section.
+  graphics_context_set_fill_color(ctx, paper);
+  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
+  // Yellow notebook band with an ink edge, pencil mark and count badge.
+  graphics_context_set_fill_color(ctx, yellow);
+  graphics_fill_rect(ctx, GRect(0, 0, width, LIST_HEADER_H - 3),
+                     0, GCornerNone);
+  graphics_context_set_fill_color(ctx, ink);
+  graphics_fill_rect(ctx, GRect(0, LIST_HEADER_H - 3, width, 3),
+                     0, GCornerNone);
+  prv_draw_pencil(ctx);
+  graphics_context_set_text_color(ctx, ink);
+  graphics_draw_text(ctx, "Jot",
+                     fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
+                     GRect(37, 3, width - 141, 33),
+                     GTextOverflowModeTrailingEllipsis,
+                     GTextAlignmentLeft, NULL);
+
+  // NEW is a button-focusable action just before the newest note.
+  // A selected dark pill is unmistakable; inactive is cream with ink text.
+  // The previous capacity badge has been removed to give the action room.
+  const bool new_selected = s_selected_rank == JOT_LIST_FOCUS_NEW;
+  const GRect new_pill = GRect(width - LIST_NEW_PILL_X_RIGHT,
+                               LIST_NEW_PILL_Y,
+                               LIST_NEW_PILL_W, LIST_NEW_PILL_H);
+  graphics_context_set_fill_color(ctx, new_selected ? ink : white_paper);
+  graphics_fill_rect(ctx, new_pill, 8, GCornersAll);
+  graphics_context_set_stroke_color(ctx, ink);
+  graphics_context_set_stroke_width(ctx, new_selected ? 3 : 1);
+  graphics_draw_round_rect(ctx, new_pill, 8);
+  graphics_context_set_text_color(ctx, new_selected ? yellow : ink);
+  graphics_draw_text(ctx, "+ NEW",
+                     fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                     GRect(new_pill.origin.x + 3, new_pill.origin.y,
+                           new_pill.size.w - 6, new_pill.size.h),
+                     GTextOverflowModeTrailingEllipsis,
+                     GTextAlignmentCenter, NULL);
+
   // A permanent ink footer also carries backup progress and delete prompts.
   graphics_context_set_fill_color(ctx, yellow);
   graphics_fill_rect(ctx, GRect(0, height - LIST_FOOTER_H, width, 3),
@@ -283,6 +295,7 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
 
 static void prv_redraw_list(void) {
   if (s_list_layer) layer_mark_dirty(s_list_layer);
+  if (s_cards_layer) layer_mark_dirty(s_cards_layer);
 }
 
 void jot_backup_ui_changed(void) {
