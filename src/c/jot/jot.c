@@ -17,6 +17,8 @@ static int s_selected_rank;
 static bool s_confirm_delete;
 static bool s_storage_error;
 static bool s_input_full;
+// -1 means quick capture; otherwise the saved note opened from the reader.
+static int s_editing_slot = -1;
 
 static void prv_cancel_autosave(void) {
   if (s_save_timer) {
@@ -357,6 +359,7 @@ bool jot_reader_edit(int slot) {
   }
   s_input_full = false;
   s_storage_error = false;
+  s_editing_slot = slot;
   jot_refresh_editor();
 
   // The reader remains on top while we remove the list beneath it.
@@ -366,14 +369,92 @@ bool jot_reader_edit(int slot) {
   return true;
 }
 
+// Resolve the selected note by persistent slot rather than assuming it is
+// always the newest. An existing note may be reopened for editing.
+static int prv_rank_of_slot(int slot) {
+  if (slot < 0) return -1;
+  for (int rank = 0; rank < jot_store_count(); ++rank) {
+    if (jot_store_slot_at(rank) == slot) return rank;
+  }
+  return -1;
+}
+
+static void prv_push_list_at(int rank) {
+  if (!s_list_window) return;
+  s_selected_rank = rank >= 0 ? rank : 0;
+  s_confirm_delete = false;
+  window_stack_push(s_list_window, true);
+}
+
 void jot_show_list(void) {
   if (jot_reader_is_open()) return;
   if (s_list_window && window_stack_get_top_window() == s_list_window) return;
   if (!prv_flush()) { jot_refresh_editor(); return; }
+  prv_push_list_at(prv_rank_of_slot(jot_store_active_slot()));
+}
+
+// Rebuild the exact reader page from the committed record. Do not reuse the
+// reader's old text snapshot: it predates edits in the keyboard.
+static void prv_finish_saved_edit(void) {
+  if (!s_list_window || s_editing_slot < 0) return;
+  if (!prv_flush()) { jot_refresh_editor(); return; }
+
+  const int slot = s_editing_slot;
+  const int rank = prv_rank_of_slot(slot);
+  if (rank < 0) {
+    s_storage_error = true;
+    jot_refresh_editor();
+    return;
+  }
+  // Switch the underlying keyboard back to a fresh quick-capture buffer.
+  // The edited text is already safely committed; the reader opens from it.
+  if (!jot_store_new()) {
+    s_storage_error = true;
+    jot_refresh_editor();
+    return;
+  }
+  s_editing_slot = -1;
+  s_input_full = false;
+  jot_refresh_editor();
+  prv_push_list_at(rank);
+  if (!jot_reader_show(slot, rank, jot_store_count())) {
+    s_storage_error = true;
+    prv_redraw_list();
+  }
+}
+
+void jot_editor_select(void) {
+  // Select is "finish", never "create a new blank note" while editing an
+  // existing saved note. Back has the same safe return path in this mode.
+  if (s_editing_slot >= 0) {
+    prv_finish_saved_edit();
+    return;
+  }
   if (!s_list_window) return;
-  s_selected_rank = 0;
-  s_confirm_delete = false;
-  window_stack_push(s_list_window, true);
+  if (!prv_flush()) { jot_refresh_editor(); return; }
+  const int active = jot_store_active_slot();
+  const int rank = prv_rank_of_slot(active);
+
+  // Quick capture: a finished note is in storage, then the editor resets for
+  // the next capture. Blank drafts simply open history without allocation.
+  if (active >= 0 && !jot_store_new()) {
+    s_storage_error = true;
+    jot_refresh_editor();
+    return;
+  }
+  s_input_full = false;
+  jot_refresh_editor();
+  prv_push_list_at(rank);
+}
+
+void jot_editor_back(void) {
+  if (s_editing_slot >= 0) {
+    prv_finish_saved_edit();
+  } else {
+    // Unlike the old unhandled hardware Back, this never unexpectedly exits
+    // PebbleOS. If persistence fails, jot_show_list() stays in the editor.
+    jot_show_list();
+  }
 }
 
 bool jot_list_is_open(void) {
@@ -382,6 +463,7 @@ bool jot_list_is_open(void) {
 
 void jot_init(void) {
   jot_store_init();
+  s_editing_slot = -1;
   s_storage_error = false;
   s_input_full = false;
   s_list_window = window_create();
