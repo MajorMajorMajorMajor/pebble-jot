@@ -26,6 +26,8 @@ jobs:
         run: node tests/editor-caret.test.js
       - name: Verify screen navigation wiring
         run: node tests/navigation-flow.test.js
+      - name: Verify touch SAVE routing and safe reader transitions
+        run: node tests/touch-save.test.js
       - name: Test contextual reader Back touch controls
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
