@@ -146,6 +146,88 @@ int main(void) {
   assert(jot_store_input("\b"));
   assert(strcmp(jot_store_text(), "first line\nsecond lin") == 0);
 
+  // Cursor navigation must not mark an otherwise saved note as dirty.
+  assert(jot_store_new());
+  assert(jot_store_input("ABCDE"));
+  assert(jot_store_flush());
+  assert(!jot_store_dirty());
+  assert(jot_store_cursor() == 5);
+  assert(jot_store_move_cursor(JOT_CURSOR_LEFT));
+  assert(jot_store_move_cursor(JOT_CURSOR_LEFT));
+  assert(jot_store_cursor() == 3);
+  assert(!jot_store_dirty());
+  assert(jot_store_input("\xC3\xA9")); // Insert e-acute before D.
+  assert(strcmp(jot_store_text(), "ABC\xC3\xA9" "DE") == 0);
+  assert(jot_store_cursor() == 5);
+  assert(!jot_store_set_cursor(4)); // The second UTF-8 byte is not a boundary.
+  assert(jot_store_cursor() == 5);
+  assert(jot_store_input("\b"));
+  assert(strcmp(jot_store_text(), "ABCDE") == 0);
+  assert(jot_store_cursor() == 3);
+  assert(jot_store_input("!"));
+  assert(strcmp(jot_store_text(), "ABC!DE") == 0);
+  assert(jot_store_cursor() == 4);
+  assert(jot_store_move_cursor(JOT_CURSOR_HOME));
+  assert(jot_store_cursor() == 0);
+  assert(!jot_store_move_cursor(JOT_CURSOR_LEFT));
+  assert(jot_store_input("Z"));
+  assert(strcmp(jot_store_text(), "ZABC!DE") == 0);
+  assert(jot_store_move_cursor(JOT_CURSOR_END));
+  assert(jot_store_cursor() == jot_store_length());
+  assert(!jot_store_move_cursor(JOT_CURSOR_RIGHT));
+  assert(jot_store_flush());
+  const int cursor_slot = jot_store_slot_at(0);
+  jot_store_init();
+  assert(jot_store_open(cursor_slot));
+  assert(strcmp(jot_store_text(), "ZABC!DE") == 0);
+  assert(jot_store_cursor() == jot_store_length());
+
+  // Up/Down traverses explicit newline-delimited lines, retaining a
+  // preferred codepoint column when an intermediate line is shorter.
+  assert(jot_store_new());
+  assert(jot_store_input("ABCDE\nxy\n12345"));
+  assert(jot_store_set_cursor(3)); // ABC|DE
+  assert(jot_store_move_cursor(JOT_CURSOR_DOWN));
+  assert(jot_store_cursor() == 8); // xy| (clamped from column 3)
+  assert(jot_store_move_cursor(JOT_CURSOR_DOWN));
+  assert(jot_store_cursor() == 12); // 123|45, restored column 3
+  assert(jot_store_move_cursor(JOT_CURSOR_UP));
+  assert(jot_store_cursor() == 8);
+  assert(jot_store_move_cursor(JOT_CURSOR_UP));
+  assert(jot_store_cursor() == 3);
+  assert(!jot_store_move_cursor(JOT_CURSOR_UP));
+  assert(jot_store_move_cursor(JOT_CURSOR_DOWN));
+  assert(jot_store_cursor() == 8);
+  assert(jot_store_input("Q")); // edit at end of short middle line
+  assert(strcmp(jot_store_text(), "ABCDE\nxyQ\n12345") == 0);
+  assert(jot_store_input("\b"));
+  assert(strcmp(jot_store_text(), "ABCDE\nxy\n12345") == 0);
+  assert(jot_store_move_cursor(JOT_CURSOR_HOME));
+  assert(jot_store_move_cursor(JOT_CURSOR_END));
+  assert(!jot_store_move_cursor(JOT_CURSOR_DOWN));
+  assert(jot_store_set_cursor(6)); // before x in second line
+  assert(jot_store_input("\b")); // delete preceding LF; merge lines
+  assert(strcmp(jot_store_text(), "ABCDExy\n12345") == 0);
+  assert(jot_store_cursor() == 5);
+
+  // Full-buffer rejection must preserve the note and insertion point.
+  assert(jot_store_new());
+  char limit_text[JOT_NOTE_TEXT_BYTES];
+  memset(limit_text, 'q', sizeof limit_text - 1);
+  limit_text[sizeof limit_text - 1] = '\0';
+  assert(jot_store_input(limit_text));
+  assert(jot_store_length() == JOT_NOTE_TEXT_BYTES - 1);
+  assert(jot_store_set_cursor(80));
+  assert(!jot_store_input("x"));
+  assert(jot_store_cursor() == 80);
+  assert(strcmp(jot_store_text(), limit_text) == 0);
+  assert(jot_store_input("\b"));
+  assert(jot_store_cursor() == 79);
+  assert(jot_store_input("x"));
+  assert(jot_store_length() == JOT_NOTE_TEXT_BYTES - 1);
+  assert(jot_store_cursor() == 80);
+  assert(jot_store_text()[79] == 'x');
+
   puts("Jot storage regression tests passed");
   return 0;
 }
