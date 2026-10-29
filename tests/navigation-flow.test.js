@@ -103,7 +103,20 @@ assert.match(listNew, /window_stack_pop\(true\)/);
 const listTap = functionBody(jot, 'void jot_list_tap(int16_t x, int16_t y)');
 assert.match(listTap, /jot_list_is_open\(\)/);
 assert.match(listTap, /s_confirm_delete\s*\|\|\s*jot_backup_active\(\)/);
-assert.match(listTap, /x\s*<\s*width\s*-\s*LIST_NEW_PILL_X_RIGHT/);
+assert.match(listTap, /x\s*<\s*screen\.size\.w\s*-\s*LIST_NEW_PILL_X_RIGHT/);
+assert.match(listTap, /jot_list_touch_hit_card\(/);
+assert.match(listTap, /prv_open_list_note\(rank\)/);
+assert.match(jot, /layer_set_clips\(s_cards_layer,\s*true\)/);
+assert.match(jot, /layer_set_update_proc\(s_cards_layer,\s*prv_cards_draw\)/);
+assert.match(jot, /rank \* row_h - s_list_scroll_px \+ JOT_LIST_CARD_Y_PAD/);
+const listDrag = functionBody(jot, 'void jot_list_drag(int16_t delta_y)');
+assert.match(listDrag, /jot_list_touch_clamp_scroll\(/);
+assert.match(listDrag, /jot_list_touch_focus_at_scroll\(/);
+assert.match(listDrag, /jot_backup_active\(\)/);
+const openNote = functionBody(jot, 'static void prv_open_list_note(int rank)');
+assert.match(openNote, /jot_reader_show\(slot,\s*rank,\s*count\)/);
+assert.match(functionBody(jot, 'static void prv_list_select('),
+             /prv_open_list_note\(s_selected_rank\)/);
 assert.match(listTap, /prv_list_new_note\(\)/);
 
 const touchHandler = functionBody(touch, 'static void prv_touch_handler(');
@@ -111,6 +124,11 @@ assert.match(touchHandler, /jot_list_is_open\(\)/);
 assert.match(touchHandler, /s_list_touch_active/);
 assert.match(touchHandler, /now_ms\s*-\s*s_list_touch_ms\s*<\s*700/);
 assert.match(touchHandler, /if \(tap\) jot_list_tap\(event->x, event->y\)/);
+assert.match(touchHandler, /s_list_touch_moved = true/);
+assert.match(touchHandler, /s_list_touch_can_drag = jot_list_can_drag\(event->y\)/);
+assert.match(touchHandler, /jot_list_drag\(\(int16_t\)dy\)/);
+assert.match(touchHandler, /jot_list_drag\(\(int16_t\)\(event->y - s_list_touch_last_y\)\)/);
+assert.match(touchHandler, /const bool tap = !s_list_touch_moved/);
 
 assert.match(store, /int jot_store_active_slot\(void\)\s*\{\s*return s_active_slot;/);
 assert.match(functionBody(jot, 'void jot_show_list(void)'),
