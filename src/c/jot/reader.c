@@ -175,8 +175,9 @@ static void prv_reader_select(ClickRecognizerRef ref, void *context) {
     if (s_chrome) layer_mark_dirty(s_chrome);
     return;
   }
-  // The notes list was removed beneath this window by jot_reader_edit().
-  // Popping the reader now reveals the existing keyboard/editor.
+  // The edit origin and note slot are retained by jot_reader_edit().
+  // Removing the list and popping this reader reveals the keyboard; on
+  // completion the editor will rebuild this reader from saved note data.
   window_stack_pop(true);
 }
 
