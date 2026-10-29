@@ -8,6 +8,7 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Editor Select:** save this note and start a new one.
 - **Editor text strip tap:** peek at the full current draft without saving or switching notes.
 - **Editor Space swipe left / right:** move the insertion cursor by one UTF-8 codepoint.
+- **Editor Backspace NE / E / SE / S:** delete the following UTF-8 character; tapping Backspace or swiping NW / N / SW / W deletes backward.
 - **Editor I swipe up / S swipe down:** move between explicit newline-separated text lines, retaining a preferred column.
 - **Editor I up-and-return / S down-and-return:** jump to the beginning / end of the active note.
 - **Editor Up / Down or KB touch target:** show saved notes.
@@ -23,6 +24,12 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Draft peek tap, Select or Back:** return to the same keyboard editor.
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
+
+## Forward deletion (v1.5.4 — awaiting watch verification)
+
+The original English-LH keyboard map assigns Backspace **NE/E/SE/S** to delete the Unicode codepoint immediately *after* the cursor. This is now implemented in Jot mode, without changing the diagnostic keyboard's legacy binding table. The existing backward-delete bindings are unchanged. Forward delete preserves the caret offset, joins lines when deleting a newline, and is a no-op at end of note (no new dirty state or autosave timer). It is safe to delete a character in a full 159-byte note and then insert another. Host regressions cover UTF-8, line joins, persistence, full notes and end-of-text.
+
+The keyboard layout, touch thresholds, stored-note records, and reader are unchanged. Real Emery gesture testing is still needed before [issue #15](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/15) is closed.
 
 ## Hairline insertion caret (v1.5.1 — watch verification pending)
 
