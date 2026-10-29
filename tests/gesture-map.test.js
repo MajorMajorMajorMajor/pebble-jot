@@ -84,4 +84,11 @@ for (const direction of ['Tap', 'NW', 'N', 'SW', 'W']) {
 assert.equal(mapping.get('r')['N'],
   '[Cycle case]', 'case cycling remains reserved');
 
+// The workbook still says hand Tap = Hide keyboard. Jot's deliberately
+// different SAVE tap is a scoped runtime exception, not a CSV rewrite.
+assert.equal(mapping.get('hand')['Tap'], '[Hide keyboard]',
+  'retain canonical hand-key intent in the original design reference');
+assert.match(implementation, /s_touch_key == 13 && gesture_index == 0/);
+assert.match(implementation, /jot_editor_touch_save\(\)/);
+
 console.log('Original gesture map: six cursor shortcuts and four forward-delete directions OK');
