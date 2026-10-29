@@ -92,7 +92,7 @@ static void prv_format_time(time_t when, char *out, size_t cap) {
 // the phone backup viewer. The editor and keyboard retain their existing sizes.
 static void prv_draw_pencil(GContext *ctx) {
   graphics_context_set_stroke_color(ctx, GColorFromRGB(41, 40, 43));
-  graphics_context_set_stroke_width(ctx, 2);
+  graphics_context_set_stroke_width(ctx, 3);
   graphics_draw_line(ctx, GPoint(10, 29), GPoint(24, 15));
   graphics_draw_line(ctx, GPoint(14, 33), GPoint(28, 19));
   graphics_draw_line(ctx, GPoint(10, 29), GPoint(14, 33));
@@ -204,7 +204,7 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
     if (!*preview) strcpy(preview, "(empty)");
     graphics_draw_text(ctx, preview,
                        fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                       GRect(x + 10, y + 3, w - 81, h - 7),
+                       GRect(x + 10, y + 1, w - 70, h - 2),
                        GTextOverflowModeTrailingEllipsis,
                        GTextAlignmentLeft, NULL);
 
@@ -212,15 +212,15 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
                                      GColorFromRGB(143, 111, 45) :
                                      GColorFromRGB(213, 202, 180));
     graphics_context_set_stroke_width(ctx, 1);
-    graphics_draw_line(ctx, GPoint(x + w - 66, y + 8),
-                       GPoint(x + w - 66, y + h - 8));
+    graphics_draw_line(ctx, GPoint(x + w - 56, y + 8),
+                       GPoint(x + w - 56, y + h - 8));
 
     char clock[8];
     prv_format_time(created, clock, sizeof clock);
     graphics_context_set_text_color(ctx, ink);
     graphics_draw_text(ctx, clock,
                        fonts_get_system_font(FONT_KEY_GOTHIC_14),
-                       GRect(x + w - 62, y + (h - 20) / 2, 56, 20),
+                       GRect(x + w - 54, y + (h - 20) / 2, 49, 20),
                        GTextOverflowModeTrailingEllipsis,
                        GTextAlignmentCenter, NULL);
   }
