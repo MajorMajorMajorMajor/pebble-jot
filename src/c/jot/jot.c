@@ -32,11 +32,30 @@ static bool prv_flush(void) {
   return ok;
 }
 
-static const char *prv_tail(const char *text, size_t bytes) {
-  // Render the end of the note. Start at a UTF-8 boundary.
-  const char *tail = bytes > 36 ? text + bytes - 36 : text;
-  while (((unsigned char)*tail & 0xC0) == 0x80) ++tail;
-  return tail;
+// The editor has only 40 px: one status line and one text line. Always
+// display the *newest* characters instead of letting a long string render
+// its beginning and a stale ellipsis. Count Unicode codepoints, not bytes.
+static void prv_editor_tail(char *out, size_t capacity,
+                            const char *text, size_t bytes) {
+  if (!out || !capacity) return;
+  const char *start = text + bytes;
+  for (int shown = 0; shown < 16 && start > text; ++shown) {
+    do {
+      --start;
+    } while (start > text && (((unsigned char)*start & 0xC0) == 0x80));
+  }
+
+  size_t n = 0;
+  if (start > text && capacity >= 4) {
+    // One small ellipsis glyph signals that preceding text is offscreen.
+    out[n++] = (char)0xE2;
+    out[n++] = (char)0x80;
+    out[n++] = (char)0xA6;
+  }
+  for (const char *p = start; p < text + bytes && n + 1 < capacity; ++p) {
+    out[n++] = (*p == '\n' || *p == '\r') ? ' ' : *p;
+  }
+  out[n] = '\0';
 }
 
 void jot_refresh_editor(void) {
@@ -45,8 +64,10 @@ void jot_refresh_editor(void) {
                         s_input_full ? "JOT  FULL" :
                         jot_store_dirty() ? "JOT  *" : "JOT";
   const char *text = jot_store_text();
+  char tail[80];
+  prv_editor_tail(tail, sizeof tail, text, jot_store_length());
   snprintf(message, sizeof message, "%s\n%s", heading,
-           *text ? prv_tail(text, jot_store_length()) : "Write something...");
+           *text ? tail : "Write something...");
   alert_set_text(message);
 }
 
