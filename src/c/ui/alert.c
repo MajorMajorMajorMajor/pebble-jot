@@ -16,7 +16,10 @@ static int s_caret_x, s_caret_y, s_caret_height;
 
 enum {
   EDITOR_PADDING_X = 3,
-  LAYOUT_MAX_H = 4096
+  LAYOUT_MAX_H = 4096,
+  // Reserve a few real pixels under the font and caret: the text-layout
+  // bounds can stop before the bottom of letters such as g, j, p and y.
+  EDITOR_DESCENDER_GUARD = 5
 };
 
 static GFont prv_font(void) {
@@ -126,29 +129,55 @@ static void prv_reflow(void) {
 
     int caret_top = 1;
     if (!s_placeholder) {
-      // A probe character allows Pebble's layout to count the empty line
-      // immediately following a trailing newline, without drawing a glyph.
+      // When moving left across an explicit newline, the cursor lands
+      // *before* that LF: it belongs at the end of the preceding line,
+      // not on an extra row created by the measurement-only 'i' probe.
+      const bool before_newline = s_text[s_caret_index] == '\n';
+      size_t visual_end = s_caret_index;
+      if (before_newline) {
+        // Pebble's word wrapping can collapse trailing horizontal whitespace
+        // at a hard break. Anchor the caret beside the last visible glyph,
+        // rather than out in blank space to the right.
+        while (visual_end > 0 &&
+               (s_text[visual_end - 1] == ' ' ||
+                s_text[visual_end - 1] == '\t')) --visual_end;
+      }
+
       char through_caret[ALERT_MAX_LENGTH];
-      memcpy(through_caret, s_text, s_caret_index);
-      through_caret[s_caret_index] = 'i';
-      through_caret[s_caret_index + 1] = '\0';
-      const int caret_h = prv_measure(through_caret, font, width).h;
-      caret_top = caret_h - one_line_h + 1;
+      memcpy(through_caret, s_text, visual_end);
+      if (before_newline) {
+        // No probe here: one more glyph can falsely trigger a soft wrap
+        // immediately before the explicit newline.
+        through_caret[visual_end] = '\0';
+      } else {
+        // Do use a probe at the start of a fresh line (after an LF), so
+        // Pebble counts an otherwise empty final row.
+        through_caret[visual_end] = 'i';
+        through_caret[visual_end + 1] = '\0';
+      }
+      int measured_h = prv_measure(through_caret, font, width).h;
+      if (measured_h < one_line_h) measured_h = one_line_h;
+      caret_top = measured_h - one_line_h + 1;
       if (caret_top < 1) caret_top = 1;
 
       const size_t line_start = prv_visual_line_start(
-          s_text, s_caret_index, font, width, caret_h);
+          s_text, visual_end, font, width, measured_h);
       const GSize line_prefix = prv_measure_range(
-          s_text, line_start, s_caret_index, font, LAYOUT_MAX_H);
+          s_text, line_start, visual_end, font, LAYOUT_MAX_H);
       s_caret_x = EDITOR_PADDING_X + line_prefix.w;
     }
     if (s_caret_x >= bounds.size.w - 1) s_caret_x = bounds.size.w - 2;
-    s_caret_height = step - 2;
-    if (s_caret_height < 8) s_caret_height = 8;
-    if (s_caret_height > 18) s_caret_height = 18;
+    // Descenders reach below the ink's ordinary baseline. The original
+    // step-2 caret appeared to float above the tails of g/j/p/y on Emery.
+    s_caret_height = step + 2;
+    if (s_caret_height < 10) s_caret_height = 10;
+    if (s_caret_height > 22) s_caret_height = 22;
 
-    // A trailing LF may not increase the measured text height by itself.
-    const int caret_bottom = caret_top + s_caret_height + 2;
+    // The visual bottom must leave room for both the caret's full descent
+    // and the font's descenders, which Pebble's measured height can clip
+    // against the fixed 40px keyboard boundary.
+    const int caret_bottom =
+        caret_top + s_caret_height + EDITOR_DESCENDER_GUARD;
     if (caret_bottom > height) height = caret_bottom;
 
     scroll_y = caret_bottom - bounds.size.h;
