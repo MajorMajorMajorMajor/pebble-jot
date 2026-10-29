@@ -165,6 +165,8 @@ const char *jot_store_text(void) { return s_text; }
 size_t jot_store_length(void) { return s_length; }
 bool jot_store_dirty(void) { return s_dirty; }
 
+int jot_store_active_slot(void) { return s_active_slot; }
+
 int jot_store_count(void) {
   int n = 0;
   for (int i = 0; i < JOT_NOTE_CAPACITY; ++i) if (s_index[i].used) ++n;
