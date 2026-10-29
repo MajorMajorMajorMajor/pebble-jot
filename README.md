@@ -36,8 +36,9 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | Notes list | Back | From older notes or **+ NEW**, return to newest; from newest, exit Jot |
 | Reader | Up / Down | Scroll the full note |
 | Reader | Select | Open the note in the keyboard editor |
-| Reader | Back | Return to the notes list |
-| Draft peek | Tap, Select, or Back | Return to the same editor |
+| Reader | Back or tap **← NOTES** in top-left header | Return to the notes list |
+| Reader | Tap note text | Reserved for future touch-to-edit (#23); physical Select edits today |
+| Draft peek | Tap anywhere briefly, Select, Back, or tap **← EDIT** | Return to the same draft editor |
 | Editor | Long Select (~1.2 s) | Open the legacy typing / trace diagnostics |
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
@@ -75,6 +76,25 @@ directly without kinetic momentum. The v1.7 touch/drag/tap behavior has been
 tested on Emery; the new v1.7.1 focus-state transition awaits its own watch
 test. Host tests cover card edges, partial scroll, exact full-card visibility,
 scroll bounds and empty lists.
+
+## Contextual reader Back (v1.7.2 — awaiting watch test)
+
+The upper-left yellow reader header now contains a **real Back control**,
+drawn as a small charcoal arrow on a cream-paper key. Its label describes
+the destination: **← NOTES** on an ordinary saved-note page, and
+**← EDIT** on the temporary unsaved-draft Peek. Both the on-screen
+control and physical Back use the very same window-stack exit path.
+
+A short, stationary tap inside the header's 42 × 42px Back target exits.
+A gesture that moves more than 10 pixels, a long hold, or a touch that
+starts outside the target cannot accidentally navigate. Tapping saved-note
+text is still intentionally inactive pending #23; ordinary brief taps
+anywhere in draft Peek continue to return to the same unsaved editor.
+Existing note data, screen scrolling, physical buttons and list touch
+selection remain unchanged.
+
+Host tests cover the Back target's boundaries and tap-versus-swipe behavior.
+The actual button appearance and touch sensitivity require an Emery check.
 
 ## Read your notes full-screen (v1.2)
 
