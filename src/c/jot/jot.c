@@ -169,7 +169,7 @@ static void prv_list_draw(Layer *layer, GContext *ctx) {
   graphics_context_set_fill_color(ctx, new_selected ? ink : white_paper);
   graphics_fill_rect(ctx, new_pill, 8, GCornersAll);
   graphics_context_set_stroke_color(ctx, ink);
-  graphics_context_set_stroke_width(ctx, new_selected ? 2 : 1);
+  graphics_context_set_stroke_width(ctx, new_selected ? 3 : 1);
   graphics_draw_round_rect(ctx, new_pill, 8);
   graphics_context_set_text_color(ctx, new_selected ? yellow : ink);
   graphics_draw_text(ctx, "+ NEW",
