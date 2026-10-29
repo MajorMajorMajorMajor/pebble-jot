@@ -71,6 +71,32 @@ assert.match(functionBody(reader, 'static void prv_reader_select('),
 assert.match(functionBody(reader, 'static void prv_reader_back('),
              /window_stack_pop\(true\)/);
 
+
+// A list-only Back must have a way out: at a nonzero rank go to the top;
+// at the top, safely finish the app (rather than bouncing to the editor).
+const listBack = functionBody(jot, 'static void prv_list_back(');
+assert.match(listBack, /if \(s_confirm_delete\)/);
+assert.match(listBack, /s_selected_rank\s*>\s*0/);
+assert.match(listBack, /s_selected_rank\s*=\s*0/);
+assert.match(listBack, /if \(prv_flush\(\)\) window_stack_pop_all\(true\)/);
+
+// The list '+' returns to a fresh editor only after saving an existing
+// draft, and ignores touch gestures outside the pill.
+const listTap = functionBody(jot, 'void jot_list_tap(int16_t x, int16_t y)');
+assert.match(listTap, /jot_list_is_open\(\)/);
+assert.match(listTap, /s_confirm_delete\s*\|\|\s*jot_backup_active\(\)/);
+assert.match(listTap, /x\s*<\s*width\s*-\s*101/);
+assert.match(listTap, /if \(!prv_flush\(\)\)/);
+assert.match(listTap, /if \(!jot_store_new\(\)\)/);
+assert.match(listTap, /s_editing_slot\s*=\s*-1/);
+assert.match(listTap, /window_stack_pop\(true\)/);
+
+const touchHandler = functionBody(touch, 'static void prv_touch_handler(');
+assert.match(touchHandler, /jot_list_is_open\(\)/);
+assert.match(touchHandler, /s_list_touch_active/);
+assert.match(touchHandler, /now_ms\s*-\s*s_list_touch_ms\s*<\s*700/);
+assert.match(touchHandler, /if \(tap\) jot_list_tap\(event->x, event->y\)/);
+
 assert.match(store, /int jot_store_active_slot\(void\)\s*\{\s*return s_active_slot;/);
 assert.match(functionBody(jot, 'void jot_show_list(void)'),
              /if \(!prv_flush\(\)\)\s*\{\s*jot_refresh_editor\(\);\s*return;/);
