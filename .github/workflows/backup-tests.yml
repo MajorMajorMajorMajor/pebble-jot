@@ -31,6 +31,11 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/list-focus-test.c src/c/jot/list_focus.c -o /tmp/jot-list-focus-test
           /tmp/jot-list-focus-test
+      - name: Test touch-scrolling list and card hitboxes
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/list-touch-test.c src/c/jot/list_touch.c -o /tmp/jot-list-touch-test
+          /tmp/jot-list-touch-test
       - name: Compile and test persistent note storage
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I tests/fake -I src/c \
