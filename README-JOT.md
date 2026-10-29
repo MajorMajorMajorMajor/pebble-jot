@@ -24,7 +24,30 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
-## Cursor editing (v1.5 — watch verification pending)
+## Hairline insertion caret (v1.5.1 — watch verification pending)
+
+The Jot 1.5 editor represented the cursor by temporarily inserting a literal
+`|` into its display buffer. This never modified the saved note, but it
+shifted nearby characters as the cursor moved and made the caret
+indistinguishable from a genuine pipe character.
+
+The new editor uses a **separate transparent Layer** above the unchanged
+word-wrapped TextLayer. It draws a **1px charcoal vertical caret** at the
+UTF-8 insertion boundary, with height based on the font's line spacing.
+Pebble's native text-layout measurements locate the caret in the current
+line and keep that line visible as the note scrolls. The display no longer
+inserts or deletes any character to represent the cursor.
+
+This change affects **only the editor display**. Note text, cursor gestures,
+saved-note records, the 40px editor/keyboard boundary, touch targets, and
+the full-screen reader are unchanged. GitHub's regression suite now includes
+a guard against accidentally returning to printable-glyph caret rendering.
+
+Physical Emery verification is still needed, especially at long word-wrap
+boundaries, after explicit newlines, and with a *literal* `|` in a note.
+Issue #16 remains open for that test.
+
+## Cursor editing (v1.5 — watch verified)
 
 The original `messagease keys.xlsx` design map is now preserved in
 [readable Markdown](docs/gesture-map.md) and
@@ -48,9 +71,11 @@ keyboard geometry, 16-note capacity, and on-disk `JOT1` records are unchanged.
 
 Native host tests cover cursor movement, insertion/deletion in the middle
 of Unicode text, vertical-column memory, full-buffer rejection, persistence,
-and reopening saved notes. GitHub CI also checks the original gesture map
-against the six implemented cursor bindings. This release must be tested on
-a physical Emery before considering issue #3 complete.
+and reopening saved notes. GitHub CI checks the original gesture map
+against the six implemented cursor bindings. All six navigation gestures
+were successfully tested on a physical Emery; issue #3 is closed.
+Follow-ups #16–#18 track caret rendering, touch positioning, and
+visual-line navigation separately.
 
 ## Maintenance fixes (v1.3.1)
 
@@ -122,10 +147,10 @@ The strip continues to open a read-only preview on tap. The small `*`
 marker appears while dirty; `SAVE ERROR` and `FULL` are prominent status
 badges. The normal editor no longer spends an entire line displaying `JOT`.
 
-The editor display is now a clipping Layer with a word-wrapped TextLayer
-child; the surrounding keyboard and its 40-pixel touch boundary have not
-changed. The note storage format, save schedule, gesture bindings and limits
-remain unchanged. The multiline viewport awaits on-watch visual testing.
+The editor uses a clipping Layer with a word-wrapped TextLayer and,
+since v1.5.1, a separate hairline-caret overlay. The keyboard's 40px touch
+boundary has not changed. The note storage format, save schedule, gesture bindings and limits
+remain unchanged. The multiline viewport was successfully tested on real Emery hardware.
 
 ### Draft peek and typography (v1.3)
 
@@ -177,6 +202,6 @@ published, the watch-to-phone transfer can work but the viewer won't open.
 
 1. Verify end-to-end phone backup and export on real hardware (including Unicode, disconnects and failure recovery).
 2. Device testing of note persistence, full capacity, relaunch, and deletion.
-3. Verify the 1.5.0 cursor movement and mid-note insertion on real Emery, then refine typography and touch-to-caret interaction.
+3. Verify the 1.5.1 hairline caret on real Emery, then implement forward delete and navigation polish.
 
 The earlier `jot-v0.1.patch` instructions are historical; this repository now contains the Jot source directly. Simply pull and build the branch.
