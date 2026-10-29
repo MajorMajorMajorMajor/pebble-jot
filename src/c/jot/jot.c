@@ -2,6 +2,7 @@
 #include "jot/jot.h"
 #include "jot/store.h"
 #include "jot/backup.h"
+#include "jot/reader.h"
 #include "ui/alert.h"
 
 #define AUTOSAVE_DELAY_MS 1800
@@ -61,7 +62,8 @@ static void prv_schedule_autosave(void) {
 }
 
 void jot_input(const char *binding) {
-  if (s_list_window && window_stack_get_top_window() == s_list_window) return;
+  if ((s_list_window && window_stack_get_top_window() == s_list_window) ||
+      jot_reader_is_open()) return;
   if (!binding || !*binding) return;
   bool ok = jot_store_input(binding);
   s_input_full = !ok;
@@ -281,11 +283,11 @@ static void prv_list_select(ClickRecognizerRef ref, void *context) {
     prv_redraw_list();
     return;
   }
-  if (!jot_store_open(slot)) { s_storage_error = true; prv_redraw_list(); return; }
-  s_input_full = false;
-  s_storage_error = false;
-  jot_refresh_editor();
-  window_stack_pop(true);
+  // Browsing is read-only. The reader makes its own copy of this note.
+  if (!jot_reader_show(slot, s_selected_rank, jot_store_count())) {
+    s_storage_error = true;
+    prv_redraw_list();
+  }
 }
 static void prv_list_hold(ClickRecognizerRef ref, void *context) {
   if (jot_backup_active()) return;
@@ -330,7 +332,25 @@ static void prv_list_unload(Window *window) {
   s_confirm_delete = false;
 }
 
+bool jot_reader_edit(int slot) {
+  // Only Select from a reader commits the selected note to the editor.
+  if (!jot_reader_is_open() || !jot_store_open(slot)) {
+    s_storage_error = true;
+    return false;
+  }
+  s_input_full = false;
+  s_storage_error = false;
+  jot_refresh_editor();
+
+  // The reader remains on top while we remove the list beneath it.
+  // Popping the reader reveals the keyboard, not another list.
+  if (s_list_window && window_stack_contains_window(s_list_window))
+    window_stack_remove(s_list_window, false);
+  return true;
+}
+
 void jot_show_list(void) {
+  if (jot_reader_is_open()) return;
   if (s_list_window && window_stack_get_top_window() == s_list_window) return;
   if (!prv_flush()) { jot_refresh_editor(); return; }
   if (!s_list_window) return;
@@ -355,6 +375,7 @@ void jot_init(void) {
                                                  .unload = prv_list_unload});
     window_set_click_config_provider(s_list_window, prv_list_clicks);
   }
+  jot_reader_init();
   jot_backup_init();
   jot_refresh_editor();
 }
@@ -362,5 +383,6 @@ void jot_init(void) {
 void jot_deinit(void) {
   prv_flush();
   jot_backup_deinit();
+  jot_reader_deinit();
   if (s_list_window) { window_destroy(s_list_window); s_list_window = NULL; }
 }
