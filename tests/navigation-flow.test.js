@@ -268,11 +268,11 @@ assert.match(touchHandler, /jot_reader_edit_current\(\)/);
 assert.doesNotMatch(touchHandler, /jot_reader_edit\(s_slot\)/); // One shared route.
 assert.match(touchHandler, /s_list_touch_active/);
 assert.match(touchHandler, /now_ms\s*-\s*s_list_touch_ms\s*<\s*700/);
-assert.match(touchHandler, /if \(tap\) jot_list_tap\(event->x, event->y\)/);
+assert.match(touchHandler, /if \(tap && !s_list_touch_suppress_tap\)/);
 assert.match(touchHandler, /s_list_touch_moved = true/);
 assert.match(touchHandler, /s_list_touch_can_drag = jot_list_can_drag\(event->y\)/);
 assert.match(touchHandler, /jot_list_drag\(\(int16_t\)dy\)/);
-assert.match(touchHandler, /jot_list_drag\(\(int16_t\)\(event->y - s_list_touch_last_y\)\)/);
+assert.match(touchHandler, /jot_list_drag\(\(int16_t\)movement\)/);
 assert.match(touchHandler, /const bool tap = !s_list_touch_moved/);
 
 assert.match(store, /int jot_store_active_slot\(void\)\s*\{\s*return s_active_slot;/);
