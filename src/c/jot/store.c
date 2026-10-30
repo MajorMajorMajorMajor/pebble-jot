@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include <stdlib.h>
 #include "jot/store.h"
 
 // JOT2 uses two banks per slot: a complete new version is written into
@@ -20,17 +21,18 @@ typedef struct {
   uint16_t checksum;
 } NoteHeader;
 
+// Put wide fields first: 16 bytes per index rather than 20 on ARM.
 typedef struct {
-  bool used;
-  int8_t bank;   // -1 until the first successful flush.
   uint32_t serial;
   uint32_t timestamp;
   uint32_t revision;
   uint16_t length;
+  int8_t bank;   // -1 until the first successful flush.
+  bool used;
 } NoteIndex;
 
 static NoteIndex s_index[JOT_NOTE_CAPACITY];
-static char s_read_text[JOT_NOTE_TEXT_BYTES];
+static char *s_read_text; // Allocated lazily for list/open reads.
 static uint32_t s_next_serial;
 static int s_active_slot;
 static time_t s_active_time;
@@ -164,6 +166,11 @@ static bool prv_header(int slot, int bank, NoteHeader *header) {
          header->revision != 0 && header->length < JOT_NOTE_TEXT_BYTES;
 }
 
+static bool prv_ensure_read_buffer(void) {
+  if (!s_read_text) s_read_text = malloc(JOT_NOTE_TEXT_BYTES);
+  return s_read_text != NULL;
+}
+
 static bool prv_read(int slot, char *out, size_t capacity) {
   if (slot < 0 || slot >= JOT_NOTE_CAPACITY || !s_index[slot].used ||
       s_index[slot].bank < 0) return false;
@@ -222,6 +229,11 @@ void jot_store_init(void) {
     if (header->serial >= s_next_serial) s_next_serial = header->serial + 1;
   }
   if (!s_next_serial) s_next_serial = 1;
+}
+
+void jot_store_deinit(void) {
+  free(s_read_text);
+  s_read_text = NULL;
 }
 
 const char *jot_store_text(void) { return s_text; }
@@ -337,7 +349,8 @@ bool jot_store_new(void) {
 bool jot_store_open(int slot) {
   if (slot < 0 || slot >= JOT_NOTE_CAPACITY || !s_index[slot].used) return false;
   if (!jot_store_flush()) return false;
-  if (!prv_read(slot, s_read_text, sizeof s_read_text)) return false;
+  if (!prv_ensure_read_buffer() ||
+      !prv_read(slot, s_read_text, JOT_NOTE_TEXT_BYTES)) return false;
   s_active_slot = slot;
   s_active_time = (time_t)s_index[slot].timestamp;
   s_length = s_index[slot].length;
@@ -395,7 +408,8 @@ bool jot_store_preview(int slot, char *out, size_t capacity, time_t *created) {
       !s_index[slot].used) return false;
   const char *text = s_text;
   if (slot != s_active_slot) {
-    if (!prv_read(slot, s_read_text, sizeof s_read_text)) return false;
+    if (!prv_ensure_read_buffer() ||
+        !prv_read(slot, s_read_text, JOT_NOTE_TEXT_BYTES)) return false;
     text = s_read_text;
   }
   size_t n = 0;

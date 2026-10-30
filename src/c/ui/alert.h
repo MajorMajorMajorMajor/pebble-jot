@@ -1,9 +1,9 @@
 #pragma once
 #include <pebble.h>
 
-// The editor must display the *entire* extended note, without truncation.
-#include "jot/store.h"
-enum { ALERT_MAX_LENGTH = JOT_NOTE_TEXT_BYTES };
+// Diagnostic messages have a small independent buffer; full notes are
+// displayed directly from the store's stable editor buffer.
+enum { ALERT_MAX_LENGTH = 200 };
 
 // Diagnostic/trace display (retains its independent mode).
 void alert_set_text(const char *new_text);

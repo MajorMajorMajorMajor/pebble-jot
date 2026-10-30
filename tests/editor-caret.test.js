@@ -40,9 +40,11 @@ assert.match(alert, /s_caret_height\s*=\s*step\s*\+\s*2/);
 assert.match(alert, /EDITOR_DESCENDER_GUARD\s*=\s*5/);
 assert.match(alert, /caret_top\s*\+\s*s_caret_height\s*\+\s*EDITOR_DESCENDER_GUARD/);
 
-// Text displayed by a TextLayer must be copied unchanged from the note.
-// No inserted pipe or other glyph may shift characters at the cursor.
-assert.match(alert, /snprintf\(s_text,\s*sizeof s_text,\s*"%s",\s*note\)/);
+// The TextLayer reads the full note directly from the existing store buffer.
+// No second large static copy, premature truncation or inserted caret glyph.
+assert.match(alert, /s_display_text\s*=\s*note/);
+assert.match(alert, /text_layer_set_text\(s_textbox,\s*s_display_text\)/);
+assert.doesNotMatch(alert, /snprintf\(s_text,\s*sizeof s_text,\s*"%s",\s*note\)/);
 assert.doesNotMatch(alert, /s_text\s*\[\s*cursor\s*\]\s*=/);
 assert.doesNotMatch(alert, /s_text\s*\[\s*s_caret_index\s*\]\s*=\s*'\|'/);
 assert.doesNotMatch(alert, /memmove\(s_text\s*\+/);

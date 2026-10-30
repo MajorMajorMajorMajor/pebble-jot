@@ -731,5 +731,6 @@ void jot_deinit(void) {
   prv_flush();
   jot_backup_deinit();
   jot_reader_deinit();
+  jot_store_deinit();
   if (s_list_window) { window_destroy(s_list_window); s_list_window = NULL; }
 }

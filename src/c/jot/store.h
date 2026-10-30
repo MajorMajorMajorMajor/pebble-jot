@@ -6,6 +6,7 @@
 enum { JOT_NOTE_CAPACITY = 256, JOT_NOTE_TEXT_BYTES = 4096 };
 
 void jot_store_init(void);
+void jot_store_deinit(void);
 const char *jot_store_text(void);
 size_t jot_store_length(void);
 bool jot_store_dirty(void);

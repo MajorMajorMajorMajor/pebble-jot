@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include <stdlib.h>
 #include "jot/reader.h"
 #include "jot/reader_touch.h"
 #include "jot/jot.h"
@@ -18,7 +19,7 @@ static Layer *s_paper;
 static Layer *s_viewport;
 static TextLayer *s_text_layer;
 
-static char s_note[JOT_NOTE_TEXT_BYTES];
+static char *s_note; // Allocated only while Reader/Peek is open.
 static char s_timestamp[32];
 static int s_slot, s_rank, s_total;
 static int s_scroll, s_scroll_max;
@@ -276,6 +277,8 @@ static void prv_reader_unload(Window *window) {
   s_paper = NULL;
   if (s_chrome) layer_destroy(s_chrome);
   s_chrome = NULL;
+  free(s_note);
+  s_note = NULL;
 }
 
 bool jot_reader_init(void) {
@@ -295,13 +298,21 @@ void jot_reader_deinit(void) {
     window_stack_remove(s_window, false);
   window_destroy(s_window);
   s_window = NULL;
+  free(s_note);
+  s_note = NULL;
 }
 
 bool jot_reader_show(int slot, int rank, int total) {
   if (!s_window || jot_reader_is_open() || slot < 0 ||
       rank < 0 || rank >= total) return false;
+  s_note = malloc(JOT_NOTE_TEXT_BYTES);
+  if (!s_note) return false;
   time_t created = 0;
-  if (!jot_store_export(slot, s_note, sizeof s_note, &created)) return false;
+  if (!jot_store_export(slot, s_note, JOT_NOTE_TEXT_BYTES, &created)) {
+    free(s_note);
+    s_note = NULL;
+    return false;
+  }
   const struct tm *tm = localtime(&created);
   if (tm) {
     strftime(s_timestamp, sizeof s_timestamp, "%b %d  %H:%M", tm);
@@ -330,7 +341,9 @@ bool jot_reader_peek(void) {
   // The editor may be dirty or completely blank. This is only a snapshot:
   // no flush, no note allocation, no switching the active note.
   const size_t length = jot_store_length();
-  if (length >= sizeof s_note) return false;
+  if (length >= JOT_NOTE_TEXT_BYTES) return false;
+  s_note = malloc(JOT_NOTE_TEXT_BYTES);
+  if (!s_note) return false;
   memcpy(s_note, jot_store_text(), length + 1);
   snprintf(s_timestamp, sizeof s_timestamp, "CURRENT NOTE");
   s_slot = -1;

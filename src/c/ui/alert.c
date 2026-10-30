@@ -1,6 +1,7 @@
 #include <pebble.h>
 #include "ui/alert.h"
 #include "ui/caret_layout.h"
+#include "jot/store.h"
 
 // The editor strip is a clipped viewport containing a TextLayer for the
 // actual note and a separate, transparent 1px insertion-caret overlay.
@@ -9,7 +10,8 @@ static Layer *s_root;
 static TextLayer *s_textbox;
 static Layer *s_caret_layer;
 static TextLayer *s_statusbox;
-static char s_text[ALERT_MAX_LENGTH];
+static char s_text[ALERT_MAX_LENGTH]; // Diagnostics/placeholder only.
+static const char *s_display_text = s_text;
 static bool s_editor_mode;
 static bool s_placeholder;
 static size_t s_caret_index;
@@ -89,7 +91,7 @@ static void prv_draw_caret(Layer *layer, GContext *ctx) {
 static int prv_caret_measure_width(const char *text, size_t first,
                                   size_t last, void *context) {
   if (last <= first) return 0;
-  char piece[ALERT_MAX_LENGTH];
+  char piece[JOT_NOTE_TEXT_BYTES];
   size_t count = last - first;
   if (count >= sizeof piece) count = sizeof piece - 1;
   memcpy(piece, text + first, count);
@@ -106,7 +108,7 @@ static void prv_reflow(void) {
 
   text_layer_set_font(s_textbox, font);
   text_layer_set_overflow_mode(s_textbox, GTextOverflowModeWordWrap);
-  text_layer_set_text(s_textbox, s_text);
+  text_layer_set_text(s_textbox, s_display_text);
 
   int height = bounds.size.h;
   int scroll_y = 0;
@@ -115,7 +117,7 @@ static void prv_reflow(void) {
   s_caret_height = 12;
 
   if (s_editor_mode) {
-    const GSize size = prv_measure(s_text, font, width);
+    const GSize size = prv_measure(s_display_text, font, width);
     if (size.h + 2 > height) height = size.h + 2;
 
     const int one_line_h = prv_measure("i", font, width).h;
@@ -130,7 +132,7 @@ static void prv_reflow(void) {
       // reverse-suffix search could place 'ar' at the right of the screen
       // even when Pebble had wrapped it to a new row on the left.
       const JotCaretLayout caret = jot_caret_layout(
-          s_text, s_caret_index, width, prv_caret_measure_width,
+          s_display_text, s_caret_index, width, prv_caret_measure_width,
           (void *)&font);
       caret_top += caret.row * step;
       s_caret_x = EDITOR_PADDING_LEFT + caret.x;
@@ -190,6 +192,7 @@ static void prv_status(bool dirty, bool save_error, bool full) {
 void alert_set_text(const char *new_text) {
   s_editor_mode = false;
   snprintf(s_text, sizeof s_text, "%s", new_text ? new_text : "");
+  s_display_text = s_text;
   prv_status(false, false, false);
   prv_reflow();
 }
@@ -201,14 +204,16 @@ void alert_set_editor(const char *note, size_t cursor,
   const size_t length = strlen(note);
   if (cursor > length) cursor = length;
 
-  // Copy the *unchanged* note. The caret is drawn over it in its own layer,
-  // never inserted as a printable character or saved with the note.
+  // Point at the live store buffer: no second 4 KB static copy, no
+  // truncation. Jot refreshes this TextLayer after every editor mutation.
+  // The caret remains a separate overlay and never changes note text.
   s_placeholder = !*note;
   if (s_placeholder) {
     snprintf(s_text, sizeof s_text, "Write something...");
+    s_display_text = s_text;
     s_caret_index = 0;
   } else {
-    snprintf(s_text, sizeof s_text, "%s", note);
+    s_display_text = note;
     s_caret_index = cursor;
   }
   prv_reflow();

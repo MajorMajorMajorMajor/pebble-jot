@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include <stdlib.h>
 #include "jot/backup.h"
 #include "jot/jot.h"
 #include "jot/store.h"
@@ -19,7 +20,7 @@ static int s_phase;  // 0=BEGIN, 1..total=NOTE, total+1=END.
 static uint8_t s_attempts;
 static AppTimer *s_retry_timer;
 static char s_status[36];
-static char s_note[JOT_NOTE_TEXT_BYTES];
+static char *s_note; // Allocated for the duration of a backup only.
 static size_t s_note_length;
 static time_t s_created;
 static size_t s_offset;
@@ -42,6 +43,8 @@ static void prv_status(const char *status) {
 static void prv_fail(const char *reason) {
   prv_cancel_timer();
   s_active = false;
+  free(s_note);
+  s_note = NULL;
   prv_status(reason);
 }
 
@@ -55,7 +58,7 @@ static void prv_schedule(uint32_t delay_ms) {
 
 static bool prv_load_note(void) {
   const int slot = jot_store_slot_at(s_phase - 1);
-  if (slot < 0 || !jot_store_export(slot, s_note, sizeof s_note, &s_created))
+  if (slot < 0 || !jot_store_export(slot, s_note, JOT_NOTE_TEXT_BYTES, &s_created))
     return false;
   s_note_length = strlen(s_note);
   return true;
@@ -147,6 +150,8 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   }
   if (s_phase == s_total + 1) {
     s_active = false;
+    free(s_note);
+    s_note = NULL;
     prv_status("Phone copy saved");
     return;
   }
@@ -198,6 +203,8 @@ void jot_backup_start(void) {
   if (!jot_store_flush()) { prv_status("Save note before backup"); return; }
   s_total = jot_store_count();
   if (s_total == 0) { prv_status("No notes to export"); return; }
+  s_note = malloc(JOT_NOTE_TEXT_BYTES);
+  if (!s_note) { prv_status("Not enough memory"); return; }
   ++s_session;
   if (!s_session) ++s_session;
   s_phase = 0;
@@ -216,5 +223,7 @@ void jot_backup_cancel(void) {
   bool was_active = s_active;
   prv_cancel_timer();
   s_active = false;
+  free(s_note);
+  s_note = NULL;
   if (was_active) prv_status("Export canceled");
 }
