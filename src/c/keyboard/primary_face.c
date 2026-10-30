@@ -21,10 +21,11 @@ char jot_primary_face_legend(int key, int direction) {
 }
 
 JotPrimaryLegendOffset jot_primary_face_optical_offset(char symbol) {
-  // Wrist-tested fine tuning: lower 'l' and 'd' one pixel, and nudge
-  // 'f' one pixel down and left. Do not disturb any other primary glyph.
+  // After two Emery screenshots: 'l' and 'd' stay 1px lower; 'f'
+  // needs 2px left/down in total. All other glyphs remain unchanged.
   return (JotPrimaryLegendOffset){
-    .x = symbol == 'f' ? -1 : 0,
-    .y = (symbol == 'l' || symbol == 'd' || symbol == 'f') ? 1 : 0
+    .x = symbol == 'f' ? -2 : 0,
+    .y = symbol == 'f' ? 2 :
+         (symbol == 'l' || symbol == 'd') ? 1 : 0
   };
 }

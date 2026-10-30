@@ -43,9 +43,9 @@ static void check_optical_offsets(void) {
   for (char glyph = 'a'; glyph <= 'z'; ++glyph) {
     const JotPrimaryLegendOffset offset =
         jot_primary_face_optical_offset(glyph);
-    assert(offset.x == (glyph == 'f' ? -1 : 0));
-    assert(offset.y == ((glyph == 'l' || glyph == 'd' ||
-                         glyph == 'f') ? 1 : 0));
+    assert(offset.x == (glyph == 'f' ? -2 : 0));
+    assert(offset.y == (glyph == 'f' ? 2 :
+                        (glyph == 'l' || glyph == 'd') ? 1 : 0));
   }
   for (const char *punctuation = ",.:"; *punctuation; ++punctuation) {
     const JotPrimaryLegendOffset offset =

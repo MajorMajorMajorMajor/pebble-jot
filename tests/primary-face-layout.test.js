@@ -65,8 +65,9 @@ assert.doesNotMatch(numericPainter,/PRIMARY_LEGEND_FONT_OFFSET_Y/);
 assert.doesNotMatch(keys,/\.slot = KEY_LABEL_RIGHT|\.slot = KEY_LABEL_BOTTOM/);
 assert.match(primary, /'q', 'u', 'p', 'b', 'j', 'd', 'g', 'c'/);
 assert.match(primaryHeader, /JotPrimaryLegendOffset jot_primary_face_optical_offset/);
-assert.match(primary, /symbol == 'f' \? -1 : 0/);
-assert.match(primary, /symbol == 'l' \|\| symbol == 'd' \|\| symbol == 'f'/);
+assert.match(primary, /symbol == 'f' \? -2 : 0/);
+assert.match(primary, /symbol == 'f' \? 2/);
+assert.match(primary, /symbol == 'l' \|\| symbol == 'd'/);
 assert.match(docs, /\[Toggle sublabels\]/); // Workbook retains reservation.
 assert.doesNotMatch(touch,/keyboard_window_toggle_primary|keyboard_window_toggle_secondary/);
 assert.doesNotMatch(window,/keyboard_window_toggle_primary|keyboard_window_toggle_secondary/);

@@ -1,3 +1,12 @@
+## Jot 1.15.3 — final f alignment on the ABC face (Emery QA pending)
+
+A third wrist screenshot confirms that the small blue **f** on the
+S key still needs another pixel left and down. Its total optical
+correction is now **(-2, +2) pixels**, relative to the shared compass
+position. The **l** and **d** adjustments stay at **(0, +1)**.
+All other alphabet legends, numeric face labels, key geometry,
+gesture mappings and input behavior remain unchanged.
+
 ## Jot 1.15.2 — final alphabet legend optical nudges (Emery QA pending)
 
 Following the second real-watch screenshot, adjust just three ABC
