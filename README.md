@@ -43,6 +43,36 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
+## Room for a real notebook (v1.9.0 — QA release)
+
+Jot now uses the **up to 1 MiB per-app persistent-storage allowance** on
+current Pebble firmware. Its JOT2 storage format supports **256 note slots**
+and **4,095 UTF-8 bytes per note** (rather than 16 × 159). These are
+independent upper bounds, **not** a guarantee that 256 maximal notes fit
+simultaneously: notes share the firmware's available per-app storage pool,
+which also holds keys, headers, and temporary save copies. Pebble still
+limits each individual persisted value to **256 bytes**, so Jot stores notes
+in chunks. The maximum byte length of a note is not the same as the number
+of Unicode characters.
+
+An edit writes a new bank of chunks and commits its header last; the
+previous committed version remains available if the write fails.
+`SAVE ERROR` signals insufficient persistence space or another write
+failure. Editing a nearly-full store may need spare room for the temporary
+bank. Each new note is allocated only after typing begins; deleting a
+note reclaims its chunks. These changes leave keyboard gestures and the
+pocket-notebook styling untouched.
+
+**QA reset:** v1.9.0 intentionally discards the old JOT1 watch storage,
+which has no migration path. Reinstall/update only with an external backup
+of anything important. Phone backup now transfers large notes in multiple
+UTF-8-safe packets with per-packet acknowledgments; the on-phone snapshot
+is replaced only after every complete note arrives. Backing up near a
+full megabyte over Bluetooth may take time. The existing browser export
+opens backup JSON in a URL fragment; exporting very large snapshots is
+**not yet verified against mobile URL-length limits**. Do not rely on that
+path for restoring a full-capacity archive until hardware tests confirm it.
+
 ## Fine-line key bevels and bolder gold (v1.8.4 — wrist test pending)
 
 The raised-key bevels of 1.8.3 looked pleasing on real Emery but too

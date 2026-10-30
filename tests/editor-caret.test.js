@@ -51,6 +51,6 @@ assert.doesNotMatch(alert, /memmove\(s_text\s*\+/);
 // note store; note storage and the complete keyboard layout aren't touched.
 assert.match(jot, /alert_set_editor\(jot_store_text\(\),\s*jot_store_cursor\(\)/);
 assert.match(header, /void alert_set_editor\(const char \*note, size_t cursor,/);
-assert.match(store, /memcpy\(record\.text,\s*s_text,\s*s_length\s*\+\s*1\)/);
+assert.match(store, /s_text\s*\+\s*offset,\s*chunk/); // Byte-perfect chunk persistence.
 
 console.log('Editor caret overlay architecture checks passed');

@@ -1,8 +1,9 @@
 #pragma once
 #include <pebble.h>
 
-// The editor text may contain a complete 159-byte note and a visible caret.
-enum { ALERT_MAX_LENGTH = 200 };
+// The editor must display the *entire* extended note, without truncation.
+#include "jot/store.h"
+enum { ALERT_MAX_LENGTH = JOT_NOTE_TEXT_BYTES };
 
 // Diagnostic/trace display (retains its independent mode).
 void alert_set_text(const char *new_text);

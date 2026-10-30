@@ -86,7 +86,7 @@ assert.match(paint, /label->key == get_key\(KEY_ENGLISH_MENU\)\s*\?\s*style->lab
 // and a failed persist write never marks the note clean.
 assert.match(body(store, 'int jot_store_active_slot(void)'), /return s_active_slot/);
 assert.match(body(store, 'bool jot_store_flush(void)'), /if \(!s_dirty\) return true/);
-assert.match(body(store, 'bool jot_store_flush(void)'), /if \(written != \(int\)sizeof record\) return false/);
+assert.match(body(store, 'bool jot_store_flush(void)'), /if \(written != \(int\)chunk\) return false/);
 assert.match(body(store, 'bool jot_store_new(void)'), /if \(!jot_store_flush\(\)\) return false/);
 
 console.log('Touch SAVE: commit ordering, rollback, key routing and reader stack verified');

@@ -21,7 +21,7 @@ enum {
   EDITOR_PADDING_LEFT = 18,
   EDITOR_PADDING_RIGHT = 5,
   EDITOR_MARGIN_RULE_X = 10,
-  LAYOUT_MAX_H = 4096,
+  LAYOUT_MAX_H = 16384,
   // Reserve a few real pixels under the font and caret: the text-layout
   // bounds can stop before the bottom of letters such as g, j, p and y.
   EDITOR_DESCENDER_GUARD = 5

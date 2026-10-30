@@ -29,6 +29,37 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
+## JOT2 1 MiB storage architecture (v1.9.0 — QA)
+
+Current Pebble firmware supports up to 1 MiB of per-app persistent data,
+but each `persist_write_data` value remains capped at 256 bytes. Jot
+allocates 256 logical note slots of up to 4095 UTF-8 bytes each. These
+limits share one physical budget; 256 maximally long notes exceed it
+after metadata/transactional overhead. A failed write retains the dirty
+editor and shows SAVE ERROR; it never silently overwrites another note.
+
+Each slot has two versions of 16 × 256-byte data chunks and an independent
+20-byte commit header, using JOT2 magic and a checksum. New chunks are
+written to the inactive bank, then the header is written last and the
+previous bank is garbage-collected. At launch, the newer valid header
+chooses which bank to read. This is a deliberately **breaking QA reset**:
+the old 4100–4115 JOT1 keys are purged; there is no data migration.
+Host storage tests verify short and 4095-byte notes, edit/reopen,
+deletion, write failures, and all 256 slots.
+
+The existing phone companion now transfers text in UTF-8-safe chunks of
+at most 240 bytes, with part indices, a final-part marker and idempotent
+acknowledgments. An END packet commits the snapshot only after each note
+is complete. The existing browser exporter carries serialized backup
+JSON in the URL fragment; full-megabyte snapshots may exceed mobile
+WebView URL limits. This is not yet an established reliable restore path
+for a full archive.
+
+The on-watch reader measurement was widened for long note text. The editor
+uses a full-note buffer and preserves its current caret overlay and
+44px geometry. On-hardware stress and firmware-capacity testing are
+still required.
+
 ## Fine key bevels and saturated Space (v1.8.4 — hardware pending)
 
 A real Emery photo of the 1.8.3 editor confirmed the red notebook rule,
