@@ -46,6 +46,16 @@ int main(void) {
   assert(jot_number_face_pictogram(8,5)==JOT_NUM_PICTO_DOWN);
   assert(jot_number_face_pictogram(7,1)==JOT_NUM_PICTO_NONE);
   assert(jot_number_face_legend(-1,0)==NULL);
+  // No unsupported Unicode boxes or invisible controls in the tiny
+  // font-based legends. Real UTF-8 gesture bindings remain unchanged.
+  for (int key=0;key<9;key++)
+    for (int d=0;d<8;d++) {
+      const char *label=jot_number_face_legend(key,d);
+      if (label) {
+        assert(label[0]>=' ' && label[0]<='~');
+        assert(label[1]=='\0');
+      }
+    }
   // Big zero on the left two-thirds, tappable Space on the right third.
   assert(!jot_number_face_small_space_tap(9,0,149,200));
   assert(jot_number_face_small_space_tap(9,0,150,200));

@@ -11,7 +11,12 @@ The complete original number-face mapping in docs/gesture-map.csv now
 controls compass, return and circular gestures. Mauve legends surround the
 digit faces; cursor movement, Return and Backspace work where the original
 map assigns them. The gold key is split into a visually large 0 and a **small, separately
-tappable Space** area at the bottom right. Direction gestures still operate
+tappable Space** area at the bottom right.
+To avoid empty squares on the actual Pebble font, numeric peripheral
+legends now show only displayable one-character ASCII; built-in
+editor actions use native-drawn 1px pictograms. Canonical Unicode
+swipe outputs are preserved but hidden as legends until a proper
+font/icon replacement is available. Direction gestures still operate
 over the full shared key. Unsupported actions such as Compose have **no
 legend**. Implemented editor commands (caret up/down, Return, Tab,
 Backspace, and Space) use tiny native-drawn pictograms that work on

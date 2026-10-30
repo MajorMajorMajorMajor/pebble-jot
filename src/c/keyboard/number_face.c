@@ -57,9 +57,13 @@ const char *jot_number_face_legend(int key, int direction) {
     return NULL;
   if (jot_number_face_pictogram(key, direction) != JOT_NUM_PICTO_NONE)
     return NULL;
-  // 7 NW is Compose, not implemented. Hide it, do not print a fake "C".
+  // Don't paint multi-byte Unicode punctuation with Gothic 14: many
+  // valid storage glyphs have no Pebble font glyph and display as boxes.
+  // Bindings still insert the exact canonical UTF-8 symbols; their
+  // legends remain absent until we can supply verified pixel-art.
   const char *text = s_bindings[key][s_straight_gestures[direction]];
-  return *text ? text : NULL;
+  return text[0] >= ' ' && text[0] <= '~' && text[1] == '\0' ?
+         text : NULL;
 }
 
 bool jot_number_face_small_space_tap(int key, int gesture,
