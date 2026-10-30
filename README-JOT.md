@@ -1,28 +1,28 @@
-## Numeric keyboard face (v1.12.0 — Emery QA pending)
+## Numeric keyboard face (v1.12.0 — awaiting Emery QA)
 
-Tapping 123 while editing opens the second 4 × 4 face. Every key retains
-the established hitbox, colouring, 1px bevels and press pulse. The left
-column stays SAVE / ABC / Backspace / Return; tapping ABC restores letters.
-The digits 7–9, 4–6, 1–3 now have small mauve glyphs around all eight
-compass positions, matching the numeric rows in docs/gesture-map.csv.
-Every printable mapping from the source, including return swipes and
-circles, is available. Key 9 ↑ moves the caret up, 3 ↓ moves it down,
-1 ↙ performs Backspace, 9 ↗ enters Return and 1 ↘ enters Tab.
-Compose and other unsupported actions remain reserved and unlabelled.
-All supported editor actions have native 1px-drawn icons rather than
-font-dependent Unicode arrows. The bottom gold key contains a large 0
-and a visibly separate smaller Space key: tap the rightmost quarter
-of the screen (in the bottom row) for Space, or elsewhere in the wide
-key for 0. Downward/diagonal-down or CCW inserts Space from either
-part, while East/West keep established cursor movements. ABC remains
-unchanged.
+The 123 keyboard now has its proper 4×4 geometry. Numbers 7–9,
+4–6, and 1–3 fill the nine letter positions. On the bottom row,
+**0 spans exactly two columns** and **Space is a separate ordinary
+one-column key**. No virtual sub-key or tap-zone split is needed.
+The left controls remain Save / ABC / Backspace / Return.
 
-The screen rebuilds one grid on toggle and destroys the previous grid,
-cancelling the old animation timer. Creation failure does not change
-keyboard state. Both faces preserve note text, caret, autosave, storage,
-reader/list flow and physical controls. Only the standard note editor
-activates the numeric face; diagnostic tracing retains the original
-reference mapping. Hardware test pending.
+The numeric face alone uses a cool sea-glass blue-green palette:
+pale cyan number keys, bold dark teal compass legends, a richer
+teal zero and a deep-blue Space key. Pebble's native 1px icon
+drawings represent implemented actions without Unicode missing-glyph
+boxes. The 1px outline and existing touch feedback remain. ABC's
+warm paper-and-gold palette is unchanged.
+
+Numeric print gestures come from docs/gesture-map.csv. Unsupported
+functions are reserved, not advertised: in particular, **Tab is
+not implemented** and its former icon and output are now disabled.
+Supported Return, Backspace, Space and cursor gestures remain.
+On the dedicated Space key, the familiar left/right cursor
+gestures still work. Moving between ABC and 123 keeps the draft
+and caret intact; reader/list and storage are unaffected.
+
+This change needs an on-watch Emery build and contrast/legibility
+test before #27 can be closed.
 
 # Jot — detailed behavior and developer notes
 
