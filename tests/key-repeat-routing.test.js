@@ -12,7 +12,7 @@ assert.match(s, /s_stroke\.active &&|!s_stroke\.active/);
 assert.match(s, /jot_key_repeat_due\(&s_repeat, now_ms\)/);
 assert.match(s, /jot_key_repeat_begin\(&s_repeat,/);
 assert.match(s, /jot_key_repeat_observe\(&s_repeat,/);
-assert.match(s, /prv_stop_repeat\(\);\s*\/\/ Always cancel the repeat stroke/);
+assert.match(s, /prv_stop_repeat\(\);\s*\/\/ Only liftoff ends an active repeat/);
 assert.match(s, /const bool repeated = jot_key_repeat_end\(&s_repeat\)/);
 assert.match(s, /if \(repeated\) break;/);
 assert.match(s, /s_mode != MODE_JOT/);
