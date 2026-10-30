@@ -4,7 +4,31 @@
 
 Jot grew out of the [MessagEase-inspired gesture keyboard experiments](https://github.com/MajorMajorMajorMajor/messagease-test). Its keyboard supports taps, eight-direction swipes, eight directional drag-and-return gestures, and clockwise/counterclockwise circles. Clockwise circles on the letter grid enter digits 1–9 in calculator order; clockwise on Space enters 0.
 
-## Key feedback comparison lab (v1.11.2 — wrist QA pending)
+## Palette-aware key breathing (v1.11.3 — wrist QA pending)
+
+The 1.11.2 comparison revealed that quick touches did not visibly fade:
+its starting RGB colour quantized to the **same** 64-colour palette
+entry as the idle cream fill. Jot now uses **three deliberately distinct
+displayable palette colours** between cream rest and A's warm tan
+pressed endpoint. Each letter key uses the preferred **A fill-only**
+treatment; every 1px border, label, bevel, and touch hitbox stays still.
+
+Touch starts at a visible warm palette step immediately, then **eases IN
+over 70ms** to a darker warm pressed shade while held. Liftoff **eases
+OUT over 180ms**, with a **minimum 60ms visible key state** after a quick
+tap. Three intentional recovery colours replace imperceptible continuous
+RGB interpolation. Charcoal controls keep legible icons; the gold
+Spacebar brightens with its own fixed palette steps. A single 25ms
+timer on the keyboard grid schedules all changes and is cancelled
+when the grid is destroyed.
+
+The previous A/B/C timing and styling matrix remains documented below
+as an experiment, but is no longer active. Host tests cover the
+palette thresholds, perceptible first frame, rising press, monotonic
+falloff, and timer wiring. Evaluate actual feel on Emery before
+closing issue #29.
+
+## Key feedback comparison lab (v1.11.2 — superseded by v1.11.3)
 
 This is an experiment for issue #29; it is **not** the final key feedback.
 All key outlines remain the original 1px charcoal border and the touch

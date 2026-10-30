@@ -31,6 +31,8 @@ struct KeyGrid {
   int touch_index;
   uint8_t level, release_level;
   uint32_t phase_start_ms;
+  uint32_t touch_start_ms;
+  uint16_t release_hold_ms;
   bool releasing;
   AppTimer *pulse_timer; // One timer total; no per-key animation allocs.
 };
@@ -50,7 +52,8 @@ static void prv_cancel_pulse(KeyGrid *grid) {
 }
 
 static void prv_schedule_pulse(KeyGrid *grid) {
-  grid->pulse_timer = app_timer_register(25, prv_pulse_tick, grid);
+  grid->pulse_timer = app_timer_register(
+      KEY_FEEDBACK_FRAME_MS, prv_pulse_tick, grid);
   if (!grid->pulse_timer && grid->pressed_button >= 0) {
     // Animation failure never leaves a key stuck highlighted.
     grid->level = grid->releasing ? 0 : 255;
@@ -67,17 +70,26 @@ static void prv_pulse_tick(void *context) {
   const uint32_t elapsed = prv_clock_ms() - grid->phase_start_ms;
   if (grid->releasing) {
     const uint16_t duration = key_feedback_release_ms(grid->touch_index);
-    const uint8_t progress = key_feedback_ease(elapsed, duration);
+    // Short taps get a minimum visible dwell rather than blinking off.
+    const uint32_t fade_ms = elapsed < grid->release_hold_ms ?
+                             0 : elapsed - grid->release_hold_ms;
+    const uint8_t progress = key_feedback_ease(fade_ms, duration);
     grid->level = (uint16_t)grid->release_level * (255 - progress) / 255;
   } else {
-    const uint8_t progress = key_feedback_ease(elapsed, 50);
-    grid->level = 144 + (uint16_t)111 * progress / 255;
+    // Ease IN while held. Every stage is a deliberately different palette
+    // colour; no intermediate computed RGB value can collapse to rest.
+    const uint8_t progress = key_feedback_ease(elapsed,
+                                               KEY_FEEDBACK_PRESS_MS);
+    grid->level = KEY_FEEDBACK_INITIAL_LEVEL +
+       (uint16_t)(255 - KEY_FEEDBACK_INITIAL_LEVEL) * progress / 255;
   }
   key_button_set_feedback_level(
       grid->buttons[grid->pressed_button], grid->level);
-  if (grid->releasing && elapsed >= key_feedback_release_ms(grid->touch_index)) {
+  if (grid->releasing &&
+      elapsed >= grid->release_hold_ms +
+                 key_feedback_release_ms(grid->touch_index)) {
     grid->pressed_button = -1;
-  } else if (!grid->releasing && elapsed >= 50) {
+  } else if (!grid->releasing && elapsed >= KEY_FEEDBACK_PRESS_MS) {
     // Remain lit until liftoff without running an idle timer.
   } else {
     prv_schedule_pulse(grid);
@@ -222,7 +234,9 @@ void key_grid_highlight_touch_key(KeyGrid *grid, int touch_index) {
   grid->touch_index = touch_index;
   grid->releasing = false;
   grid->phase_start_ms = prv_clock_ms();
-  grid->level = target < 0 ? 0 : 144; // Visible on Pebble's 64-color palette.
+  grid->touch_start_ms = grid->phase_start_ms;
+  grid->level = target < 0 ? 0 : KEY_FEEDBACK_INITIAL_LEVEL;
+  // Stage 2 is visible on the first rendered frame, even on quick taps.
   if (target >= 0) {
     key_button_set_feedback_level(grid->buttons[target], grid->level);
     prv_schedule_pulse(grid);
@@ -232,8 +246,19 @@ void key_grid_highlight_touch_key(KeyGrid *grid, int touch_index) {
 void key_grid_release_touch_key(KeyGrid *grid) {
   if (!grid || grid->pressed_button < 0 || grid->releasing) return;
   prv_cancel_pulse(grid);
+  const uint32_t now_ms = prv_clock_ms();
+  const uint32_t held_ms = now_ms - grid->touch_start_ms;
+  // Compute the press phase at liftoff, even if the 25ms timer has not
+  // fired yet. Never rewind the highlight when beginning the fade.
+  const uint8_t progress = key_feedback_ease(
+      held_ms, KEY_FEEDBACK_PRESS_MS);
+  const uint8_t at_release = KEY_FEEDBACK_INITIAL_LEVEL +
+      (uint16_t)(255 - KEY_FEEDBACK_INITIAL_LEVEL) * progress / 255;
+  if (at_release > grid->level) grid->level = at_release;
   grid->release_level = grid->level;
-  grid->phase_start_ms = prv_clock_ms();
+  grid->release_hold_ms = held_ms < KEY_FEEDBACK_MIN_VISIBLE_MS ?
+      KEY_FEEDBACK_MIN_VISIBLE_MS - held_ms : 0;
+  grid->phase_start_ms = now_ms;
   grid->releasing = true;
   prv_schedule_pulse(grid);
 }

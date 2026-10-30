@@ -8,6 +8,7 @@
 #include "ui/font.h"
 #include "ui/style.h"
 #include "ui/key_button.h"
+#include "ui/key_feedback_curve.h"
 
 typedef struct KeyButtonLayer KeyButtonLayer;
 
@@ -200,18 +201,7 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
       graphics_context_set_text_color(ctx, text_color);
       graphics_draw_text(ctx, key_label->text, text_font, text_frame,
                          text_overflow_mode, text_alignment, NULL);
-      // B: middle-row letters reinforce the main glyph very slightly.
-      // This keeps the hitbox fixed; only the visible stroke gains weight.
-      const Key *k = label->key;
-      const bool middle = k == get_key(KEY_ENGLISH_H) ||
-                          k == get_key(KEY_ENGLISH_O) ||
-                          k == get_key(KEY_ENGLISH_R);
-      if (middle && key_label->slot == KEY_LABEL_CENTER &&
-          label->owner->feedback_level >= 128) {
-        text_frame.origin.x += 1;
-        graphics_draw_text(ctx, key_label->text, text_font, text_frame,
-                           text_overflow_mode, text_alignment, NULL);
-      }
+      // Labels never move or change weight during an A-style fill pulse.
     }
   }
 }
@@ -266,7 +256,7 @@ static void prv_label_destroy(KeyLabelLayer *label) {
 // around the upper corners, including the top-right shoulder. The lower
 // bevel is reserved for light keys and follows both bottom corners.
 static void prv_draw_key_bevel(GContext *ctx, GRect face, bool special,
-                               bool space, bool bottom, uint8_t level) {
+                               bool space) {
   const int x0 = face.origin.x + 1;
   const int y0 = face.origin.y + 1;
   const int x1 = face.origin.x + face.size.w - 2;
@@ -276,8 +266,7 @@ static void prv_draw_key_bevel(GContext *ctx, GRect face, bool special,
                                     GColorWhite;
 
   graphics_context_set_stroke_width(ctx, 1);
-  graphics_context_set_stroke_color(ctx,
-      bottom && level >= 128 ? GColorFromRGB(190, 170, 120) : highlight);
+  graphics_context_set_stroke_color(ctx, highlight);
 
   // Left edge -> rounded upper-left -> full top -> rounded upper-right.
   graphics_draw_line(ctx, GPoint(x0, y1 - 6), GPoint(x0, y0 + 5));
@@ -293,7 +282,6 @@ static void prv_draw_key_bevel(GContext *ctx, GRect face, bool special,
     // Subtle lower/right-side ink bevel, also exactly one pixel thick.
     graphics_context_set_stroke_color(ctx,
         space ? GColorFromRGB(194, 127, 0) :
-        bottom && level >= 128 ? GColorFromRGB(119, 105, 76) :
                 GColorFromRGB(177, 147, 96));
     graphics_draw_line(ctx, GPoint(x0, y1 - 5), GPoint(x0 + 1, y1 - 3));
     graphics_draw_line(ctx, GPoint(x0 + 1, y1 - 3),
@@ -307,9 +295,29 @@ static void prv_draw_key_bevel(GContext *ctx, GRect face, bool special,
   }
 }
 
-static uint8_t prv_blend(uint8_t a, uint8_t b, uint8_t level) {
-  return (uint8_t)(((uint16_t)a * (255 - level) +
-                    (uint16_t)b * level + 127) / 255);
+// 64-colour Pebble palette: each displayed RGB channel has only four
+// levels (0/85/170/255). No computed RGB interpolation, so each step
+// is a genuinely different on-device colour. All letter keys use the
+// owner's preferred A (fill-only) treatment.
+static GColor prv_feedback_fill(bool special, bool space,
+                                uint8_t intensity, const UIStyle *style) {
+  const uint8_t step = key_feedback_palette_step(intensity);
+  if (!step) return special ? GColorFromRGB(41, 40, 43) :
+                      space ? GColorFromRGB(255, 196, 0) :
+                              style->key_background_color;
+  if (special) {
+    // Keep pale control glyphs readable, even at maximum highlight.
+    return GColorFromRGB(85, 85, 85);
+  }
+  if (space) {
+    return step == 1 ? GColorFromRGB(255, 170, 0) :
+           step == 2 ? GColorFromRGB(255, 255, 0) :
+                       GColorFromRGB(255, 255, 85);
+  }
+  // Warm cream -> pale peach -> honey -> tan (A's original endpoint).
+  return step == 1 ? GColorFromRGB(255, 170, 170) :
+         step == 2 ? GColorFromRGB(255, 170, 85) :
+                     GColorFromRGB(170, 170, 85);
 }
 
 static void prv_draw_key_background (Layer *layer, GContext *ctx){
@@ -326,43 +334,19 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   const int h = bounds.size.h;
   const GColor charcoal = GColorFromRGB(41, 40, 43);
   const uint8_t level = button->feedback_level;
-  const bool middle = button->key == get_key(KEY_ENGLISH_H) ||
-                      button->key == get_key(KEY_ENGLISH_O) ||
-                      button->key == get_key(KEY_ENGLISH_R);
-  const bool bottom = button->key == get_key(KEY_ENGLISH_T) ||
-                      button->key == get_key(KEY_ENGLISH_E) ||
-                      button->key == get_key(KEY_ENGLISH_S);
 
   // One-pixel ink outline and flush 1px inner bevel follow the rounded
   // face. All painting stays within the same unchanged 4x4 touch cell.
   const GRect face = GRect(2, 1, w - 4, h - 3);
-  // All feedback is inside the ORIGINAL 1px border. Base palette is
-  // deliberately preserved at level zero. Pebble's limited RGB palette
-  // quantizes the intermediate steps, which makes this an A/B wrist test.
-  uint8_t r0 = special ? 41 : 255;
-  uint8_t g0 = special ? 40 : space ? 196 : 238;
-  uint8_t b0 = special ? 43 : space ? 0 : 190;
-  // A/top: understated fill. B/middle: stronger fill + glyph weight.
-  // C/bottom: fill + softened bevel. D/dark: lighter charcoal.
-  // E/Space: brighter gold.
-  const uint8_t r1 = special ? 125 : space ? 255 :
-                     middle ? 176 : bottom ? 198 : 215;
-  const uint8_t g1 = special ? 123 : space ? 240 :
-                     middle ? 145 : bottom ? 161 : 177;
-  const uint8_t b1 = special ? 127 : space ? 95 :
-                     middle ? 89 : bottom ? 102 : 108;
-  graphics_context_set_fill_color(ctx, level ?
-      GColorFromRGB(prv_blend(r0, r1, level),
-                    prv_blend(g0, g1, level),
-                    prv_blend(b0, b1, level)) :
-      special ? charcoal :
-      space ? GColorFromRGB(255, 196, 0) : style->key_background_color);
+  // The unchanged face and 1px outline frame the stepped A-style fill.
+  graphics_context_set_fill_color(ctx,
+      prv_feedback_fill(special, space, level, style));
   graphics_fill_rect(ctx, face, style->key_corner_radius, GCornersAll);
   // The original ink outline is ALWAYS the same, regardless of the pulse.
   graphics_context_set_stroke_color(ctx, style->key_outline_color);
   graphics_context_set_stroke_width(ctx, 1);
   graphics_draw_round_rect(ctx, face, style->key_corner_radius);
-  prv_draw_key_bevel(ctx, face, special, space, bottom, level);
+  prv_draw_key_bevel(ctx, face, special, space);
 }
 
 KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *style) {
@@ -425,15 +409,15 @@ KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *st
 void key_button_set_feedback_level(KeyButtonLayer *button, uint8_t level) {
   if (!button || button->feedback_level == level) return;
   button->feedback_level = level;
-  // Only repaint this key. Middle-row glyph weight follows the level.
+  // Only repaint the key face; the labels and border never pulse.
   if (button->base_layer) layer_mark_dirty(button->base_layer);
-  if (button->key == get_key(KEY_ENGLISH_H) ||
-      button->key == get_key(KEY_ENGLISH_O) ||
-      button->key == get_key(KEY_ENGLISH_R)) {
+  // Control icons may also need repainting to preserve their contrast.
+  if (button->key == get_key(KEY_ENGLISH_MENU) ||
+      button->key == get_key(KEY_ENGLISH_BACKSPACE) ||
+      button->key == get_key(KEY_ENGLISH_RETURN))
     for (int i = 0; i < KEY_LABEL_COUNT; ++i)
       if (button->label_layers[i])
         layer_mark_dirty(button->label_layers[i]->layer);
-  }
 }
 
 void key_button_destroy(KeyButtonLayer *button){  
