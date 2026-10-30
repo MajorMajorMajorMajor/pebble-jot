@@ -11,7 +11,7 @@ All key outlines remain the original 1px charcoal border and the touch
 targets and recognizer timing are unchanged. One 25ms timer animates
 the touched key only, with a 50ms ease-in and an eased falloff after
 release (no inertia, no key motion). Quick taps still get an immediate
-64/255-strength visual acknowledgement. A later touch cancels the old
+144/255-strength visual acknowledgement, visible on the 64-color screen. A later touch cancels the old
 animation; leaving the keyboard destroys the timer safely.
 
 Compare two dimensions independently:

@@ -71,7 +71,7 @@ static void prv_pulse_tick(void *context) {
     grid->level = (uint16_t)grid->release_level * (255 - progress) / 255;
   } else {
     const uint8_t progress = key_feedback_ease(elapsed, 50);
-    grid->level = 64 + (uint16_t)191 * progress / 255;
+    grid->level = 144 + (uint16_t)111 * progress / 255;
   }
   key_button_set_feedback_level(
       grid->buttons[grid->pressed_button], grid->level);
@@ -222,7 +222,7 @@ void key_grid_highlight_touch_key(KeyGrid *grid, int touch_index) {
   grid->touch_index = touch_index;
   grid->releasing = false;
   grid->phase_start_ms = prv_clock_ms();
-  grid->level = target < 0 ? 0 : 64; // Immediate tactile acknowledgement.
+  grid->level = target < 0 ? 0 : 144; // Visible on Pebble's 64-color palette.
   if (target >= 0) {
     key_button_set_feedback_level(grid->buttons[target], grid->level);
     prv_schedule_pulse(grid);

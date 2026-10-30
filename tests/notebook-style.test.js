@@ -31,7 +31,7 @@ assert.match(touch, /s_touch_key == 13 && gesture_index == 0/);
 assert.doesNotMatch(key, /const GRect shadow\s*=/);
 assert.match(key, /const GRect face = GRect\(2,\s*1,\s*w - 4,\s*h - 3\)/);
 assert.match(key, /static void prv_draw_key_bevel\(/);
-assert.match(key, /prv_draw_key_bevel\(ctx, face, special, space\)/);
+assert.match(key, /prv_draw_key_bevel\(ctx, face, special, space, bottom, level\)/);
 assert.match(key, /graphics_context_set_stroke_color\(ctx, highlight\)/);
 assert.match(key, /graphics_context_set_stroke_width\(ctx, 1\)/);
 assert.doesNotMatch(key, /graphics_context_set_stroke_width\(ctx, 2\)/);
