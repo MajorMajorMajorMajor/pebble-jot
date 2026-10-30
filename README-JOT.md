@@ -397,7 +397,7 @@ must still be tested on Emery. See
 
 ## Forward deletion (v1.5.4 — awaiting watch verification)
 
-The original English-LH keyboard map assigns Backspace **NE/E/SE/S** to delete the Unicode codepoint immediately *after* the cursor. This is now implemented in Jot mode, without changing the diagnostic keyboard's legacy binding table. The existing backward-delete bindings are unchanged. Forward delete preserves the caret offset, joins lines when deleting a newline, and is a no-op at end of note (no new dirty state or autosave timer). It is safe to delete a character in a full 159-byte note and then insert another. Host regressions cover UTF-8, line joins, persistence, full notes and end-of-text.
+The original English-LH keyboard map assigns Backspace **NE/E/SE/S** to delete the Unicode codepoint immediately *after* the cursor. This is now implemented in Jot mode, without changing the diagnostic keyboard's legacy binding table. The existing backward-delete bindings are unchanged. Forward delete preserves the caret offset, joins lines when deleting a newline, and is a no-op at end of note (no new dirty state or autosave timer). It is safe to delete a character in a full note and then insert another (the limit is now 4,095 bytes). Host regressions cover UTF-8, line joins, persistence, full notes and end-of-text.
 
 The keyboard layout, touch thresholds, stored-note records, and reader are unchanged. Real Emery gesture testing is still needed before [issue #15](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/15) is closed.
 
@@ -512,7 +512,7 @@ All saved-note keys and record structures are unchanged. Issues #1, #8, and
 
 ## Persistence and limitations
 
-The app stores notes in Pebble's per-app persistent storage, currently capped at **16 notes** of **159 UTF-8 bytes** each. A note's byte count may differ from its character count. The app refuses to allocate a seventeenth note instead of silently overwriting existing notes.
+The app stores notes in Pebble's per-app persistent storage. As of v1.9.0 it supports **256 note slots** and **4,095 UTF-8 bytes per note**, shared within the firmware's **up to 1 MB** storage budget. A note's byte count may differ from its character count. It refuses to allocate a 257th note rather than silently overwriting existing notes. The earlier JOT1 format allowed only 16 × 159 bytes.
 
 A pending edit is indicated by a small `*` at the top right of the input strip. Autosave fires approximately 1.8 seconds after the last edit, and saves are also attempted at navigation boundaries. `SAVE ERROR` means a write was not accepted; do not assume the affected note is safely stored. `FULL` means a character was rejected because the note is at capacity. Note order is newest-first.
 
@@ -544,7 +544,7 @@ Selecting a saved note now opens its **full text** on a cream paper screen with 
 
 Press **Select** to open that note for editing with the existing keyboard, or **Back** to return to the list at the same selection. If a note cannot be read or opened, Jot remains on the list or reader and shows a failure indicator. Touchscreen typing is ignored while the reader is on screen.
 
-This installment **does not** change the 159-byte note limit, storage format, keyboard geometry or gesture classifier. The reader has now been demonstrated on real Pebble hardware; the enlarged body font and draft peek are the next on-watch test.
+At the time, this installment **did not** change the then-159-byte note limit, storage format, keyboard geometry or gesture classifier. The storage format and limit were subsequently expanded in v1.9.0. The reader has now been demonstrated on real Pebble hardware; the enlarged body font and draft peek are the next on-watch test.
 
 ## Multiline editing preview (v1.4)
 

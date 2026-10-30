@@ -8,7 +8,7 @@ Jot grew out of the [MessagEase-inspired gesture keyboard experiments](https://g
 
 **Early working prototype.** Jot has been built and photographed running on a real Pebble, with live text entry and a notes list visible on-device. This does **not** yet establish comprehensive verification of persistence, deletion, or every gesture on all hardware. The app currently targets **emery (Pebble Time 2)**.
 
-Notes remain on the watch. Jot v0.2 adds an **experimental manual phone backup** over Bluetooth. This is not continuous sync, and the copy in the Pebble phone companion is not yet a durable external backup; **do not store irreplaceable information** until you've copied the notes to another location. Uninstalling Jot may remove its local notes.
+Notes remain on the watch. Jot includes an **experimental manual phone backup** over Bluetooth. This is not continuous sync, and the copy in the Pebble phone companion is not yet a durable external backup; **do not store irreplaceable information** until you've copied the notes to another location. Uninstalling Jot may remove its local notes.
 
 ## Using Jot
 
@@ -276,7 +276,7 @@ Jot 1.3 adds **tap-to-peek** from the text strip above the keyboard. The preview
 
 **Jot 1.4 introduces a true multiline editing preview.** The 40-pixel text strip now displays the actual note with word wrapping and line breaks, scrolling automatically to keep the last line and its `|` caret in view. A newline moves that caret onto a fresh line; backspace removes the newline as usual. The status badge appears only when necessary. This first pass enabled multiline writing; **Jot 1.5 introduces cursor editing** through six controls already assigned in the original gesture-map spreadsheet: Space left/right moves by one UTF-8 character; I up / S down moves between explicit newline-separated lines; I up-and-return / S down-and-return jumps to the start or end of the note. Text insertion and backspace now operate at the cursor, and the tiny editor viewport follows it. **Jot 1.5.1 replaces the printable `|` caret with a separate, single-pixel overlay:** moving the cursor no longer pushes the surrounding characters sideways, and a literal `|` typed into a note remains distinct. Pebble's font-layout measurements position the caret without changing note contents. **Jot 1.5.2** extended the caret to the font's descenders and added bottom-edge clearance. **Jot 1.5.3** fixes a separate issue: the caret could land far to the right of text that had wrapped onto the next line. Its new visual-line layout helper follows actual word breaks from the beginning instead of measuring a backward-fitting suffix. **Jot 1.5.4 adds forward delete:** swipe NE, E, SE or S on Backspace to erase the character *after* the caret. Other Backspace gestures still erase backward. Word-wrapped Up/Down *cursor navigation* and touch-to-place-cursor remain future refinements.
 
-The keyboard's layout, recognizer thresholds, note storage format and 159-byte limit remain unchanged. See the [complete readable gesture map](docs/gesture-map.md) and its [CSV source](docs/gesture-map.csv). This map records original design intent—including commands not yet implemented—not a list of features currently working on a watch.
+At the time of that keyboard-mapping change, its layout, recognizer thresholds, and the then-current 159-byte limit were unchanged. See the [complete readable gesture map](docs/gesture-map.md) and its [CSV source](docs/gesture-map.csv). This map records original design intent—including commands not yet implemented—not a list of features currently working on a watch.
 
 ## Export notes to your phone (v0.2)
 
@@ -292,7 +292,7 @@ See [README-JOT.md](README-JOT.md) for detailed limits and failure handling. Thi
 
 The current storage model is intentionally bounded:
 
-- Up to **16 notes**, each containing **159 UTF-8 bytes** of text (not necessarily 159 characters).
+- Up to **256 notes**, each containing up to **4,095 UTF-8 bytes** of text (not necessarily 4,095 characters); all notes share the available 1 MB storage budget.
 - Notes are timestamped and displayed newest first.
 - When full, Jot refuses new notes rather than overwriting existing ones.
 - Notes live in Pebble's local persistent storage; phone backup is manual and does not delete on-watch notes.
