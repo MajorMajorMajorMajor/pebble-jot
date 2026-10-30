@@ -43,6 +43,38 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
+## Reader reflow, edit-return controls and full-width Delete (v1.10.5 — Emery QA pending)
+
+Emery QA confirmed the native ActionBar does **not** actually blend the
+requested alpha background with the reader, so the bar is opaque again.
+When the saved reader enters review mode, its paper and clipped viewport
+reduce width by the SDK's `ACTION_BAR_WIDTH` (34px on Emery), and the
+TextLayer wraps its contents inside the remaining width rather than
+disappearing beneath the right-side strip. The timestamp, header note
+counter and footer hint stay out of the native bar too. The width only
+changes on opening/closing the bar: switching between browsing,
+Delete and armed confirmation does not trigger further reflow.
+Long-note touch hit detection uses the narrower viewport while active.
+
+Delete mode now paints the **entire middle third** of the native bar
+red, with the stock trash / check glyph centred on it. This is a
+visual A/B experiment versus the previous small red badge; the native
+top and bottom sections stay charcoal. All two-press delete/cancel
+behaviour is unchanged.
+
+A critical lifecycle bug is fixed: when the native bar is removed during
+the transition into editing, PebbleOS clears the persistent reader
+Window's click provider. On the next reader load/push, Jot now explicitly
+re-registers its own handlers. This restores physical Up, Down, Select
+and Back after returning from edit; the touch Back button continues to
+close the action bar on its first tap. The header always says NOTES for
+saved readers (EDIT for draft Peek), never CLOSE.
+
+**On-watch regression:** open review on a long note, confirm wrapping
+and header/count visibility, browse and scroll, enter editing, return to
+reader and verify all physical controls and tap Back. Test arm/cancel,
+delete, and compare the full-third red panel to the smaller red tile.
+
 ## Native action bar alpha experiment (v1.10.4 — Emery QA pending)
 
 This is intentionally a **one-commit, hardware-testable experiment**,

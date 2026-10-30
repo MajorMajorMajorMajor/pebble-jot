@@ -39,6 +39,16 @@ int main(void) {
   assert(jot_reader_review_select(NULL) == JOT_REVIEW_NONE);
   assert(!jot_reader_review_back(NULL));
 
+  // The only width transition is bar opening/closing, not Delete/Confirm.
+  assert(jot_reader_review_paper_width(200, false, 34) == 200);
+  assert(jot_reader_review_paper_width(200, true, 34) == 166);
+  assert(jot_reader_review_paper_width(200, true, 34) ==
+         jot_reader_review_paper_width(200, true, 34));
+  assert(jot_reader_review_paper_width(200, true, 0) == 200);
+  assert(jot_reader_review_paper_width(200, false, 200) == 200);
+  assert(jot_reader_review_paper_width(20, true, 34) == 1);
+  assert(jot_reader_review_paper_width(0, true, 34) == 0);
+
   // In newest-first order Up = newer; Down = older. Stop at both ends.
   assert(jot_reader_review_next_rank(4, 20, -1) == 3);
   assert(jot_reader_review_next_rank(4, 20, 1) == 5);

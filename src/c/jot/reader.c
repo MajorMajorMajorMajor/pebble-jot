@@ -19,7 +19,7 @@ static Layer *s_chrome;
 static ActionBarLayer *s_action_bar; // Native PebbleOS control.
 static bool s_action_bar_attached;
 static Layer *s_nub; // Solid collapsed-side affordance.
-static Layer *s_danger_badge; // Red *only* behind the centre danger icon.
+static Layer *s_danger_badge; // Full red middle-third experiment.
 enum { ICON_UP, ICON_DOWN, ICON_PENCIL, ICON_TRASH, ICON_CHECK, ICON_X, ICON_COUNT };
 static GBitmap *s_icons[ICON_COUNT];
 static const uint32_t s_icon_ids[ICON_COUNT] = {
@@ -28,6 +28,8 @@ static const uint32_t s_icon_ids[ICON_COUNT] = {
   RESOURCE_ID_JOT_ACTION_CHECK, RESOURCE_ID_JOT_ACTION_X
 };
 static void prv_reader_clicks(void *context);
+static void prv_measure_text(void);
+static void prv_reflow_page(void);
 static Layer *s_paper;
 static Layer *s_viewport;
 static TextLayer *s_text_layer;
@@ -46,13 +48,9 @@ static GColor prv_ink(void) { return GColorFromRGB(41, 40, 43); }
 static GColor prv_yellow(void) { return GColorFromRGB(255, 209, 88); }
 static GColor prv_paper(void) { return GColorFromRGB(249, 242, 219); }
 
-// Alpha-only experiment (v1.10.4): GColor8 has two bits of alpha on
-// Emery. 170/255 requests approximately 2/3 opacity. Whether the native
-// ActionBar actually composites it against the reader is hardware QA.
-// Revert this commit to restore the stable opaque-bar baseline.
-static GColor prv_action_bar_background(void) {
-  return GColorFromRGBA(41, 40, 43, 170);
-}
+// Emery QA proved ActionBarLayer doesn't blend its background with the
+// reader underneath. Keep the native bar opaque and reflow the page instead.
+static GColor prv_action_bar_background(void) { return prv_ink(); }
 
 bool jot_reader_is_open(void) {
   return s_window && window_stack_get_top_window() == s_window;
@@ -101,6 +99,9 @@ static void prv_mark_review(void) {
     }
   }
   if (s_danger_badge) layer_mark_dirty(s_danger_badge);
+  // Only the opening/closing of the review bar changes page width.
+  // Toggling Delete/Confirm doesn't produce another text jump.
+  prv_reflow_page();
   if (s_chrome) layer_mark_dirty(s_chrome);
 }
 
@@ -155,10 +156,11 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
   graphics_context_set_text_color(ctx, prv_ink());
   // Context label tells the user where the header Back action goes.
   // A normal saved note returns to NOTES; a temporary draft peek to EDIT.
-  graphics_draw_text(ctx, s_is_peek ? "EDIT" :
-                             s_review.open ? "CLOSE" : "NOTES",
+  const int usable_width = width -
+      (s_review.open && !s_is_peek ? ACTION_BAR_WIDTH : 0);
+  graphics_draw_text(ctx, s_is_peek ? "EDIT" : "NOTES",
                      fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                     GRect(44, 7, width - 44 - 73, 27),
+                     GRect(44, 7, usable_width - 44 - 73, 27),
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentLeft, NULL);
 
@@ -166,11 +168,11 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
   if (s_is_peek) snprintf(count, sizeof count, "DRAFT");
   else snprintf(count, sizeof count, "%d / %d", s_rank + 1, s_total);
   graphics_context_set_fill_color(ctx, prv_ink());
-  graphics_fill_rect(ctx, GRect(width - 67, 8, 59, 25), 5, GCornersAll);
+  graphics_fill_rect(ctx, GRect(usable_width - 67, 8, 59, 25), 5, GCornersAll);
   graphics_context_set_text_color(ctx, prv_yellow());
   graphics_draw_text(ctx, count,
                      fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-                     GRect(width - 65, 11, 55, 20),
+                     GRect(usable_width - 65, 11, 55, 20),
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentCenter, NULL);
 
@@ -187,12 +189,13 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
                      s_is_peek ? (s_scroll_max ? "DRAG scroll  TAP return" :
                                                  "TAP to return to typing") :
                      s_review.armed ? "SEL confirm  DN cancel" :
-                     s_review.open ? "UP/DN notes  SEL action" :
+                     s_review.open ? "UP/DN notes" :
                      s_scroll_max ? "DRAG scroll  SEL menu" :
                                     "TAP text  SEL menu";
   graphics_draw_text(ctx, hint,
                      fonts_get_system_font(FONT_KEY_GOTHIC_14),
-                     GRect(5, footer_y + 5, width - 10, READER_FOOTER_H - 8),
+                     GRect(5, footer_y + 5, usable_width - 10,
+                           READER_FOOTER_H - 8),
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentCenter, NULL);
 }
@@ -211,17 +214,18 @@ static void prv_draw_nub(Layer *layer, GContext *ctx) {
       GPoint(bounds.size.w + 14, bounds.size.h / 2), 20);
 }
 
-// A localized red focus mark drawn above the standard ActionBar content.
-// The SDK accepts only one global background color per ActionBar, so an
-// overlay on its own Layer is needed for a per-action danger treatment.
+// A full middle-third red tile over the native ActionBar: SDK supports
+// only one bar-wide background color. The other two thirds stay charcoal.
+// Keep the native button action handlers, icon placement and highlighting.
 static void prv_draw_danger_badge(Layer *layer, GContext *ctx) {
   if (!s_review.open || !s_review.delete_mode) return;
   const GRect bounds = layer_get_bounds(layer);
   const GBitmap *icon = s_review.armed ? s_icons[ICON_CHECK] : s_icons[ICON_TRASH];
-  const GRect focus = GRect((bounds.size.w - 26) / 2,
-                             bounds.size.h / 2 - 13, 26, 26);
+  const int top = bounds.size.h / 3;
+  const int bottom = (bounds.size.h * 2) / 3;
+  const GRect focus = GRect(0, top, bounds.size.w, bottom - top);
   graphics_context_set_fill_color(ctx, GColorFromRGB(204, 42, 46));
-  graphics_fill_rect(ctx, focus, 6, GCornersAll);
+  graphics_fill_rect(ctx, focus, 0, GCornerNone);
   if (!icon) return;
   const GRect bitmap = gbitmap_get_bounds(icon);
   const GRect dest = GRect((bounds.size.w - bitmap.size.w) / 2,
@@ -277,7 +281,7 @@ static void prv_update_scroll(void) {
 }
 
 static void prv_measure_text(void) {
-  if (!s_text_layer || !s_viewport) return;
+  if (!s_text_layer || !s_viewport || !s_note) return;
   const GRect area = layer_get_bounds(s_viewport);
   const int width = area.size.w - 2 * READER_TEXT_PADDING;
   const GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
@@ -294,6 +298,23 @@ static void prv_measure_text(void) {
   prv_update_scroll();
 }
 
+static void prv_reflow_page(void) {
+  if (!s_window || !s_paper || !s_viewport) return;
+  const GRect screen = layer_get_bounds(window_get_root_layer(s_window));
+  const int width = jot_reader_review_paper_width(
+      screen.size.w, s_review.open && !s_is_peek, ACTION_BAR_WIDTH);
+  // Only remeasure when opening or closing the action bar; navigation,
+  // red Delete and armed confirmation all keep the same wrap width.
+  if (layer_get_bounds(s_viewport).size.w == width) return;
+  const int paper_height =
+      screen.size.h - READER_HEADER_H - READER_FOOTER_H;
+  layer_set_frame(s_paper, GRect(0, READER_HEADER_H, width, paper_height));
+  layer_set_frame(s_viewport,
+                  GRect(0, READER_META_H, width,
+                        paper_height - READER_META_H));
+  layer_mark_dirty(s_paper);
+  prv_measure_text(); // Re-wrap, recompute scroll limit, clamp scroll.
+}
 
 static void prv_update_rank(int rank) {
   // Changing notes is a read-only preview. Load into a temporary buffer
@@ -414,7 +435,7 @@ JotReaderTouchLayout jot_reader_touch_layout(void) {
   if (!jot_reader_is_open() || !s_chrome || !s_viewport || !s_text_layer)
     return layout;
   const GRect bounds = layer_get_bounds(s_chrome);
-  layout.screen_width = bounds.size.w;
+  layout.screen_width = layer_get_bounds(s_viewport).size.w;
   layout.screen_height = bounds.size.h;
   layout.text_height = s_text_height;
   layout.scroll_y = s_scroll;
@@ -482,6 +503,9 @@ static void prv_reader_clicks(void *context) {
 }
 
 static void prv_reader_load(Window *window) {
+  // ActionBarLayer removal clears the Window's click provider. This
+  // persistent Window is reused after editing: re-register on EVERY load.
+  window_set_click_config_provider(window, prv_reader_clicks);
   const GRect bounds = layer_get_bounds(window_get_root_layer(window));
   const int width = bounds.size.w;
   const int paper_h = bounds.size.h - READER_HEADER_H - READER_FOOTER_H;
@@ -554,6 +578,9 @@ static void prv_reader_unload(Window *window) {
   if (s_action_bar_attached && s_action_bar)
     action_bar_layer_remove_from_window(s_action_bar);
   s_action_bar_attached = false;
+  // The SDK removes the window click provider with the native bar;
+  // don't leave that NULL when editing returns to this same Window.
+  window_set_click_config_provider(window, prv_reader_clicks);
   if (s_action_bar) action_bar_layer_destroy(s_action_bar);
   s_action_bar = NULL;
   for (int i = 0; i < ICON_COUNT; ++i) {
@@ -624,6 +651,9 @@ bool jot_reader_show(int slot, int rank, int total) {
   s_scroll_max = 0;
   s_open_error = false;
 
+  // Also restore immediately before re-pushing the reused reader Window,
+  // even if its previous animated unload has already cleared the provider.
+  window_set_click_config_provider(s_window, prv_reader_clicks);
   window_stack_push(s_window, true);
   // If any layer allocation failed, avoid trapping users in a blank reader.
   if (!s_chrome || !s_paper || !s_viewport || !s_text_layer) {
@@ -652,6 +682,7 @@ bool jot_reader_peek(void) {
   s_is_peek = true;
   jot_reader_review_reset(&s_review);
   s_review_message = NULL;
+  window_set_click_config_provider(s_window, prv_reader_clicks);
   window_stack_push(s_window, true);
   if (!s_chrome || !s_paper || !s_viewport || !s_text_layer) {
     window_stack_pop(false);

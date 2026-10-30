@@ -84,7 +84,7 @@ assert.ok(sharedEdit.indexOf('if (!jot_reader_edit(s_slot))') <
           sharedEdit.indexOf('window_stack_pop(true)'),
           'only successful saved-note opens may leave the reader');
 const touchLayout = functionBody(reader, 'JotReaderTouchLayout jot_reader_touch_layout(void)');
-assert.match(touchLayout, /layout\.screen_width\s*=\s*bounds\.size\.w/);
+assert.match(touchLayout, /layout\.screen_width\s*=\s*layer_get_bounds\(s_viewport\)\.size\.w/);
 assert.match(touchLayout, /layout\.screen_height\s*=\s*bounds\.size\.h/);
 assert.match(touchLayout, /layout\.text_height\s*=\s*s_text_height/);
 assert.match(touchLayout, /layout\.scroll_y\s*=\s*s_scroll/);
@@ -93,6 +93,13 @@ const readerDrag = functionBody(reader, 'void jot_reader_drag(int16_t finger_del
 assert.match(readerDrag, /jot_reader_is_open\(\)/);
 assert.match(readerDrag, /jot_reader_touch_scroll_after_drag\(/);
 assert.match(readerDrag, /prv_update_scroll\(\)/);
+const reflow = functionBody(reader, 'static void prv_reflow_page(void)');
+assert.match(reflow, /jot_reader_review_paper_width\(/);
+assert.match(reflow, /layer_set_frame\(s_paper,/);
+assert.match(reflow, /layer_set_frame\(s_viewport,/);
+assert.match(reflow, /if \(layer_get_bounds\(s_viewport\)\.size\.w == width\) return/);
+assert.match(reflow, /prv_measure_text\(\)/);
+assert.match(functionBody(reader, 'static void prv_mark_review(void)'), /prv_reflow_page\(\)/);
 assert.match(functionBody(reader, 'static void prv_reader_back('),
              /jot_reader_back\(\)/);
 const reviewMove = functionBody(reader, 'static void prv_update_rank(int rank)');
@@ -184,7 +191,8 @@ assert.match(listTap, /prv_list_new_note\(\)/);
 // but the label reflects the actual destination. The reader's physical
 // and touch routes use the same pop helper and never save note bytes.
 const readerChrome = functionBody(reader, 'static void prv_draw_chrome(');
-assert.match(readerChrome, /s_is_peek\s*\?\s*"EDIT"\s*:\s*s_review\.open\s*\?\s*"CLOSE"\s*:\s*"NOTES"/);
+assert.match(readerChrome, /s_is_peek\s*\?\s*"EDIT"\s*:\s*"NOTES"/);
+assert.doesNotMatch(readerChrome, /"CLOSE"/);
 assert.match(readerChrome, /prv_draw_back\(ctx\)/);
 assert.doesNotMatch(readerChrome, /prv_draw_pencil\(ctx\)/);
 assert.match(functionBody(reader, 'void jot_reader_dismiss_peek(void)'),
@@ -206,6 +214,16 @@ assert.match(touchHandler, /jot_reader_action_overlay_hit\(/);
 assert.match(reader, /action_bar_layer_create\(\)/);
 assert.match(reader, /action_bar_layer_add_to_window\(s_action_bar,\s*s_window\)/);
 assert.match(reader, /action_bar_layer_remove_from_window\(s_action_bar\)/);
+const readerLoad = functionBody(reader, 'static void prv_reader_load(Window *window)');
+const readerUnload = functionBody(reader, 'static void prv_reader_unload(Window *window)');
+assert.match(readerLoad, /window_set_click_config_provider\(window, prv_reader_clicks\)/);
+assert.match(readerUnload, /action_bar_layer_remove_from_window\(s_action_bar\)/);
+assert.match(readerUnload, /window_set_click_config_provider\(window, prv_reader_clicks\)/);
+const showReader = functionBody(reader, 'bool jot_reader_show(int slot, int rank, int total)');
+assert.match(showReader, /window_set_click_config_provider\(s_window, prv_reader_clicks\);\s*window_stack_push\(s_window, true\)/);
+const peekReader = functionBody(reader, 'bool jot_reader_peek(void)');
+assert.match(peekReader, /window_set_click_config_provider\(s_window, prv_reader_clicks\);\s*window_stack_push\(s_window, true\)/);
+assert.match(functionBody(reader, 'void jot_reader_back(void)'), /jot_reader_review_back\(&s_review\)/);
 assert.match(reader, /action_bar_layer_set_click_config_provider\(s_action_bar,/);
 assert.match(reader, /action_bar_layer_clear_icon\(s_action_bar,\s*BUTTON_ID_UP\)/);
 assert.match(reader, /s_review\.armed\s*\?\s*s_icons\[ICON_CHECK\]/);
@@ -220,13 +238,18 @@ assert.match(updateIcons, /layer_mark_dirty\(s_danger_badge\)/);
 const badge = functionBody(reader, 'static void prv_draw_danger_badge(');
 assert.match(badge, /!s_review\.open\s*\|\|\s*!s_review\.delete_mode/);
 assert.match(badge, /GColorFromRGB\(204,\s*42,\s*46\)/);
+assert.match(badge, /const int top = bounds\.size\.h \/ 3/);
+assert.match(badge, /const int bottom = \(bounds\.size\.h \* 2\) \/ 3/);
+assert.match(badge, /GRect\(0, top, bounds\.size\.w, bottom - top\)/);
+assert.match(badge, /graphics_fill_rect\(ctx, focus, 0, GCornerNone\)/);
 assert.match(badge, /graphics_draw_bitmap_in_rect\(ctx,/);
 assert.match(functionBody(reader, 'static void prv_browse('), /s_review_message\s*=\s*NULL;/);
 assert.doesNotMatch(reader, /"FIRST NOTE"|"LAST NOTE"/);
 assert.match(reader, /GPoint\(bounds\.size\.w \+ 14, bounds\.size\.h \/ 2\), 20/);
 assert.match(reader, /s_review\.armed\s*\?\s*"Confirm delete\?"\s*:/);
 assert.match(reader, /action_bar_layer_set_background_color\(\s*s_action_bar, prv_action_bar_background\(\)\)/);
-assert.match(reader, /GColorFromRGBA\(41,\s*40,\s*43,\s*170\)/); // Isolated alpha experiment.
+assert.match(reader, /static GColor prv_action_bar_background\(void\) \{ return prv_ink\(\); \}/);
+assert.doesNotMatch(reader, /GColorFromRGBA\(/); // Firmware didn't blend alpha.
 assert.doesNotMatch(reader, /action_bar_layer_set_background_color\(s_action_bar,\s*s_review\.delete_mode/);
 assert.match(reader, /graphics_fill_circle\(ctx,\s*GPoint\(bounds\.size\.w \+ 14, bounds\.size\.h \/ 2\), 20\)/);
 assert.doesNotMatch(reader, /graphics_fill_oval\(/); // Private PebbleOS API, not in public SDK.

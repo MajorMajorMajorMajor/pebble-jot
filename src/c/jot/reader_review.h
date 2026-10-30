@@ -25,3 +25,9 @@ bool jot_reader_review_cancel_armed(JotReaderReview *state);
 // Return the next valid rank, or the current rank at an end boundary.
 // direction = -1 for newer/Up, +1 for older/Down.
 int jot_reader_review_next_rank(int rank, int count, int direction);
+
+ 
+// The open native bar occupies the right ACTION_BAR_WIDTH pixels.
+// Clamp pathological widths defensively. Peek and closed mode use full width.
+int jot_reader_review_paper_width(int screen_width, bool bar_open,
+                                  int bar_width);

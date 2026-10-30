@@ -30,6 +30,29 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
+## Reader reflow and native-bar lifecycle repair (v1.10.5 — Emery QA pending)
+
+The initial ActionBar alpha trial failed in actual watch QA: the native
+opaque background still hides notes. Jot now reflows the **paper and
+TextLayer viewport** to screen width minus `ACTION_BAR_WIDTH` while
+the saved-note ActionBar is open. Viewport contents, text layout, note
+metadata, header note count and footer hints stay visible. The current
+scroll position is clamped after remeasuring; the only geometry jump
+happens when the bar opens/closes, not as Delete/Confirm states change.
+The touch-layout width follows the actual viewport for precise hit tests.
+
+The red Delete / armed-check background now spans the full centre third
+of the native bar instead of only an icon-sized rounded badge. This
+test version keeps the same PebbleOS icon assets and confirmation logic.
+
+`action_bar_layer_remove_from_window()` clears the window click
+provider. Jot re-registers `prv_reader_clicks` when the reader unloads,
+when its reused window loads, and before showing saved Reader or draft
+Peek. This directly addresses the on-watch bug where all buttons
+stopped responding after reopening a note from Edit. Reader header
+retains NOTES regardless of action-bar state; a touch on its Back
+button still uses `jot_reader_back()` to close the open bar first.
+
 ## Alpha background trial (v1.10.4 — real Emery check needed)
 
 `prv_action_bar_background()` now returns

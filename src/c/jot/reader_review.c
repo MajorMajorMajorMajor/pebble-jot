@@ -51,3 +51,10 @@ int jot_reader_review_next_rank(int rank, int count, int direction) {
   if (direction > 0) return rank + 1 < count ? rank + 1 : rank;
   return rank;
 }
+
+int jot_reader_review_paper_width(int screen_width, bool bar_open,
+                                  int bar_width) {
+  if (screen_width <= 0) return 0;
+  if (!bar_open || bar_width <= 0) return screen_width;
+  return screen_width > bar_width ? screen_width - bar_width : 1;
+}
