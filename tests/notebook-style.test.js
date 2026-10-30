@@ -44,7 +44,7 @@ assert.match(key, /GPoint\(x0 \+ 4, y1\), GPoint\(x1 - 4, y1\)/);
 assert.match(key, /GColorFromRGB\(255, 196, 0\)/);
 assert.match(key, /\(h \/ 2\) - 2/);
 assert.match(key, /graphics_draw_round_rect\(ctx,\s*face,\s*style->key_corner_radius\)/);
-assert.match(key, /prv_draw_control_icon\(ctx,\s*label->key,\s*bounds\)/);
+assert.match(key, /prv_draw_control_icon\(ctx,\s*label->key,\s*bounds,\s*label->owner->feedback_level\)/);
 for (const symbol of ['MENU', 'BACKSPACE', 'RETURN', 'SPACEBAR']) {
   assert.match(key, new RegExp('key == get_key\\(KEY_ENGLISH_' + symbol + '\\)'));
 }
