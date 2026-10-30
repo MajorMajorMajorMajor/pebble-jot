@@ -1,3 +1,15 @@
+## Jot 1.15.1 — Centred ABC legend ink (Emery QA pending)
+
+The first Jot 1.15 wrist screenshot confirmed ample room for all eight
+O-key letters, but also showed the small blue lettering consistently
+sitting too low within its compass positions. Pebble Gothic 14 Bold
+draws visible ink below the top of the text frame. The primary ABC
+renderer now raises all three legend rows by **4 pixels**, balancing
+their visible top, middle and bottom positions and bringing the bottom
+letters away from the key outlines. Left/centre/right alignment,
+the full alphabet, font, palette, big key labels, 123 legends and all
+gesture bindings are unchanged. Visual QA is still needed on Emery.
+
 ## Jot 1.15.0 — The alphabet reveals itself (Emery QA pending)
 
 The **ABC** face now paints all 20 implemented primary peripheral

@@ -352,7 +352,18 @@ static void prv_draw_primary_legends(GContext *ctx, const Key *key,
   static const int8_t ys[8] = {0,0,0,1,2,2,2,1};
   const int w = bounds.size.w, h = bounds.size.h;
   const int col[3] = {3, (w - 16) / 2, w - 19};
-  const int row[3] = {2, (h - 14) / 2, h - 17};
+  // Gothic 14 Bold draws its visible ink a few pixels below a supplied
+  // graphics_draw_text rectangle. On the 1.15 wrist screenshot the top
+  // labels sat too low while the bottom labels grazed the key outlines.
+  // Shift all THREE compass rows equally so their *visible glyphs* are
+  // centred, without changing x positions, font size or touch geometry.
+  // Numeric legends are separately calibrated and intentionally untouched.
+  enum { PRIMARY_LEGEND_FONT_OFFSET_Y = 4 };
+  const int row[3] = {
+    2 - PRIMARY_LEGEND_FONT_OFFSET_Y,
+    (h - 14) / 2 - PRIMARY_LEGEND_FONT_OFFSET_Y,
+    h - 17 - PRIMARY_LEGEND_FONT_OFFSET_Y
+  };
   const GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
   graphics_context_set_text_color(ctx, GColorFromRGB(0, 85, 170));
   for (int d = 0; d < 8; ++d) {
