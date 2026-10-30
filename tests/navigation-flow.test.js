@@ -209,7 +209,7 @@ assert.match(reader, /action_bar_layer_remove_from_window\(s_action_bar\)/);
 assert.match(reader, /action_bar_layer_set_click_config_provider\(s_action_bar,/);
 assert.match(reader, /action_bar_layer_clear_icon\(s_action_bar,\s*BUTTON_ID_UP\)/);
 assert.match(reader, /s_review\.armed\s*\?\s*s_icons\[ICON_CHECK\]/);
-assert.match(reader, /s_review\.armed\s*\?\s*s_icons\[ICON_X\]/);
+assert.match(reader, /if \(s_review\.armed\)\s*action_bar_layer_set_icon\(s_action_bar, BUTTON_ID_DOWN, s_icons\[ICON_X\]\)/);
 const updateIcons = functionBody(reader, 'static void prv_mark_review(void)');
 assert.match(updateIcons, /s_rank\s*<=\s*0/);
 assert.match(updateIcons, /s_rank\s*>=\s*jot_store_count\(\)\s*-\s*1/);
