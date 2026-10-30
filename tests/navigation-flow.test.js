@@ -93,7 +93,7 @@ const readerDrag = functionBody(reader, 'void jot_reader_drag(int16_t finger_del
 assert.match(readerDrag, /jot_reader_is_open\(\)/);
 assert.match(readerDrag, /jot_reader_touch_scroll_after_drag\(/);
 assert.match(readerDrag, /prv_update_scroll\(\)/);
-const reflow = functionBody(reader, 'static void prv_reflow_page(void)');
+const reflow = functionBody(reader, 'static void prv_reflow_page(void) {');
 assert.match(reflow, /jot_reader_review_paper_width\(/);
 assert.match(reflow, /layer_set_frame\(s_paper,/);
 assert.match(reflow, /layer_set_frame\(s_viewport,/);
