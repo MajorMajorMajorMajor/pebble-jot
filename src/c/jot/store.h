@@ -1,8 +1,9 @@
 #pragma once
 #include <pebble.h>
 
-// Pebble apps have 4 KiB of persistent storage, so keep notes bounded.
-enum { JOT_NOTE_CAPACITY = 16, JOT_NOTE_TEXT_BYTES = 160 };
+// Modern Emery firmware allows up to 1 MiB per app, but each persist value
+// remains <=256 bytes. 256 slots share that pool; each note is <=4095 bytes.
+enum { JOT_NOTE_CAPACITY = 256, JOT_NOTE_TEXT_BYTES = 4096 };
 
 void jot_store_init(void);
 const char *jot_store_text(void);
@@ -28,7 +29,7 @@ int jot_store_count(void);
 int jot_store_active_slot(void);
 
 // UTF-8 text is inserted at the cursor; \\b removes the previous codepoint.
-// Refuses to create a seventeenth note rather than silently overwriting text.
+// Refuses to create a 257th note rather than silently overwriting text.
 bool jot_store_input(const char *binding);
 // Delete next UTF-8 codepoint; returns false when already at end.
 bool jot_store_delete_forward(void);

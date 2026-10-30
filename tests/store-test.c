@@ -6,8 +6,10 @@
 #include <pebble.h>
 #include "jot/store.h"
 
-#define STORAGE_KEY_FIRST 4100u
+#define STORAGE_KEY_FIRST 5000u
 #define SLOT_CAPACITY 256u
+#define RECORD_KEYS (2u * (JOT_NOTE_TEXT_BYTES / SLOT_CAPACITY + 1u))
+#define LEGACY_KEY_FIRST 4100u
 
 typedef struct {
   bool exists;
@@ -15,13 +17,16 @@ typedef struct {
   uint8_t bytes[SLOT_CAPACITY];
 } FakeEntry;
 
-static FakeEntry s_entries[JOT_NOTE_CAPACITY];
+static FakeEntry s_entries[JOT_NOTE_CAPACITY * RECORD_KEYS];
+static FakeEntry s_legacy[16];
 static bool s_fail_next_delete;
 static bool s_fail_next_write;
 
 static FakeEntry *prv_entry(uint32_t key) {
+  if (key >= LEGACY_KEY_FIRST && key < LEGACY_KEY_FIRST + 16)
+    return &s_legacy[key - LEGACY_KEY_FIRST];
   if (key < STORAGE_KEY_FIRST ||
-      key >= STORAGE_KEY_FIRST + JOT_NOTE_CAPACITY) return NULL;
+      key >= STORAGE_KEY_FIRST + JOT_NOTE_CAPACITY * RECORD_KEYS) return NULL;
   return &s_entries[key - STORAGE_KEY_FIRST];
 }
 
@@ -59,6 +64,11 @@ status_t persist_delete(uint32_t key) {
   return S_TRUE;
 }
 
+static bool has_slot_header(int slot) {
+  const size_t first = (size_t)slot * RECORD_KEYS;
+  return s_entries[first].exists || s_entries[first + RECORD_KEYS / 2].exists;
+}
+
 static void expect_note(int slot, const char *expected) {
   char result[JOT_NOTE_TEXT_BYTES];
   assert(jot_store_export(slot, result, sizeof result, NULL));
@@ -85,7 +95,7 @@ int main(void) {
   assert(jot_store_count() == 1);
   assert(jot_store_slot_at(0) == first);
   assert(jot_store_slot_at(1) == -1);
-  assert(!s_entries[second].exists);
+  assert(!has_slot_header(second));
 
   // The user can immediately enter a new note after that deletion.
   assert(jot_store_input("third"));
@@ -113,7 +123,7 @@ int main(void) {
   s_fail_next_delete = true;
   assert(!jot_store_delete(third));
   assert(jot_store_count() == 1);
-  assert(s_entries[third].exists);
+  assert(has_slot_header(third));
   expect_note(third, "third!");
 
   assert(jot_store_delete(third));
@@ -377,6 +387,40 @@ int main(void) {
   assert(jot_store_preview(unicode_slot, unicode_preview,
                            sizeof unicode_preview, NULL));
   assert(strcmp(unicode_preview, "A\nB\xC3\xA9" "Z") == 0);
+
+  // Exercise a full 4095-byte note, its last 256-byte chunk and reboot.
+  assert(jot_store_new());
+  char long_text[JOT_NOTE_TEXT_BYTES];
+  memset(long_text, 'L', sizeof long_text - 1);
+  long_text[sizeof long_text - 1] = '\\0';
+  assert(jot_store_input(long_text));
+  assert(jot_store_flush());
+  const int long_slot = jot_store_active_slot();
+  jot_store_init();
+  expect_note(long_slot, long_text);
+  assert(jot_store_open(long_slot));
+  assert(jot_store_cursor() == JOT_NOTE_TEXT_BYTES - 1);
+  assert(!jot_store_input("+"));
+  assert(jot_store_input("\\b"));
+  assert(jot_store_input("X"));
+  assert(jot_store_flush());
+  jot_store_init();
+  assert(jot_store_open(long_slot));
+  assert(jot_store_text()[JOT_NOTE_TEXT_BYTES - 2] == 'X');
+
+  // Up to 256 independent notes, beyond the previous 16-note ceiling.
+  while (jot_store_count() < JOT_NOTE_CAPACITY) {
+    assert(jot_store_new());
+    assert(jot_store_input("QA slot"));
+    assert(jot_store_flush());
+  }
+  assert(jot_store_new());
+  assert(!jot_store_input("257th"));
+  assert(jot_store_count() == JOT_NOTE_CAPACITY);
+  assert(jot_store_delete(long_slot));
+  assert(jot_store_input("reclaimed"));
+  assert(jot_store_flush());
+  assert(jot_store_count() == JOT_NOTE_CAPACITY);
 
   puts("Jot storage regression tests passed");
   return 0;

@@ -1,24 +1,36 @@
 #include <pebble.h>
 #include "jot/store.h"
 
-#define JOT_MAGIC 0x4A4F5431u  // "JOT1"
-#define JOT_FIRST_KEY 4100u
+// JOT2 uses two banks per slot: a complete new version is written into
+// the inactive bank before its header is committed. No legacy migration:
+// this release intentionally resets the QA watch's JOT1 records.
+#define JOT_MAGIC 0x4A4F5432u
+#define JOT_FIRST_KEY 5000u
+#define JOT_LEGACY_FIRST_KEY 4100u
+enum { JOT_LEGACY_CAPACITY = 16, JOT_PART_BYTES = 256,
+       JOT_PART_COUNT = JOT_NOTE_TEXT_BYTES / JOT_PART_BYTES,
+       JOT_BANK_KEYS = JOT_PART_COUNT + 1 };
 
 typedef struct {
   uint32_t magic;
   uint32_t serial;
   uint32_t timestamp;
+  uint32_t revision;
   uint16_t length;
-  char text[JOT_NOTE_TEXT_BYTES];
-} NoteRecord;
+  uint16_t checksum;
+} NoteHeader;
 
 typedef struct {
   bool used;
+  int8_t bank;   // -1 until the first successful flush.
   uint32_t serial;
   uint32_t timestamp;
+  uint32_t revision;
+  uint16_t length;
 } NoteIndex;
 
 static NoteIndex s_index[JOT_NOTE_CAPACITY];
+static char s_read_text[JOT_NOTE_TEXT_BYTES];
 static uint32_t s_next_serial;
 static int s_active_slot;
 static time_t s_active_time;
@@ -132,13 +144,55 @@ bool jot_store_move_cursor(JotCursorMove movement) {
   return true;
 }
 
-static bool prv_read(int slot, NoteRecord *record) {
-  if (slot < 0 || slot >= JOT_NOTE_CAPACITY) return false;
-  if (persist_read_data(JOT_FIRST_KEY + slot, record, sizeof *record) !=
-      (int)sizeof *record) return false;
-  return record->magic == JOT_MAGIC && record->serial != 0 &&
-         record->length < JOT_NOTE_TEXT_BYTES &&
-         record->text[record->length] == '\0';
+static uint32_t prv_key(int slot, int bank, int part) {
+  return JOT_FIRST_KEY + (uint32_t)(slot * 2 + bank) * JOT_BANK_KEYS + part;
+}
+
+static uint16_t prv_checksum(const char *text, size_t length) {
+  uint16_t value = 0xA5A5u;
+  for (size_t i = 0; i < length; ++i)
+    value = (uint16_t)((value * 33u) ^ (unsigned char)text[i]);
+  return value;
+}
+
+static bool prv_header(int slot, int bank, NoteHeader *header) {
+  if (slot < 0 || slot >= JOT_NOTE_CAPACITY || bank < 0 || bank > 1)
+    return false;
+  if (persist_read_data(prv_key(slot, bank, 0), header, sizeof *header) !=
+      (int)sizeof *header) return false;
+  return header->magic == JOT_MAGIC && header->serial != 0 &&
+         header->revision != 0 && header->length < JOT_NOTE_TEXT_BYTES;
+}
+
+static bool prv_read(int slot, char *out, size_t capacity) {
+  if (slot < 0 || slot >= JOT_NOTE_CAPACITY || !s_index[slot].used ||
+      s_index[slot].bank < 0) return false;
+  const NoteIndex *index = &s_index[slot];
+  NoteHeader header;
+  if (!prv_header(slot, index->bank, &header) ||
+      header.serial != index->serial || header.revision != index->revision ||
+      header.length + 1 > capacity) return false;
+  const size_t bytes = (size_t)header.length + 1;
+  for (size_t offset = 0, part = 1; offset < bytes; ++part) {
+    const size_t remaining = bytes - offset;
+    const size_t chunk = remaining < JOT_PART_BYTES ? remaining : JOT_PART_BYTES;
+    if (persist_read_data(prv_key(slot, index->bank, (int)part),
+                          out + offset, chunk) != (int)chunk) return false;
+    offset += chunk;
+  }
+  return out[header.length] == '\\0' &&
+         prv_checksum(out, header.length) == header.checksum;
+}
+
+// Purge stale banks before reuse. A failure leaves the committed bank alone.
+static bool prv_clear_bank(int slot, int bank) {
+  status_t status = persist_delete(prv_key(slot, bank, 0));
+  if (status != S_TRUE && status != E_DOES_NOT_EXIST) return false;
+  for (int part = 1; part <= JOT_PART_COUNT; ++part) {
+    status = persist_delete(prv_key(slot, bank, part));
+    if (status != S_TRUE && status != E_DOES_NOT_EXIST) return false;
+  }
+  return true;
 }
 
 void jot_store_init(void) {
@@ -148,17 +202,26 @@ void jot_store_init(void) {
   s_length = 0;
   s_cursor = 0;
   s_keep_vertical_column = false;
-  s_text[0] = '\0';
+  s_text[0] = '\\0';
   s_dirty = false;
+  // JOT1 keys are not readable by JOT2. Reclaim them on the QA watch.
+  for (int i = 0; i < JOT_LEGACY_CAPACITY; ++i)
+    persist_delete(JOT_LEGACY_FIRST_KEY + i);
   for (int i = 0; i < JOT_NOTE_CAPACITY; ++i) {
-    NoteRecord record;
-    if (!prv_read(i, &record)) continue;
+    NoteHeader a, b;
+    const bool has_a = prv_header(i, 0, &a);
+    const bool has_b = prv_header(i, 1, &b);
+    if (!has_a && !has_b) continue;
+    const int bank = has_b && (!has_a || b.revision > a.revision) ? 1 : 0;
+    const NoteHeader *header = bank ? &b : &a;
     s_index[i] = (NoteIndex) {
-      .used = true, .serial = record.serial, .timestamp = record.timestamp
+      .used = true, .bank = (int8_t)bank, .serial = header->serial,
+      .timestamp = header->timestamp, .revision = header->revision,
+      .length = header->length
     };
-    if (record.serial >= s_next_serial) s_next_serial = record.serial + 1;
+    if (header->serial >= s_next_serial) s_next_serial = header->serial + 1;
   }
-  if (!s_next_serial) s_next_serial = 1; // Handle counter rollover.
+  if (!s_next_serial) s_next_serial = 1;
 }
 
 const char *jot_store_text(void) { return s_text; }
@@ -205,7 +268,7 @@ bool jot_store_input(const char *binding) {
   if (s_active_slot < 0 && s_length) {
     s_active_slot = prv_free_slot();
     s_index[s_active_slot] = (NoteIndex) {
-      .used = true, .serial = s_next_serial++, .timestamp = (uint32_t)time(NULL)
+      .used = true, .bank = -1, .serial = s_next_serial++, .timestamp = (uint32_t)time(NULL)
     };
     s_active_time = (time_t)s_index[s_active_slot].timestamp;
   }
@@ -228,17 +291,36 @@ bool jot_store_delete_forward(void) {
 bool jot_store_flush(void) {
   if (!s_dirty) return true;
   if (s_active_slot < 0) return false;
-  NoteRecord record = {
-    .magic = JOT_MAGIC,
-    .serial = s_index[s_active_slot].serial,
+  NoteIndex *index = &s_index[s_active_slot];
+  const int previous_bank = index->bank;
+  const int target_bank = previous_bank == 0 ? 1 : 0;
+  if (!prv_clear_bank(s_active_slot, target_bank)) return false;
+  const size_t bytes = s_length + 1;
+  for (size_t offset = 0, part = 1; offset < bytes; ++part) {
+    const size_t remaining = bytes - offset;
+    const size_t chunk = remaining < JOT_PART_BYTES ? remaining : JOT_PART_BYTES;
+    const int written = persist_write_data(
+        prv_key(s_active_slot, target_bank, (int)part), s_text + offset, chunk);
+    if (written != (int)chunk) return false;
+    offset += chunk;
+  }
+  NoteHeader header = {
+    .magic = JOT_MAGIC, .serial = index->serial,
     .timestamp = (uint32_t)s_active_time,
+    .revision = index->revision + 1,
     .length = (uint16_t)s_length,
+    .checksum = prv_checksum(s_text, s_length)
   };
-  memcpy(record.text, s_text, s_length + 1);
-  const int written = persist_write_data(JOT_FIRST_KEY + s_active_slot,
-                                         &record, sizeof record);
-  if (written != (int)sizeof record) return false;
+  if (!header.revision) header.revision = 1;
+  if (persist_write_data(prv_key(s_active_slot, target_bank, 0),
+                         &header, sizeof header) != (int)sizeof header)
+    return false;
+  index->bank = (int8_t)target_bank;
+  index->revision = header.revision;
+  index->length = header.length;
   s_dirty = false;
+  if (previous_bank >= 0)
+    prv_clear_bank(s_active_slot, previous_bank); // Best-effort GC.
   return true;
 }
 
@@ -255,14 +337,13 @@ bool jot_store_new(void) {
 bool jot_store_open(int slot) {
   if (slot < 0 || slot >= JOT_NOTE_CAPACITY || !s_index[slot].used) return false;
   if (!jot_store_flush()) return false;
-  NoteRecord record;
-  if (!prv_read(slot, &record)) return false;
+  if (!prv_read(slot, s_read_text, sizeof s_read_text)) return false;
   s_active_slot = slot;
-  s_active_time = (time_t)record.timestamp;
-  s_length = record.length;
+  s_active_time = (time_t)s_index[slot].timestamp;
+  s_length = s_index[slot].length;
   s_cursor = s_length;
   s_keep_vertical_column = false;
-  memcpy(s_text, record.text, s_length + 1);
+  memcpy(s_text, s_read_text, s_length + 1);
   s_dirty = false;
   return true;
 }
@@ -270,11 +351,14 @@ bool jot_store_open(int slot) {
 bool jot_store_delete(int slot) {
   if (slot < 0 || slot >= JOT_NOTE_CAPACITY || !s_index[slot].used) return false;
   if (!jot_store_flush()) return false;
-  // Pebble's persist_delete() returns S_TRUE (not S_SUCCESS) on success.
-  // An incorrect check leaves a ghost index entry after the watch has
-  // already deleted the record, and can poison subsequent editing.
-  if (persist_delete(JOT_FIRST_KEY + slot) != S_TRUE) return false;
+  // Commit logical deletion by removing the active header first. A
+  // failed delete never changes the index; chunk GC is best-effort.
+  const int bank = s_index[slot].bank;
+  if (bank < 0 || persist_delete(prv_key(slot, bank, 0)) != S_TRUE)
+    return false;
   s_index[slot] = (NoteIndex) {0};
+  prv_clear_bank(slot, 1 - bank);
+  prv_clear_bank(slot, bank);
   if (s_active_slot == slot) {
     s_active_slot = -1;
     s_length = 0;
@@ -307,23 +391,18 @@ int jot_store_slot_at(int rank) {
 }
 
 bool jot_store_preview(int slot, char *out, size_t capacity, time_t *created) {
-  if (capacity == 0 || slot < 0 || slot >= JOT_NOTE_CAPACITY ||
+  if (!out || capacity == 0 || slot < 0 || slot >= JOT_NOTE_CAPACITY ||
       !s_index[slot].used) return false;
-  const char *text;
-  NoteRecord record;
-  if (slot == s_active_slot) text = s_text;
-  else {
-    if (!prv_read(slot, &record)) return false;
-    text = record.text;
+  const char *text = s_text;
+  if (slot != s_active_slot) {
+    if (!prv_read(slot, s_read_text, sizeof s_read_text)) return false;
+    text = s_read_text;
   }
   size_t n = 0;
-  // Keep explicit line breaks so a note card can show its second line.
-  // The existing renderer clips any further wrapped lines.
   while (text[n] && n + 1 < capacity) ++n;
-  // Never end a string in the middle of a UTF-8 codepoint.
   while (n && (((unsigned char)text[n] & 0xC0) == 0x80)) --n;
   memcpy(out, text, n);
-  out[n] = '\0';
+  out[n] = '\\0';
   if (created) *created = (time_t)s_index[slot].timestamp;
   return true;
 }
@@ -331,18 +410,10 @@ bool jot_store_preview(int slot, char *out, size_t capacity, time_t *created) {
 bool jot_store_export(int slot, char *out, size_t capacity, time_t *created) {
   if (!out || capacity == 0 || slot < 0 || slot >= JOT_NOTE_CAPACITY ||
       !s_index[slot].used) return false;
-
-  NoteRecord record;
-  const char *text = s_text;
-  size_t length = s_length;
-  if (slot != s_active_slot) {
-    if (!prv_read(slot, &record)) return false;
-    text = record.text;
-    length = record.length;
-  }
-
+  const size_t length = slot == s_active_slot ? s_length : s_index[slot].length;
   if (length + 1 > capacity) return false;
-  memcpy(out, text, length + 1);
+  if (slot == s_active_slot) memcpy(out, s_text, length + 1);
+  else if (!prv_read(slot, out, capacity)) return false;
   if (created) *created = (time_t)s_index[slot].timestamp;
   return true;
 }
