@@ -23,8 +23,11 @@ enum {
   EDITOR_DESCENDER_GUARD = 5
 };
 
+// The editor uses the same bold 18pt family as our note cards.
+// Caret widths, wrapped rows and visible scrolling all measure this
+// exact font through prv_font(), never through an approximate size.
 static GFont prv_font(void) {
-  return fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
+  return fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
 }
 
 static GSize prv_measure(const char *text, GFont font, int width) {

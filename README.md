@@ -43,7 +43,19 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
-## Editor height tune-up (v1.8.1 — awaiting watch verification)
+## Larger editor writing (v1.8.2 — wrist test pending)
+
+After real-world testing confirmed the 44px text strip feels comfortable
+and typing remains accurate, the note editor now tries Pebble's native
+**Gothic 18 Bold** font instead of Gothic 14 Bold. The font is used by
+the actual TextLayer *and* the existing caret/wrap measurement path, so
+cursor placement and automatic following use identical metrics. The
+44px area and keyboard touch boundaries do not move. Long notes can show
+fewer words at a time, so physical testing should check scrolling,
+the text caret at line breaks, and the empty-draft placeholder. This is
+a reversible typography experiment; note storage and gestures are unchanged.
+
+## Editor height tune-up (v1.8.1 — verified on Emery)
 
 The v1.8.0 Pocket Notebook styling made the writing strip feel more
 compressed on real hardware even though its height was still 40px.
@@ -242,6 +254,6 @@ See [README-JOT.md](README-JOT.md) for detailed controls and limits, and [TOUCH_
 
 ## Next steps
 
-The editor gestures, hairline caret, notes-list touch scrolling, button navigation, saved-reader tap-to-edit, and v1.7.4 touch SAVE → reader flow have been verified on Emery. Next: test v1.8.1's 44px writing strip on the watch, then refine visual contrast and prioritize safer/larger storage and backup/restore before the Emery-only beta. Touch-to-position-caret (#17) remains deliberately deferred; key gestures are unchanged.
+The editor gestures, hairline caret, notes-list touch scrolling, button navigation, saved-reader tap-to-edit, and v1.7.4 touch SAVE → reader flow have been verified on Emery. Next: test v1.8.2's larger editor typography on the watch, then refine visual contrast and prioritize safer/larger storage and backup/restore before the Emery-only beta. Touch-to-position-caret (#17) remains deliberately deferred; key gestures are unchanged.
 
 Pebble SDK documentation: <https://developer.repebble.com>
