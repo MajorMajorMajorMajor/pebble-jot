@@ -11,7 +11,7 @@ static const char *const expected[9][19] = {
   { "4", "", "%", "", "_", "", "[", "(", "{", "", "‰", "", "¬", "", "]", ")", "}", "¼", "¼" },
   { "5", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "a", "a" },
   { "6", "", "}", ")", "]", "", "@", "", "|", "", "{", "(", "[", "", "ª", "", "¦", "ⁿ", "ⁿ" },
-  { "1", "¨", "", "*", "\t", "", "\b", "<", "~", "˝", "", "†", "\t", "", "\b", "‹", "˜", "∫", "∫" },
+  { "1", "¨", "", "*", "", "", "\b", "<", "~", "˝", "", "†", "", "", "\b", "‹", "˜", "∫", "∫" },
   { "2", "", "'", "", ":", ".", ",", "", "\"", "", "”", "", "„", "…", "‚", "", "“", "Π", "Π" },
   { "3", "&", "°", ">", " ", "", ";", "#", "", "§", "0", "3", " ", "", ";", "£", "", "Σ", "Σ" },
 };
@@ -40,7 +40,7 @@ int main(void) {
   assert(jot_number_face_legend(2,1)==NULL);
   assert(jot_number_face_pictogram(2,1)==JOT_NUM_PICTO_UP);
   assert(jot_number_face_pictogram(2,2)==JOT_NUM_PICTO_RETURN);
-  assert(jot_number_face_pictogram(6,4)==JOT_NUM_PICTO_TAB);
+  assert(jot_number_face_pictogram(6,4)==JOT_NUM_PICTO_NONE);
   assert(jot_number_face_pictogram(6,6)==JOT_NUM_PICTO_BACKSPACE);
   assert(jot_number_face_pictogram(8,4)==JOT_NUM_PICTO_SPACE);
   assert(jot_number_face_pictogram(8,5)==JOT_NUM_PICTO_DOWN);
@@ -56,15 +56,16 @@ int main(void) {
         assert(label[1]=='\0');
       }
     }
-  // Big zero on the left two-thirds, tappable Space on the right third.
-  assert(!jot_number_face_small_space_tap(9,0,149,200));
-  assert(jot_number_face_small_space_tap(9,0,150,200));
-  assert(jot_number_face_small_space_tap(9,0,199,200));
-  assert(!jot_number_face_small_space_tap(9,0,200,200));
-  assert(!jot_number_face_small_space_tap(9,5,199,200));
-  assert(!jot_number_face_small_space_tap(8,0,190,200));
-  assert(!jot_number_face_small_space_tap(9,0,-1,200));
-  assert(!jot_number_face_small_space_tap(9,0,150,0));
+  // 0 genuinely spans two cells and Space has its own cell.
+  assert(jot_number_face_bottom_touch(0)==-1);
+  assert(jot_number_face_bottom_touch(1)==9);
+  assert(jot_number_face_bottom_touch(2)==9);
+  assert(jot_number_face_bottom_touch(3)==14);
+  assert(jot_number_face_bottom_touch(4)==-1);
+  // Unsupported Tab is not advertised or inserted.
+  assert(!*jot_number_face_binding(6,4));
+  assert(!*jot_number_face_binding(6,12));
+  assert(jot_number_face_pictogram(6,4)==JOT_NUM_PICTO_NONE);
   puts("Canonical numeric bindings and eight-direction legends passed");
   return 0;
 }

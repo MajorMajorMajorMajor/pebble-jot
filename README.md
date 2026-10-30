@@ -10,8 +10,11 @@ editing the note or moving the caret.
 The complete original number-face mapping in docs/gesture-map.csv now
 controls compass, return and circular gestures. Mauve legends surround the
 digit faces; cursor movement, Return and Backspace work where the original
-map assigns them. The gold key is split into a visually large 0 and a **small, separately
-tappable Space** area at the bottom right.
+map assigns them. The 123 bottom row now has a **normal two-column 0** and a **normal
+single-column Space** key, each with its own Pebble touch/feedback area.
+The number keys use a cool sea-glass cyan fill, bold dark-teal legends,
+and a blue Space key. The established ABC style is unchanged.
+The Tab shortcut is intentionally not implemented or advertised.
 To avoid empty squares on the actual Pebble font, numeric peripheral
 legends now show only displayable one-character ASCII; built-in
 editor actions use native-drawn 1px pictograms. Canonical Unicode

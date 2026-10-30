@@ -46,11 +46,14 @@ static void prv_draw_control_icon(GContext *ctx, const Key *key,
   const int cy = bounds.size.h / 2 - 1;
   const GColor cream = GColorFromRGB(255, 250, 239);
   const GColor charcoal = GColorFromRGB(41, 40, 43);
-  const bool is_space = key == get_key(KEY_ENGLISH_SPACEBAR);
+  const bool is_space = key == get_key(KEY_ENGLISH_SPACEBAR) ||
+                        key == get_key(KEY_NUMBER_SPACEBAR);
   // Hold glyph contrast fixed; toggling cream/white at an intensity
   // threshold looked like a separate flash over the fill transition.
   (void)level;
-  graphics_context_set_stroke_color(ctx, is_space ? charcoal : cream);
+  graphics_context_set_stroke_color(ctx,
+      key == get_key(KEY_NUMBER_SPACEBAR) ? GColorWhite :
+      is_space ? charcoal : cream);
   graphics_context_set_stroke_width(ctx, 3);
 
   if (key == get_key(KEY_ENGLISH_MENU)) {
@@ -107,34 +110,20 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
   GRect box = grect_crop(bounds, 1);
   if (key_label->slot == KEY_LABEL_CENTER &&
       label->key == get_key(KEY_NUMBER_ZERO)) {
-    // Two-thirds wide ZERO, one-third mini Space: two tap zones in
-    // the same established wide key, divided only within its artwork.
-    const int split = bounds.size.w * 2 / 3;
-    const GColor ink = GColorFromRGB(41, 40, 43);
-    graphics_context_set_text_color(ctx, ink);
+    // The whole 2-column key is ZERO; no nested virtual Space target.
+    graphics_context_set_text_color(ctx, GColorFromRGB(0, 40, 60));
     graphics_draw_text(ctx, "0",
         fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD),
-        GRect(0, bounds.size.h / 2 - 22, split, 36),
+        GRect(0, bounds.size.h / 2 - 22, bounds.size.w, 36),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
-    const GRect mini = GRect(split + 4, 8,
-                             bounds.size.w - split - 9,
-                             bounds.size.h - 18);
-    graphics_context_set_fill_color(ctx, GColorFromRGB(255, 170, 0));
-    graphics_fill_rect(ctx, mini, 4, GCornersAll);
-    graphics_context_set_stroke_color(ctx, ink);
-    graphics_context_set_stroke_width(ctx, 1);
-    graphics_draw_round_rect(ctx, mini, 4);
-    const int dash_y = mini.origin.y + mini.size.h / 2;
-    const int dash_mid = mini.origin.x + mini.size.w / 2;
-    graphics_draw_line(ctx, GPoint(dash_mid - 8, dash_y),
-                            GPoint(dash_mid + 8, dash_y));
     return;
   }
   if (key_label->slot == KEY_LABEL_CENTER &&
       (label->key == get_key(KEY_ENGLISH_MENU) ||
        label->key == get_key(KEY_ENGLISH_BACKSPACE) ||
        label->key == get_key(KEY_ENGLISH_RETURN) ||
-       label->key == get_key(KEY_ENGLISH_SPACEBAR))) {
+       label->key == get_key(KEY_ENGLISH_SPACEBAR) ||
+       label->key == get_key(KEY_NUMBER_SPACEBAR))) {
     prv_draw_control_icon(ctx, label->key, bounds,
                           label->owner->feedback_level);
     return;
@@ -363,15 +352,6 @@ static void prv_draw_number_pictogram(GContext *ctx,
       graphics_draw_line(ctx, GPoint(cx - 4, cy),
                               GPoint(cx - 1, cy + 3));
       break;
-    case JOT_NUM_PICTO_TAB:
-      graphics_draw_line(ctx, GPoint(cx - 5, cy), GPoint(cx + 2, cy));
-      graphics_draw_line(ctx, GPoint(cx + 2, cy),
-                              GPoint(cx - 1, cy - 3));
-      graphics_draw_line(ctx, GPoint(cx + 2, cy),
-                              GPoint(cx - 1, cy + 3));
-      graphics_draw_line(ctx, GPoint(cx + 5, cy - 4),
-                              GPoint(cx + 5, cy + 4));
-      break;
     case JOT_NUM_PICTO_SPACE:
       graphics_draw_line(ctx, GPoint(cx - 5, cy + 2),
                               GPoint(cx + 5, cy + 2));
@@ -391,8 +371,8 @@ static void prv_draw_number_legends(GContext *ctx, const Key *key,
   const int w = bounds.size.w, h = bounds.size.h;
   const int col[3] = {3, (w - 16) / 2, w - 19};
   const int row[3] = {2, (h - 14) / 2, h - 17};
-  graphics_context_set_text_color(ctx, GColorFromRGB(170, 85, 85));
-  const GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
+  graphics_context_set_text_color(ctx, GColorFromRGB(0, 85, 85));
+  const GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
   for (int d = 0; d < 8; ++d) {
     const int x = col[xs[d]], y = row[ys[d]];
     const JotNumberPictogram pictogram =
@@ -452,7 +432,12 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
                        button->key == get_key(KEY_ENGLISH_BACKSPACE) ||
                        button->key == get_key(KEY_ENGLISH_RETURN);
   const bool space = button->key == get_key(KEY_ENGLISH_SPACEBAR) ||
-                     button->key == get_key(KEY_NUMBER_ZERO);
+                     button->key == get_key(KEY_NUMBER_ZERO) ||
+                     button->key == get_key(KEY_NUMBER_SPACEBAR);
+  const ptrdiff_t numeric_index = button->key - get_key(KEY_NUMBER_7);
+  const bool numeric_digit = numeric_index >= 0 && numeric_index < 9;
+  const bool numeric_zero = button->key == get_key(KEY_NUMBER_ZERO);
+  const bool numeric_space = button->key == get_key(KEY_NUMBER_SPACEBAR);
   const GRect bounds = layer_get_bounds(layer);
   const int w = bounds.size.w;
   const int h = bounds.size.h;
@@ -463,8 +448,28 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   // face. All painting stays within the same unchanged 4x4 touch cell.
   const GRect face = GRect(2, 1, w - 4, h - 3);
   // The unchanged face and 1px outline frame the stepped A-style fill.
-  graphics_context_set_fill_color(ctx,
-      prv_feedback_fill(special, space, level, style));
+  GColor fill = prv_feedback_fill(special, space, level, style);
+  if (numeric_digit || numeric_zero || numeric_space) {
+    // Separate sea-glass face; ABC palette/press curves are untouched.
+    // Use actual 64-colour Pebble steps, never interpolated near-greys.
+    const uint8_t step = key_feedback_palette_step(level);
+    if (numeric_digit)
+      fill = !step ? GColorFromRGB(170, 255, 255) :
+             step == 1 ? GColorFromRGB(170, 255, 170) :
+             step == 2 ? GColorFromRGB(85, 255, 170) :
+                         GColorFromRGB(0, 170, 170);
+    else if (numeric_zero)
+      fill = !step ? GColorFromRGB(0, 170, 170) :
+             step == 1 ? GColorFromRGB(0, 255, 170) :
+             step == 2 ? GColorFromRGB(85, 255, 255) :
+                         GColorFromRGB(170, 255, 255);
+    else
+      fill = !step ? GColorFromRGB(0, 85, 170) :
+             step == 1 ? GColorFromRGB(0, 170, 170) :
+             step == 2 ? GColorFromRGB(0, 255, 170) :
+                         GColorFromRGB(85, 255, 255);
+  }
+  graphics_context_set_fill_color(ctx, fill);
   graphics_fill_rect(ctx, face, style->key_corner_radius, GCornersAll);
   // The original ink outline is ALWAYS the same, regardless of the pulse.
   graphics_context_set_stroke_color(ctx, style->key_outline_color);
