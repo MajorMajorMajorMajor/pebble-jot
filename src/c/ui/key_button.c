@@ -248,6 +248,50 @@ static void prv_label_destroy(KeyLabelLayer *label) {
   // nothing to free! allocation was done by pebble's Layer
 }
 
+// One-pixel inset contour follows the rounded face just inside its ink
+// outline. Segments share endpoints so the top/left highlight is unbroken
+// around the upper corners, including the top-right shoulder. The lower
+// bevel is reserved for light keys and follows both bottom corners.
+static void prv_draw_key_bevel(GContext *ctx, GRect face, bool special,
+                               bool space) {
+  const int x0 = face.origin.x + 1;
+  const int y0 = face.origin.y + 1;
+  const int x1 = face.origin.x + face.size.w - 2;
+  const int y1 = face.origin.y + face.size.h - 2;
+  const GColor highlight = special ? GColorFromRGB(94, 96, 99) :
+                            space ? GColorFromRGB(255, 255, 170) :
+                                    GColorWhite;
+
+  graphics_context_set_stroke_width(ctx, 1);
+  graphics_context_set_stroke_color(ctx, highlight);
+
+  // Left edge -> rounded upper-left -> full top -> rounded upper-right.
+  graphics_draw_line(ctx, GPoint(x0, y1 - 6), GPoint(x0, y0 + 5));
+  graphics_draw_line(ctx, GPoint(x0, y0 + 5), GPoint(x0 + 1, y0 + 3));
+  graphics_draw_line(ctx, GPoint(x0 + 1, y0 + 3), GPoint(x0 + 2, y0 + 1));
+  graphics_draw_line(ctx, GPoint(x0 + 2, y0 + 1), GPoint(x0 + 4, y0));
+  graphics_draw_line(ctx, GPoint(x0 + 4, y0), GPoint(x1 - 4, y0));
+  graphics_draw_line(ctx, GPoint(x1 - 4, y0), GPoint(x1 - 2, y0 + 1));
+  graphics_draw_line(ctx, GPoint(x1 - 2, y0 + 1), GPoint(x1 - 1, y0 + 3));
+  graphics_draw_line(ctx, GPoint(x1 - 1, y0 + 3), GPoint(x1, y0 + 5));
+
+  if (!special) {
+    // Subtle lower/right-side ink bevel, also exactly one pixel thick.
+    graphics_context_set_stroke_color(ctx,
+        space ? GColorFromRGB(194, 127, 0) :
+                GColorFromRGB(177, 147, 96));
+    graphics_draw_line(ctx, GPoint(x0, y1 - 5), GPoint(x0 + 1, y1 - 3));
+    graphics_draw_line(ctx, GPoint(x0 + 1, y1 - 3),
+                       GPoint(x0 + 2, y1 - 1));
+    graphics_draw_line(ctx, GPoint(x0 + 2, y1 - 1), GPoint(x0 + 4, y1));
+    graphics_draw_line(ctx, GPoint(x0 + 4, y1), GPoint(x1 - 4, y1));
+    graphics_draw_line(ctx, GPoint(x1 - 4, y1), GPoint(x1 - 2, y1 - 1));
+    graphics_draw_line(ctx, GPoint(x1 - 2, y1 - 1),
+                       GPoint(x1 - 1, y1 - 3));
+    graphics_draw_line(ctx, GPoint(x1 - 1, y1 - 3), GPoint(x1, y1 - 5));
+  }
+}
+
 static void prv_draw_key_background (Layer *layer, GContext *ctx){
   const KeyButtonLayer *button = layer_get_data(layer);
   const UIStyle *style = button->style;
@@ -262,32 +306,17 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   const int h = bounds.size.h;
   const GColor charcoal = GColorFromRGB(41, 40, 43);
 
-  // Raised key faces replace the old downward drop shadow. The face
-  // grows 3px vertically, but remains inside its original 4x4 hit cell.
-  // The two-pixel ink rim and top/left bevel give depth without changing
-  // any gestures or leaving a muddy strip beneath the labels.
+  // One-pixel ink outline and flush 1px inner bevel follow the rounded
+  // face. All painting stays within the same unchanged 4x4 touch cell.
   const GRect face = GRect(2, 1, w - 4, h - 3);
   graphics_context_set_fill_color(ctx,
       special ? charcoal :
-      space ? GColorFromRGB(255, 209, 88) : style->key_background_color);
+      space ? GColorFromRGB(255, 196, 0) : style->key_background_color);
   graphics_fill_rect(ctx, face, style->key_corner_radius, GCornersAll);
   graphics_context_set_stroke_color(ctx, style->key_outline_color);
-  graphics_context_set_stroke_width(ctx, 2);
+  graphics_context_set_stroke_width(ctx, 1);
   graphics_draw_round_rect(ctx, face, style->key_corner_radius);
-
-  // Highlights use quantization-safe contrast for Pebble's color display:
-  // slate on dark controls, white on parchment, pale gold on Space.
-  const GColor highlight = special ? GColorFromRGB(119, 116, 115) :
-                            space ? GColorFromRGB(255, 255, 170) :
-                                    GColorWhite;
-  graphics_context_set_stroke_color(ctx, highlight);
-  graphics_context_set_stroke_width(ctx, 2);
-  graphics_draw_line(ctx, GPoint(face.origin.x + 7, face.origin.y + 4),
-                     GPoint(face.origin.x + face.size.w - 9,
-                            face.origin.y + 4));
-  graphics_draw_line(ctx, GPoint(face.origin.x + 4, face.origin.y + 7),
-                     GPoint(face.origin.x + 4,
-                            face.origin.y + face.size.h - 9));
+  prv_draw_key_bevel(ctx, face, special, space);
 }
 
 KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *style) {

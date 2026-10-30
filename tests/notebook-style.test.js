@@ -30,15 +30,24 @@ assert.match(touch, /s_touch_key == 13 && gesture_index == 0/);
 
 assert.doesNotMatch(key, /const GRect shadow\s*=/);
 assert.match(key, /const GRect face = GRect\(2,\s*1,\s*w - 4,\s*h - 3\)/);
-assert.match(key, /const GColor highlight\s*=/);
+assert.match(key, /static void prv_draw_key_bevel\(/);
+assert.match(key, /prv_draw_key_bevel\(ctx, face, special, space\)/);
 assert.match(key, /graphics_context_set_stroke_color\(ctx, highlight\)/);
+assert.match(key, /graphics_context_set_stroke_width\(ctx, 1\)/);
+assert.doesNotMatch(key, /graphics_context_set_stroke_width\(ctx, 2\)/);
+assert.match(key, /GPoint\(x0, y1 - 6\), GPoint\(x0, y0 \+ 5\)/);
+assert.match(key, /GPoint\(x0 \+ 4, y0\), GPoint\(x1 - 4, y0\)/);
+assert.match(key, /GPoint\(x1 - 1, y0 \+ 3\), GPoint\(x1, y0 \+ 5\)/);
+assert.match(key, /if \(!special\)/);
+assert.match(key, /GPoint\(x0 \+ 4, y1\), GPoint\(x1 - 4, y1\)/);
+assert.match(key, /GColorFromRGB\(255, 196, 0\)/);
 assert.match(key, /\(h \/ 2\) - 2/);
 assert.match(key, /graphics_draw_round_rect\(ctx,\s*face,\s*style->key_corner_radius\)/);
 assert.match(key, /prv_draw_control_icon\(ctx,\s*label->key,\s*bounds\)/);
 for (const symbol of ['MENU', 'BACKSPACE', 'RETURN', 'SPACEBAR']) {
   assert.match(key, new RegExp('key == get_key\\(KEY_ENGLISH_' + symbol + '\\)'));
 }
-assert.match(key, /GColorFromRGB\(255,\s*209,\s*88\)/);
+assert.doesNotMatch(key, /GColorFromRGB\(255,\s*209,\s*88\)/);
 assert.match(keyLabels, /\[KEY_ENGLISH_MENU\][\s\S]*?\.text = "SAVE"/);
 assert.match(keyLabels, /\[KEY_ENGLISH_123\][\s\S]*?\.text = "123"/);
 

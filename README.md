@@ -43,7 +43,25 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
-## Pocket Notebook contrast and bevel polish (v1.8.3 — awaiting wrist test)
+## Fine-line key bevels and bolder gold (v1.8.4 — wrist test pending)
+
+The raised-key bevels of 1.8.3 looked pleasing on real Emery but too
+heavy, particularly on the four charcoal controls. In 1.8.4 each key
+uses a **1px ink outline** with a **continuous, 1px inset highlight**
+along the left side and top, following the top-left rounded corner
+and wrapping slightly around the upper-right corner. Light letter
+keys and the gold Space key also receive a discreet 1px darker
+bottom-edge bevel that wraps the lower corners. The dark action
+keys retain only the softer top/left highlight. The Space fill
+is now a punchier saturated yellow-gold (`255,196,0`), chosen for
+better contrast on Emery's screen.
+
+This change affects only key drawing: no changes to the editor inset,
+44px writing strip, text/caret, key cell sizes, hit geometry, labels,
+gestures, save flow, note storage, or reader/list navigation. Physical
+display verification is pending.
+
+## Pocket Notebook contrast and bevel polish (v1.8.3 — verified on Emery)
 
 Emery photos of 1.8.2 confirmed that 44px and Gothic 18 Bold work together,
 but the notebook's red margin and light horizontal rules were difficult to
@@ -275,6 +293,6 @@ See [README-JOT.md](README-JOT.md) for detailed controls and limits, and [TOUCH_
 
 ## Next steps
 
-The editor gestures, hairline caret, notes-list touch scrolling, button navigation, saved-reader tap-to-edit, and v1.7.4 touch SAVE → reader flow have been verified on Emery. Next: verify v1.8.3's higher-contrast notebook frame, ruled lines and key bevels on Emery, then prioritize safer/larger storage and backup/restore before the beta. Touch-to-position-caret (#17) remains deliberately deferred; key gestures are unchanged.
+The editor gestures, hairline caret, notes-list touch scrolling, button navigation, saved-reader tap-to-edit, and v1.7.4 touch SAVE → reader flow have been verified on Emery. Next: verify v1.8.4's 1px key contours and saturated gold Space on Emery, then prioritize safer/larger storage and backup/restore before the beta. Touch-to-position-caret (#17) remains deliberately deferred; key gestures are unchanged.
 
 Pebble SDK documentation: <https://developer.repebble.com>

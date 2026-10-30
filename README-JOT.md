@@ -29,7 +29,26 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
-## High-contrast notebook paper and key bevels (v1.8.3 — wrist test pending)
+## Fine key bevels and saturated Space (v1.8.4 — hardware pending)
+
+A real Emery photo of the 1.8.3 editor confirmed the red notebook rule,
+text inset, paper frame, and glyph placement. It also showed the top/left
+highlights were visually too thick. Version 1.8.4 draws the rounded keys
+with a 1px charcoal outline and a continuous 1px inset edge highlight,
+running up the left edge, around the top-left corner, across the top
+edge and a little around the top-right corner. The contour hugs the
+outline rather than floating inside the key. The dark controls use
+a subtle slate highlight; light letters and Space also get a 1px
+lower-edge bevel following the bottom corners. Space is filled
+with brighter `GColorFromRGB(255,196,0)` gold to counter Emery's
+washed-out rendition of earlier beige/yellow.
+
+Drawing changes only. The 44px editor, text/caret inset, keyboard
+hitboxes, gestures, note storage and save/navigation paths are unchanged.
+Watch testing should confirm the left-edge contours, bottom bevels
+and saturated Space under real lighting.
+
+## High-contrast notebook paper and key bevels (v1.8.3 — verified on Emery)
 
 On-device v1.8.2 photos confirm the 44px writing strip and Gothic 18 Bold
 font feel well-proportioned. This follow-up strengthens the paper
