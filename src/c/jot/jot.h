@@ -25,6 +25,8 @@ void jot_list_tap(int16_t x, int16_t y);
 // Vertical drags are accepted only from within the clipped card viewport.
 bool jot_list_can_drag(int16_t y);
 void jot_list_drag(int16_t delta_y);
+// One inertial frame in *scroll* coordinates; false at a boundary.
+bool jot_list_kinetic_step(int delta_scroll);
 void jot_refresh_editor(void);
 void jot_save_now(void);
 // Switch from a read-only saved-note page back to the keyboard editor.

@@ -1,3 +1,29 @@
+## Jot 1.14.0 — Kinetic scrolling (Emery QA pending)
+
+The saved-note reader, draft Peek, and note list now use a shared
+integer-only inertial scroll model: finger drags remain exactly 1:1,
+while a sufficiently fast flick (at least 120 px/s) coasts and
+gradually decelerates. Motion is sampled from recent touch updates;
+waiting more than 90 ms before liftoff does not create an accidental
+flick. The model caps launch velocity at 1600 px/s and retains
+approximately 92% per 20 ms frame until it settles. Motion clamps at
+both ends without bounce or overshoot. These parameters are isolated
+for on-watch tuning; **exact PebbleOS menu friction constants could
+not be verified**, so this is a native-feeling prototype, not a claim
+of bit-for-bit OS physics.
+
+A new finger contact immediately cancels ongoing momentum. That first
+stationary touch only stops a moving page; a subsequent tap edits a
+reader note or opens a list card. Continuing to drag after contact
+still works. Physical Up/Down/Back/Select and list/reader teardown
+cancel inertia too. The existing action bar, deletion confirmation,
+tap-versus-drag safeguards, keyboard and note storage are unchanged.
+
+Host tests exercise friction, flick vs pause, direction, cap,
+millisecond overflow and stop/cancel behavior. A source-routing guard
+protects both scroll surfaces. Pebble SDK build and Emery responsiveness
+must be confirmed on real hardware before closing #30.
+
 ## Jot 1.13.1 — Repeat stays locked until liftoff (Emery QA pending)
 
 Real-wrist testing revealed that repeat could unexpectedly stop when

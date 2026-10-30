@@ -1,6 +1,7 @@
 #include <pebble.h>
 #include "jot/jot.h"
 #include "jot/store.h"
+#include "ui/touch.h"
 #include "jot/list_focus.h"
 #include "jot/list_touch.h"
 #include "jot/backup.h"
@@ -355,12 +356,14 @@ static void prv_list_new_note(void) {
 }
 
 static void prv_list_up(ClickRecognizerRef ref, void *context) {
+  touch_cancel_kinetic();
   if (s_confirm_delete || jot_backup_active()) return;
   if (prv_restore_list_focus()) return;
   s_selected_rank = jot_list_focus_up(s_selected_rank);
   prv_follow_list_focus();
 }
 static void prv_list_down(ClickRecognizerRef ref, void *context) {
+  touch_cancel_kinetic();
   if (s_confirm_delete || jot_backup_active()) return;
   if (prv_restore_list_focus()) return;
   s_selected_rank = jot_list_focus_down(s_selected_rank, jot_store_count());
@@ -382,6 +385,7 @@ static void prv_open_list_note(int rank) {
 }
 
 static void prv_list_select(ClickRecognizerRef ref, void *context) {
+  touch_cancel_kinetic();
   if (jot_backup_active()) return;
   // An unhighlighted card must not open unexpectedly based on a stale rank.
   // First Select restores visible focus, just like first Up or Down.
@@ -413,6 +417,7 @@ static void prv_list_select(ClickRecognizerRef ref, void *context) {
   prv_open_list_note(s_selected_rank);
 }
 static void prv_list_hold(ClickRecognizerRef ref, void *context) {
+  touch_cancel_kinetic();
   if (jot_backup_active()) return;
   // Never request deletion of a stale, unhighlighted note after dragging.
   if (prv_restore_list_focus()) return;
@@ -423,6 +428,7 @@ static void prv_list_hold(ClickRecognizerRef ref, void *context) {
   }
 }
 static void prv_list_back(ClickRecognizerRef ref, void *context) {
+  touch_cancel_kinetic();
   if (jot_backup_active()) jot_backup_cancel();
   if (s_confirm_delete) {
     s_confirm_delete = false;
@@ -448,6 +454,7 @@ static void prv_list_back(ClickRecognizerRef ref, void *context) {
   else prv_redraw_list();
 }
 static void prv_list_export(ClickRecognizerRef ref, void *context) {
+  touch_cancel_kinetic();
   if (s_confirm_delete || jot_backup_active()) return;
   if (!prv_flush()) { prv_redraw_list(); return; }
   jot_backup_start();
@@ -482,6 +489,7 @@ static void prv_list_load(Window *window) {
       s_selected_rank, jot_store_count(), bounds.size.h);
 }
 static void prv_list_unload(Window *window) {
+  touch_cancel_kinetic();
   if (s_cards_layer) layer_destroy(s_cards_layer);
   s_cards_layer = NULL;
   if (s_list_layer) layer_destroy(s_list_layer);
@@ -695,6 +703,14 @@ bool jot_list_can_drag(int16_t y) {
       s_confirm_delete || jot_backup_active()) return false;
   const int height = layer_get_bounds(s_list_layer).size.h;
   return y >= LIST_HEADER_H && y < height - LIST_FOOTER_H;
+}
+
+bool jot_list_kinetic_step(int delta_scroll) {
+  if (!jot_list_is_open() || !s_cards_layer || s_confirm_delete ||
+      jot_backup_active()) return false;
+  const int previous = s_list_scroll_px;
+  jot_list_drag((int16_t)-delta_scroll);
+  return previous != s_list_scroll_px;
 }
 
 void jot_list_drag(int16_t delta_y) {

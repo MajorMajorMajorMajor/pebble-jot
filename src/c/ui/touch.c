@@ -6,6 +6,7 @@
 #include "ui/window.h"
 #include "ui/touch.h"
 #include "ui/key_repeat.h"
+#include "ui/kinetic_scroll.h"
 #include "jot/jot.h"
 #include "jot/store.h"
 #include "jot/reader.h"
@@ -95,6 +96,7 @@ static uint32_t s_header_touch_ms;
 // gesture must not accidentally activate the new-note pill.
 static bool s_list_touch_active;
 static bool s_list_touch_moved;
+static bool s_list_touch_suppress_tap;
 static bool s_list_touch_dragging;
 static bool s_list_touch_can_drag;
 static int16_t s_list_touch_x, s_list_touch_y, s_list_touch_last_y;
@@ -104,6 +106,7 @@ static uint32_t s_list_touch_ms;
 // accidentally activate Back on release.
 static bool s_reader_touch_active;
 static bool s_reader_touch_moved;
+static bool s_reader_touch_suppress_tap;
 static bool s_reader_touch_blocked;
 static bool s_reader_touch_dragging;
 static bool s_reader_touch_can_drag;
@@ -684,12 +687,68 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
   }
 }
 
+
+// Both scroll surfaces share one motion engine because only one is visible.
+// The timer lives in touch.c, is cancelled on every touchdown and all
+// physical navigation, and must not outlive its source Window.
+static JotKinetic s_kinetic;
+static AppTimer *s_kinetic_timer;
+static bool s_kinetic_reader;
+
+void touch_cancel_kinetic(void) {
+  if (s_kinetic_timer) {
+    app_timer_cancel(s_kinetic_timer);
+    s_kinetic_timer = NULL;
+  }
+  jot_kinetic_cancel(&s_kinetic);
+}
+
+static void prv_kinetic_tick(void *context) {
+  (void)context;
+  s_kinetic_timer = NULL;
+  if (s_mode != MODE_JOT ||
+      (s_kinetic_reader ? !jot_reader_is_open() : !jot_list_is_open())) {
+    touch_cancel_kinetic();
+    return;
+  }
+  int step = 0;
+  if (!jot_kinetic_frame(&s_kinetic, prv_now_ms(), &step)) {
+    touch_cancel_kinetic();
+    return;
+  }
+  if (step) {
+    const bool moved = s_kinetic_reader ?
+        jot_reader_kinetic_step(step) : jot_list_kinetic_step(step);
+    if (!moved) { // No overshoot, bounce, or endless edge animation.
+      touch_cancel_kinetic();
+      return;
+    }
+  }
+  if (s_kinetic.active)
+    s_kinetic_timer = app_timer_register(JOT_KINETIC_FRAME_MS,
+                                         prv_kinetic_tick, NULL);
+}
+
+static void prv_begin_kinetic(bool reader, uint32_t now_ms) {
+  touch_cancel_kinetic();
+  s_kinetic_reader = reader;
+  jot_kinetic_begin(&s_kinetic, now_ms);
+}
+
+static void prv_release_kinetic(uint32_t now_ms) {
+  if (jot_kinetic_release(&s_kinetic, now_ms))
+    s_kinetic_timer = app_timer_register(JOT_KINETIC_FRAME_MS,
+                                         prv_kinetic_tick, NULL);
+}
+
 static void prv_touch_handler(const TouchEvent *event, void *context) {
   if (!event) return;
 
   if (s_mode == MODE_JOT && jot_reader_is_open()) {
     const uint32_t now_ms = prv_now_ms();
     if (event->type == TouchEvent_Touchdown) {
+      s_reader_touch_suppress_tap = s_kinetic.active;
+      prv_begin_kinetic(true, now_ms);
       s_reader_touch_active = true;
       s_reader_touch_moved = false;
       s_reader_touch_x = event->x;
@@ -717,8 +776,11 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
           abs_dy > JOT_READER_TAP_SLOP && abs_dy >= abs_dx) {
         s_reader_touch_dragging = true;
         jot_reader_drag((int16_t)dy); // Include the initial movement.
+        jot_kinetic_sample(&s_kinetic, -dy, now_ms);
       } else if (s_reader_touch_dragging) {
-        jot_reader_drag((int16_t)(event->y - s_reader_touch_last_y));
+        const int movement = event->y - s_reader_touch_last_y;
+        jot_reader_drag((int16_t)movement);
+        jot_kinetic_sample(&s_kinetic, -movement, now_ms);
       }
       s_reader_touch_last_y = event->y;
 
@@ -730,11 +792,15 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
             now_ms - s_reader_touch_ms, &layout);
         const bool blocked = s_reader_touch_blocked ||
             jot_reader_action_overlay_hit(event->x, event->y);
+        const bool dragged = s_reader_touch_dragging;
         s_reader_touch_active = false;
         s_reader_touch_dragging = false;
         s_reader_touch_can_drag = false;
         s_reader_touch_blocked = false;
-        if (blocked) return; // No edit/peek through action controls.
+        if (dragged && !blocked) prv_release_kinetic(now_ms);
+        else touch_cancel_kinetic();
+        if (blocked || s_reader_touch_suppress_tap) return;
+        // A tap on a moving page only stops it; the next tap may edit.
         if (action == JOT_READER_TOUCH_BACK ||
             action == JOT_READER_TOUCH_DISMISS_PEEK) {
           jot_reader_back();
@@ -747,6 +813,7 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
     return;
   }
   s_reader_touch_active = false;
+  s_reader_touch_suppress_tap = false;
   s_reader_touch_blocked = false;
   s_reader_touch_dragging = false;
   s_reader_touch_can_drag = false;
@@ -754,6 +821,8 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
   if (s_mode == MODE_JOT && jot_list_is_open()) {
     const uint32_t now_ms = prv_now_ms();
     if (event->type == TouchEvent_Touchdown) {
+      s_list_touch_suppress_tap = s_kinetic.active;
+      prv_begin_kinetic(false, now_ms);
       s_list_touch_active = true;
       s_list_touch_moved = false;
       s_list_touch_dragging = false;
@@ -775,22 +844,30 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
           abs_dy > 10 && abs_dy >= abs_dx) {
         s_list_touch_dragging = true;
         jot_list_drag((int16_t)dy);
+        jot_kinetic_sample(&s_kinetic, -dy, now_ms);
       } else if (s_list_touch_dragging) {
-        jot_list_drag((int16_t)(event->y - s_list_touch_last_y));
+        const int movement = event->y - s_list_touch_last_y;
+        jot_list_drag((int16_t)movement);
+        jot_kinetic_sample(&s_kinetic, -movement, now_ms);
       }
       s_list_touch_last_y = event->y;
 
       if (event->type == TouchEvent_Liftoff) {
         const bool tap = !s_list_touch_moved &&
                          now_ms - s_list_touch_ms < 700;
+        const bool dragged = s_list_touch_dragging;
         s_list_touch_active = false;
         s_list_touch_dragging = false;
-        if (tap) jot_list_tap(event->x, event->y);
+        if (dragged) prv_release_kinetic(now_ms);
+        else touch_cancel_kinetic();
+        if (tap && !s_list_touch_suppress_tap)
+          jot_list_tap(event->x, event->y);
       }
     }
     return;
   }
   s_list_touch_active = false;
+  s_list_touch_suppress_tap = false;
   s_list_touch_dragging = false;
 
   if ((s_mode == MODE_TRACE && !s_recording) || s_mode == MODE_MENU) return;
@@ -1116,6 +1193,7 @@ void touch_init(void) {
 }
 
 void touch_deinit(void) {
+  touch_cancel_kinetic();
   prv_stop_repeat();
   jot_key_repeat_end(&s_repeat);
   keyboard_window_highlight_touch_key(-1);

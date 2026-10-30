@@ -2,6 +2,8 @@
 
 void touch_init(void);
 void touch_deinit(void);
+// Cancel reader/list glide on touch, physical navigation or window teardown.
+void touch_cancel_kinetic(void);
 
 // Temporary trace collection controls, invoked by the watch's physical buttons.
 void touch_recorder_select(void);

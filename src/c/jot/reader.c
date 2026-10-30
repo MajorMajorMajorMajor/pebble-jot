@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "jot/reader.h"
 #include "jot/reader_touch.h"
+#include "ui/touch.h"
 #include "jot/reader_review.h"
 #include "jot/jot.h"
 #include "jot/store.h"
@@ -106,6 +107,7 @@ static void prv_mark_review(void) {
 }
 
 void jot_reader_back(void) {
+  touch_cancel_kinetic();
   if (!jot_reader_is_open()) return;
   // First Back disarms deletion; next Back closes the action bar.
   // Once the bar is closed, Back returns to the list (or draft editor).
@@ -417,6 +419,7 @@ static void prv_confirm_delete(void) {
 }
 
 static void prv_reader_up(ClickRecognizerRef ref, void *context) {
+  touch_cancel_kinetic();
   if (s_review.open && !s_is_peek) { prv_browse(-1); return; }
   s_scroll -= READER_SCROLL_STEP;
   if (s_scroll < 0) s_scroll = 0;
@@ -424,6 +427,7 @@ static void prv_reader_up(ClickRecognizerRef ref, void *context) {
 }
 
 static void prv_reader_down(ClickRecognizerRef ref, void *context) {
+  touch_cancel_kinetic();
   if (s_review.open && !s_is_peek) { prv_browse(1); return; }
   s_scroll += READER_SCROLL_STEP;
   if (s_scroll > s_scroll_max) s_scroll = s_scroll_max;
@@ -443,6 +447,14 @@ JotReaderTouchLayout jot_reader_touch_layout(void) {
   return layout;
 }
 
+bool jot_reader_kinetic_step(int delta_scroll) {
+  if (!jot_reader_is_open() || !s_viewport || !s_text_layer)
+    return false;
+  const int previous = s_scroll;
+  jot_reader_drag((int16_t)-delta_scroll);
+  return previous != s_scroll;
+}
+
 void jot_reader_drag(int16_t finger_delta_y) {
   if (!jot_reader_is_open() || !s_viewport || !s_text_layer) return;
   const JotReaderTouchLayout layout = jot_reader_touch_layout();
@@ -454,6 +466,7 @@ void jot_reader_drag(int16_t finger_delta_y) {
 }
 
 bool jot_reader_edit_current(void) {
+  touch_cancel_kinetic();
   // Keep physical Select and touch text-edit on the exact same route.
   // A Peek is not an existing saved note and cannot become one here.
   if (!jot_reader_is_open() || s_is_peek || s_slot < 0) return false;
@@ -470,6 +483,7 @@ bool jot_reader_edit_current(void) {
 }
 
 static void prv_reader_select(ClickRecognizerRef ref, void *context) {
+  touch_cancel_kinetic();
   if (s_is_peek) {
     jot_reader_back();
     return;
@@ -483,6 +497,7 @@ static void prv_reader_select(ClickRecognizerRef ref, void *context) {
 }
 
 static void prv_reader_select_hold(ClickRecognizerRef ref, void *context) {
+  touch_cancel_kinetic();
   if (s_is_peek || !s_action_bar) return; // Drafts are never deletable.
   jot_reader_review_hold(&s_review);
   s_review_message = NULL;
@@ -570,6 +585,7 @@ static void prv_reader_load(Window *window) {
 }
 
 static void prv_reader_unload(Window *window) {
+  touch_cancel_kinetic();
   if (s_danger_badge) {
     layer_remove_from_parent(s_danger_badge);
     layer_destroy(s_danger_badge);

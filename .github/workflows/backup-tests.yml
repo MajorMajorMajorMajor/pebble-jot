@@ -66,6 +66,12 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/list-focus-test.c src/c/jot/list_focus.c -o /tmp/jot-list-focus-test
           /tmp/jot-list-focus-test
+      - name: Test kinetic scrolling velocity and friction
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/kinetic-scroll-test.c src/c/ui/kinetic_scroll.c -o /tmp/jot-kinetic-test
+          /tmp/jot-kinetic-test
+          node tests/kinetic-routing.test.js
       - name: Test touch-scrolling list and card hitboxes
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \

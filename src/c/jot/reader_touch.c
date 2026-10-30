@@ -61,8 +61,8 @@ bool jot_reader_touch_can_drag(int x, int y,
 int jot_reader_touch_scroll_after_drag(int scroll_y, int finger_delta_y,
                                        const JotReaderTouchLayout *layout) {
   if (!layout || layout->scroll_max <= 0) return 0;
-  // Scroll position grows when the finger moves UP. No velocity boost,
-  // fixed-step jumps or inertia: every move reflects actual finger travel.
+  // During an active drag the content follows the finger exactly.
+  // A separate shared kinetic model takes over only after liftoff.
   const int proposed = scroll_y - finger_delta_y;
   if (proposed < 0) return 0;
   if (proposed > layout->scroll_max) return layout->scroll_max;

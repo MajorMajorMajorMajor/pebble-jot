@@ -1,0 +1,27 @@
+// Guard window lifetime, friction integration and tap cancellation wiring.
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const read = p => fs.readFileSync(p, 'utf8');
+const touch = read('src/c/ui/touch.c');
+const list = read('src/c/jot/jot.c');
+const reader = read('src/c/jot/reader.c');
+const model = read('src/c/ui/kinetic_scroll.c');
+assert.match(touch, /prv_begin_kinetic\(true, now_ms\)/);
+assert.match(touch, /prv_begin_kinetic\(false, now_ms\)/);
+assert.match(touch, /jot_kinetic_sample\(&s_kinetic, -movement, now_ms\)/);
+assert.match(touch, /prv_release_kinetic\(now_ms\)/);
+assert.match(touch, /s_reader_touch_suppress_tap = s_kinetic.active/);
+assert.match(touch, /s_list_touch_suppress_tap = s_kinetic.active/);
+assert.match(touch, /blocked \|\| s_reader_touch_suppress_tap/);
+assert.match(touch, /tap && !s_list_touch_suppress_tap/);
+assert.match(touch, /jot_reader_kinetic_step\(step\) : jot_list_kinetic_step\(step\)/);
+assert.match(touch, /if \(!moved\).*touch_cancel_kinetic\(\)/s);
+assert.match(touch, /touch_cancel_kinetic\(\);\s*prv_stop_repeat\(\)/);
+assert.match(reader, /bool jot_reader_kinetic_step\(int delta_scroll\)/);
+assert.match(list, /bool jot_list_kinetic_step\(int delta_scroll\)/);
+assert.match(reader, /void jot_reader_back\(void\) \{\s*touch_cancel_kinetic\(\)/);
+assert.match(list, /static void prv_list_unload\(Window \*window\) \{\s*touch_cancel_kinetic\(\)/);
+assert.match(reader, /static void prv_reader_unload\(Window \*window\) \{\s*touch_cancel_kinetic\(\)/);
+assert.match(model, /JOT_KINETIC_MOTION_GAP_MS/);
+console.log('Reader/list kinetic event routing, bounds, and cancel paths OK');
