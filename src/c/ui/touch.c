@@ -170,7 +170,9 @@ static bool prv_jot_forward_delete_command(int key, int gesture) {
   return true;
 }
 
-static TraceEvent s_events[TRACE_MAX_EVENTS];
+// Trace capture buffers live on the heap only while diagnostics RECORD.
+// Ordinary notebook operation must not reserve ~18 KiB of virtual image.
+static TraceEvent *s_events;
 static size_t s_event_count;
 static uint32_t s_overflow_count;
 static uint32_t s_trial_id;
@@ -219,7 +221,7 @@ static uint32_t s_failed_export_trial_id;
 static bool s_touch_enabled;
 static bool s_recording;
 static StrokeStats s_stroke;
-static StrokeSummary s_summaries[TRACE_MAX_STROKES];
+static StrokeSummary *s_summaries;
 static size_t s_summary_count;
 static uint32_t s_summary_overflow;
 static AppTimer *s_feedback_timer;
@@ -751,6 +753,13 @@ static void prv_free_dump(TraceDump *dump) {
   free(dump);
 }
 
+static void prv_release_capture_buffers(void) {
+  free(s_events);
+  s_events = NULL;
+  free(s_summaries);
+  s_summaries = NULL;
+}
+
 // Copy out just the actual samples; no 1024-event duplicate is kept permanently.
 static bool prv_queue_trial(void) {
   TraceDump *dump = calloc(1, sizeof *dump);
@@ -871,6 +880,9 @@ static void prv_finish_trial(void) {
   s_stroke.active = false;
 
   const bool queued = prv_queue_trial();
+  // The export queue owns copies of the recorded samples; release the
+  // live capture buffers immediately so normal notebook RAM stays free.
+  prv_release_capture_buffers();
   if (queued) {
     // The trial is only queued here; it has not yet reached TRACE_END.
     prv_show_export_status();
@@ -905,6 +917,15 @@ void touch_recorder_select(void) {
   if (s_dump_count >= TRACE_LOG_QUEUE_LIMIT) {
     alert_set_text("Export queue full\nSelect again after export");
     prv_schedule_export();
+    return;
+  }
+  // Allocate only after the user explicitly starts a diagnostic trial.
+  // If either allocation fails, leave recording off and allow a retry.
+  s_events = malloc(TRACE_MAX_EVENTS * sizeof *s_events);
+  s_summaries = malloc(TRACE_MAX_STROKES * sizeof *s_summaries);
+  if (!s_events || !s_summaries) {
+    prv_release_capture_buffers();
+    alert_set_text("Trace memory full\nSelect to retry");
     return;
   }
   // Starting a new trial acknowledges any earlier export allocation error.
@@ -987,6 +1008,7 @@ void touch_deinit(void) {
   // An unfinished trial is intentionally not emitted as a completed sample.
   s_recording = false;
   s_stroke.active = false;
+  prv_release_capture_buffers();
   if (s_dump_timer) { app_timer_cancel(s_dump_timer); s_dump_timer = NULL; }
   // Flush on orderly shutdown rather than silently losing finished trials.
   // This may take time when exiting, but never blocks the normal stop button.

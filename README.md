@@ -4,6 +4,24 @@
 
 Jot grew out of the [MessagEase-inspired gesture keyboard experiments](https://github.com/MajorMajorMajorMajor/messagease-test). Its keyboard supports taps, eight-direction swipes, eight directional drag-and-return gestures, and clockwise/counterclockwise circles. Clockwise circles on the letter grid enter digits 1–9 in calculator order; clockwise on Space enters 0.
 
+## Emery virtual-size headroom (v1.11.1 — awaiting SDK build)
+
+The 1.11.0 build reached **65,716 bytes** of `.text + .data + .bss`,
+181 bytes beyond Pebble's 65,535-byte metadata limit. Instead of shaving
+just 181 bytes, v1.11.1 removes the old trace recorder's two large
+**always-allocated** buffers (1,024 touch samples and 128 gesture summaries)
+from static memory. They are now allocated only when an explicit
+diagnostic recording starts, and freed immediately after the export queue
+takes ownership of its copies. Failed allocations leave recording off
+and display an error, and orderly shutdown also releases them.
+
+This is expected to recover **well over 15 KiB of virtual-image space**,
+providing meaningful growth room for the editor and future improvements.
+It preserves the trace recorder's sampling capacities, 1 MB note store,
+gesture mapping, key-press feedback and notebook visuals. Automated
+architecture regressions protect against reintroducing fixed buffers;
+the exact new `virtual_size` still requires a local Pebble SDK build.
+
 ## Gesture keyboard cleanup (v1.11.0 — wrist QA pending)
 
 - **#28:** Clockwise loop on the wide gold Space key now inserts **0**.

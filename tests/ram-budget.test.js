@@ -12,6 +12,7 @@ const jot = read('src/c/jot/jot.c');
 const alert = read('src/c/ui/alert.c');
 const reader = read('src/c/jot/reader.c');
 const backup = read('src/c/jot/backup.c');
+const touch = read('src/c/ui/touch.c');
 
 assert.match(storeHeader, /JOT_NOTE_TEXT_BYTES\s*=\s*4096/);
 assert.match(store, /static char s_text\[JOT_NOTE_TEXT_BYTES\]/);
@@ -36,4 +37,17 @@ for (const source of [reader, backup]) {
   assert.match(source, /free\(s_note\)/);
 }
 assert.match(store, /uint32_t serial;\s*uint32_t timestamp;\s*uint32_t revision;\s*uint16_t length;\s*int8_t bank;/);
+// The diagnostic trace harness is rarely used, but its historical fixed
+// arrays consumed > 15 KiB of every notebook build (.bss), even when idle.
+// A 65,535-byte virtual image cannot afford always-on diagnostic buffers.
+assert.doesNotMatch(touch, /static TraceEvent s_events\[TRACE_MAX_EVENTS\]/);
+assert.doesNotMatch(touch, /static StrokeSummary s_summaries\[TRACE_MAX_STROKES\]/);
+assert.match(touch, /static TraceEvent \*s_events/);
+assert.match(touch, /static StrokeSummary \*s_summaries/);
+assert.match(touch, /s_events\s*=\s*malloc\(TRACE_MAX_EVENTS\s*\*\s*sizeof \*s_events\)/);
+assert.match(touch, /s_summaries\s*=\s*malloc\(TRACE_MAX_STROKES\s*\*\s*sizeof \*s_summaries\)/);
+assert.match(touch, /if \(!s_events \|\| !s_summaries\)/);
+assert.match(touch, /static void prv_release_capture_buffers\(void\)/);
+assert.match(touch, /const bool queued = prv_queue_trial\(\);[\s\S]*?prv_release_capture_buffers\(\)/);
+assert.match(touch, /void touch_deinit\(void\)[\s\S]*?prv_release_capture_buffers\(\)/);
 console.log('Emery RAM budget architecture guards passed');
