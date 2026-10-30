@@ -358,7 +358,7 @@ static void prv_draw_primary_legends(GContext *ctx, const Key *key,
   for (int d = 0; d < 8; ++d) {
     const char symbol = jot_primary_face_legend((int)index, d);
     if (!symbol) continue;
-    const char text[2] = {symbol, '\\0'};
+    const char text[2] = {symbol, '\0'};
     graphics_draw_text(ctx, text, font,
         GRect(col[xs[d]], row[ys[d]], 16, 15),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
