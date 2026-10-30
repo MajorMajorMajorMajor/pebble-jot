@@ -509,6 +509,13 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
           } else if (s_touch_key == 13 && gesture_index == 0) {
             jot_editor_touch_save();
           } else if (keyboard_window_number_face_active() &&
+                     jot_number_face_small_space_tap(
+                         s_touch_key, gesture_index, s_stroke.start_x,
+                         layer_get_bounds(window_get_root_layer(
+                             window_stack_get_top_window())).size.w)) {
+            // Distinct small Space tap on the right side of the gold key.
+            jot_input(" ");
+          } else if (keyboard_window_number_face_active() &&
                      s_touch_key >= 0 && s_touch_key < 9) {
             // Workbook-defined cursor gestures belong to numeric 9 and 3.
             // Never run the alphabet I/S cursor shortcuts on this face.

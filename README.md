@@ -10,9 +10,13 @@ editing the note or moving the caret.
 The complete original number-face mapping in docs/gesture-map.csv now
 controls compass, return and circular gestures. Mauve legends surround the
 digit faces; cursor movement, Return and Backspace work where the original
-map assigns them. The gold key prioritizes a large 0, with a small Space
-dash for the secondary shortcut. Unimplemented actions such as Compose
-stay reserved rather than being silently given new meanings.
+map assigns them. The gold key is split into a visually large 0 and a **small, separately
+tappable Space** area at the bottom right. Direction gestures still operate
+over the full shared key. Unsupported actions such as Compose have **no
+legend**. Implemented editor commands (caret up/down, Return, Tab,
+Backspace, and Space) use tiny native-drawn pictograms that work on
+Emery without missing Unicode font glyphs. Numeric hitboxes and the
+letter face remain unchanged.
 On the wide zero key, tap prints 0; down or counterclockwise produces
 Space. The original Space left/right cursor gestures remain available.
 Saved-note actions, note storage, reader/list navigation, and every

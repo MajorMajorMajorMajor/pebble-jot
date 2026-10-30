@@ -31,18 +31,39 @@ const char *jot_number_face_binding(int key, int gesture) {
   return NULL;
 }
 
-// The 8 straight-swipe legends in NW, N, NE, E, SE, S, SW, W order.
+
+// The 8 straight swipes: NW, N, NE, E, SE, S, SW, W.
+// Symbols that aren't safely printable on Pebble are not advertised
+// as text; supported action hints are drawn as native little pictograms.
+static const uint8_t s_straight_gestures[8] = {8,1,2,3,4,5,6,7};
+
+JotNumberPictogram jot_number_face_pictogram(int key, int direction) {
+  if (direction < 0 || direction >= 8) return JOT_NUM_PICTO_NONE;
+  if (key == 2) { // 9: up arrow, Return
+    if (direction == 1) return JOT_NUM_PICTO_UP;
+    if (direction == 2) return JOT_NUM_PICTO_RETURN;
+  } else if (key == 6) { // 1: Tab, Backspace
+    if (direction == 4) return JOT_NUM_PICTO_TAB;
+    if (direction == 6) return JOT_NUM_PICTO_BACKSPACE;
+  } else if (key == 8) { // 3: Space, cursor down
+    if (direction == 4) return JOT_NUM_PICTO_SPACE;
+    if (direction == 5) return JOT_NUM_PICTO_DOWN;
+  }
+  return JOT_NUM_PICTO_NONE;
+}
+
 const char *jot_number_face_legend(int key, int direction) {
-  static const uint8_t g[8] = {8,1,2,3,4,5,6,7};
   if (key < 0 || key >= 9 || direction < 0 || direction >= 8)
     return NULL;
-  if (key == 0 && direction == 0) return "C"; // Compose reserved
-  if (key == 2 && direction == 1) return "↑";
-  if (key == 2 && direction == 2) return "↵";
-  if (key == 6 && direction == 4) return "⇥";
-  if (key == 6 && direction == 6) return "⌫";
-  if (key == 8 && direction == 4) return "—";
-  if (key == 8 && direction == 5) return "↓";
-  const char *text = s_bindings[key][g[direction]];
+  if (jot_number_face_pictogram(key, direction) != JOT_NUM_PICTO_NONE)
+    return NULL;
+  // 7 NW is Compose, not implemented. Hide it, do not print a fake "C".
+  const char *text = s_bindings[key][s_straight_gestures[direction]];
   return *text ? text : NULL;
+}
+
+bool jot_number_face_small_space_tap(int key, int gesture,
+                                     int x, int screen_width) {
+  return key == 9 && gesture == 0 && screen_width > 0 &&
+         x >= (screen_width * 3) / 4 && x < screen_width;
 }

@@ -34,10 +34,27 @@ int main(void) {
   assert(jot_number_face_binding(-1,0)==NULL);
   assert(jot_number_face_binding(10,0)==NULL);
   assert(jot_number_face_binding(0,19)==NULL);
-  assert(jot_number_face_legend(0,0));
-  assert(strcmp(jot_number_face_legend(2,1),"↑")==0);
-  assert(strcmp(jot_number_face_legend(8,5),"↓")==0);
+  // Never display a promised action until it actually works.
+  assert(jot_number_face_legend(0,0)==NULL); // 7 NW Compose
+  assert(jot_number_face_pictogram(0,0)==JOT_NUM_PICTO_NONE);
+  assert(jot_number_face_legend(2,1)==NULL);
+  assert(jot_number_face_pictogram(2,1)==JOT_NUM_PICTO_UP);
+  assert(jot_number_face_pictogram(2,2)==JOT_NUM_PICTO_RETURN);
+  assert(jot_number_face_pictogram(6,4)==JOT_NUM_PICTO_TAB);
+  assert(jot_number_face_pictogram(6,6)==JOT_NUM_PICTO_BACKSPACE);
+  assert(jot_number_face_pictogram(8,4)==JOT_NUM_PICTO_SPACE);
+  assert(jot_number_face_pictogram(8,5)==JOT_NUM_PICTO_DOWN);
+  assert(jot_number_face_pictogram(7,1)==JOT_NUM_PICTO_NONE);
   assert(jot_number_face_legend(-1,0)==NULL);
+  // Big zero on the left two-thirds, tappable Space on the right third.
+  assert(!jot_number_face_small_space_tap(9,0,149,200));
+  assert(jot_number_face_small_space_tap(9,0,150,200));
+  assert(jot_number_face_small_space_tap(9,0,199,200));
+  assert(!jot_number_face_small_space_tap(9,0,200,200));
+  assert(!jot_number_face_small_space_tap(9,5,199,200));
+  assert(!jot_number_face_small_space_tap(8,0,190,200));
+  assert(!jot_number_face_small_space_tap(9,0,-1,200));
+  assert(!jot_number_face_small_space_tap(9,0,150,0));
   puts("Canonical numeric bindings and eight-direction legends passed");
   return 0;
 }

@@ -8,10 +8,14 @@ compass positions, matching the numeric rows in docs/gesture-map.csv.
 Every printable mapping from the source, including return swipes and
 circles, is available. Key 9 ↑ moves the caret up, 3 ↓ moves it down,
 1 ↙ performs Backspace, 9 ↗ enters Return and 1 ↘ enters Tab.
-Compose and other unsupported actions remain reserved. The large gold 0
-takes visual priority over a small Space dash: tap is 0; downward and
-diagonal-down or CCW inserts Space; E/W keeps existing cursor movement.
-ABC mappings are unchanged.
+Compose and other unsupported actions remain reserved and unlabelled.
+All supported editor actions have native 1px-drawn icons rather than
+font-dependent Unicode arrows. The bottom gold key contains a large 0
+and a visibly separate smaller Space key: tap the rightmost quarter
+of the screen (in the bottom row) for Space, or elsewhere in the wide
+key for 0. Downward/diagonal-down or CCW inserts Space from either
+part, while East/West keep established cursor movements. ABC remains
+unchanged.
 
 The screen rebuilds one grid on toggle and destroys the previous grid,
 cancelling the old animation timer. Creation failure does not change

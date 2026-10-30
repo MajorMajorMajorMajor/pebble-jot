@@ -107,17 +107,27 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
   GRect box = grect_crop(bounds, 1);
   if (key_label->slot == KEY_LABEL_CENTER &&
       label->key == get_key(KEY_NUMBER_ZERO)) {
-    // Primary large 0, secondary little Space dash.
-    graphics_context_set_text_color(ctx, GColorFromRGB(41, 40, 43));
+    // Two-thirds wide ZERO, one-third mini Space: two tap zones in
+    // the same established wide key, divided only within its artwork.
+    const int split = bounds.size.w * 2 / 3;
+    const GColor ink = GColorFromRGB(41, 40, 43);
+    graphics_context_set_text_color(ctx, ink);
     graphics_draw_text(ctx, "0",
         fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD),
-        GRect(0, bounds.size.h / 2 - 22, bounds.size.w, 36),
+        GRect(0, bounds.size.h / 2 - 22, split, 36),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
-    graphics_context_set_stroke_color(ctx, GColorFromRGB(100, 65, 0));
-    graphics_context_set_stroke_width(ctx, 2);
-    graphics_draw_line(ctx,
-        GPoint(bounds.size.w - 24, bounds.size.h - 11),
-        GPoint(bounds.size.w - 10, bounds.size.h - 11));
+    const GRect mini = GRect(split + 4, 8,
+                             bounds.size.w - split - 9,
+                             bounds.size.h - 18);
+    graphics_context_set_fill_color(ctx, GColorFromRGB(255, 170, 0));
+    graphics_fill_rect(ctx, mini, 4, GCornersAll);
+    graphics_context_set_stroke_color(ctx, ink);
+    graphics_context_set_stroke_width(ctx, 1);
+    graphics_draw_round_rect(ctx, mini, 4);
+    const int dash_y = mini.origin.y + mini.size.h / 2;
+    const int dash_mid = mini.origin.x + mini.size.w / 2;
+    graphics_draw_line(ctx, GPoint(dash_mid - 8, dash_y),
+                            GPoint(dash_mid + 8, dash_y));
     return;
   }
   if (key_label->slot == KEY_LABEL_CENTER &&
@@ -317,6 +327,59 @@ static void prv_draw_key_bevel(GContext *ctx, GRect face, bool special,
 }
 
 
+// Native 1px pictograms, not Unicode arrows: the small system font
+// lacks several arrow/utility glyphs on Emery. Coordinates are local
+// to a 16x15 compass label slot.
+static void prv_draw_number_pictogram(GContext *ctx,
+                                     JotNumberPictogram icon,
+                                     int x, int y) {
+  const int cx = x + 8, cy = y + 7;
+  graphics_context_set_stroke_width(ctx, 1);
+  switch (icon) {
+    case JOT_NUM_PICTO_UP:
+    case JOT_NUM_PICTO_DOWN: {
+      const int sign = icon == JOT_NUM_PICTO_DOWN ? 1 : -1;
+      graphics_draw_line(ctx, GPoint(cx, cy - 4), GPoint(cx, cy + 4));
+      graphics_draw_line(ctx, GPoint(cx - 3, cy + sign),
+                              GPoint(cx, cy + sign * 4));
+      graphics_draw_line(ctx, GPoint(cx + 3, cy + sign),
+                              GPoint(cx, cy + sign * 4));
+      break;
+    }
+    case JOT_NUM_PICTO_RETURN:
+      graphics_draw_line(ctx, GPoint(cx + 5, cy - 4),
+                              GPoint(cx + 5, cy + 2));
+      graphics_draw_line(ctx, GPoint(cx + 5, cy + 2),
+                              GPoint(cx - 5, cy + 2));
+      graphics_draw_line(ctx, GPoint(cx - 5, cy + 2),
+                              GPoint(cx - 2, cy - 1));
+      graphics_draw_line(ctx, GPoint(cx - 5, cy + 2),
+                              GPoint(cx - 2, cy + 5));
+      break;
+    case JOT_NUM_PICTO_BACKSPACE:
+      graphics_draw_line(ctx, GPoint(cx + 5, cy), GPoint(cx - 4, cy));
+      graphics_draw_line(ctx, GPoint(cx - 4, cy),
+                              GPoint(cx - 1, cy - 3));
+      graphics_draw_line(ctx, GPoint(cx - 4, cy),
+                              GPoint(cx - 1, cy + 3));
+      break;
+    case JOT_NUM_PICTO_TAB:
+      graphics_draw_line(ctx, GPoint(cx - 5, cy), GPoint(cx + 2, cy));
+      graphics_draw_line(ctx, GPoint(cx + 2, cy),
+                              GPoint(cx - 1, cy - 3));
+      graphics_draw_line(ctx, GPoint(cx + 2, cy),
+                              GPoint(cx - 1, cy + 3));
+      graphics_draw_line(ctx, GPoint(cx + 5, cy - 4),
+                              GPoint(cx + 5, cy + 4));
+      break;
+    case JOT_NUM_PICTO_SPACE:
+      graphics_draw_line(ctx, GPoint(cx - 5, cy + 2),
+                              GPoint(cx + 5, cy + 2));
+      break;
+    default: break;
+  }
+}
+
 // Place all eight number-face legends directly on the painted key face:
 // no eight extra layers per key, preserving the watch RAM budget.
 static void prv_draw_number_legends(GContext *ctx, const Key *key,
@@ -331,10 +394,17 @@ static void prv_draw_number_legends(GContext *ctx, const Key *key,
   graphics_context_set_text_color(ctx, GColorFromRGB(170, 85, 85));
   const GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
   for (int d = 0; d < 8; ++d) {
+    const int x = col[xs[d]], y = row[ys[d]];
+    const JotNumberPictogram pictogram =
+        jot_number_face_pictogram((int)index, d);
+    if (pictogram != JOT_NUM_PICTO_NONE) {
+      prv_draw_number_pictogram(ctx, pictogram, x, y);
+      continue;
+    }
     const char *symbol = jot_number_face_legend((int)index, d);
     if (!symbol) continue;
     graphics_draw_text(ctx, symbol, font,
-        GRect(col[xs[d]], row[ys[d]], 16, 15),
+        GRect(x, y, 16, 15),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
   }
 }
