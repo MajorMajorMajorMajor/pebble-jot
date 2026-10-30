@@ -111,9 +111,9 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
                      0, GCornerNone);
   graphics_context_set_text_color(ctx, GColorWhite);
   const char *hint = s_open_error ? "COULD NOT OPEN NOTE" :
-                     s_is_peek ? (s_scroll_max ? "UP/DN scroll  TAP return" :
+                     s_is_peek ? (s_scroll_max ? "DRAG scroll  TAP return" :
                                                  "TAP to return to typing") :
-                     s_scroll_max ? "UP/DN scroll  TAP edit" :
+                     s_scroll_max ? "DRAG scroll  TAP edit" :
                                     "TAP text  SEL edit";
   graphics_draw_text(ctx, hint,
                      fonts_get_system_font(FONT_KEY_GOTHIC_14),
@@ -191,7 +191,18 @@ JotReaderTouchLayout jot_reader_touch_layout(void) {
   layout.screen_height = bounds.size.h;
   layout.text_height = s_text_height;
   layout.scroll_y = s_scroll;
+  layout.scroll_max = s_scroll_max;
   return layout;
+}
+
+void jot_reader_drag(int16_t finger_delta_y) {
+  if (!jot_reader_is_open() || !s_viewport || !s_text_layer) return;
+  const JotReaderTouchLayout layout = jot_reader_touch_layout();
+  const int next = jot_reader_touch_scroll_after_drag(
+      s_scroll, finger_delta_y, &layout);
+  if (next == s_scroll) return;
+  s_scroll = next;
+  prv_update_scroll();
 }
 
 bool jot_reader_edit_current(void) {

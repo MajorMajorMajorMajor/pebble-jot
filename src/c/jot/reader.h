@@ -17,6 +17,9 @@ void jot_reader_back(void);
 bool jot_reader_edit_current(void);
 // Actual reader viewport measurements for precise text-only hit testing.
 JotReaderTouchLayout jot_reader_touch_layout(void);
+// Direct finger scrolling inside the clipped text viewport. This never
+// edits a saved note or dismisses a draft Peek.
+void jot_reader_drag(int16_t finger_delta_y);
 
 // Preview the unsaved current editor buffer without changing storage.
 // Back, Select, or a touchscreen tap returns to the same editor.

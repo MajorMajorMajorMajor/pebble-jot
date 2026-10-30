@@ -83,6 +83,11 @@ assert.match(touchLayout, /layout\.screen_width\s*=\s*bounds\.size\.w/);
 assert.match(touchLayout, /layout\.screen_height\s*=\s*bounds\.size\.h/);
 assert.match(touchLayout, /layout\.text_height\s*=\s*s_text_height/);
 assert.match(touchLayout, /layout\.scroll_y\s*=\s*s_scroll/);
+assert.match(touchLayout, /layout\.scroll_max\s*=\s*s_scroll_max/);
+const readerDrag = functionBody(reader, 'void jot_reader_drag(int16_t finger_delta_y)');
+assert.match(readerDrag, /jot_reader_is_open\(\)/);
+assert.match(readerDrag, /jot_reader_touch_scroll_after_drag\(/);
+assert.match(readerDrag, /prv_update_scroll\(\)/);
 assert.match(functionBody(reader, 'static void prv_reader_back('),
              /jot_reader_back\(\)/);
 assert.match(functionBody(reader, 'void jot_reader_back(void)'),
@@ -176,6 +181,11 @@ const touchHandler = functionBody(touch, 'static void prv_touch_handler(');
 assert.match(touchHandler, /jot_list_is_open\(\)/);
 assert.match(touchHandler, /jot_reader_touch_action\(/);
 assert.match(touchHandler, /s_reader_touch_moved\s*=\s*true/);
+assert.match(touchHandler, /jot_reader_touch_can_drag\(/);
+assert.match(touchHandler, /s_reader_touch_can_drag\s*&&/);
+assert.match(touchHandler, /abs_dy\s*>\s*JOT_READER_TAP_SLOP\s*&&\s*abs_dy\s*>=\s*abs_dx/);
+assert.match(touchHandler, /jot_reader_drag\(\(int16_t\)dy\)/);
+assert.match(touchHandler, /jot_reader_drag\(\(int16_t\)\(event->y - s_reader_touch_last_y\)\)/);
 assert.match(touchHandler, /JOT_READER_TOUCH_BACK/);
 assert.match(touchHandler, /JOT_READER_TOUCH_DISMISS_PEEK/);
 assert.match(touchHandler, /JOT_READER_TOUCH_EDIT/);

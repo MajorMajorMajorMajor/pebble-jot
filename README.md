@@ -43,6 +43,25 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
+## Smooth touch-scrolling for long notes (v1.9.2 — Emery QA pending)
+
+Reader and unsaved-draft Peek now support **direct vertical finger scrolling**
+in the clipped body of the page. Dragging up moves down the note, tracking
+finger movement one pixel at a time; dragging down returns toward the
+beginning. There is no momentum or animated page jump. Scrolling clamps at
+both ends and only starts after >10px of predominantly vertical movement,
+so a stationary tap on saved note text still edits, and a stationary tap
+in draft Peek still returns to typing. Drags never activate those actions,
+even if the finger comes back to its starting point.
+
+The header Back button, timestamp strip, and footer are outside the drag
+target. Blank paper within the body can be used for scrolling. Existing
+physical Up/Down scrolling remains at 60px per click, and the reader
+footer now advertises DRAG for long notes. The editor gestures, note
+storage, navigation, and Pocket Notebook visuals do not change. Pure C
+geometry tests and navigation wiring regressions protect the behavior;
+physical Emery smoothness remains to be checked.
+
 ## Emery virtual-memory fix (v1.9.1 — SDK and watch verification pending)
 
 The initial 1.9.0 build failed at metadata injection: static text buffers

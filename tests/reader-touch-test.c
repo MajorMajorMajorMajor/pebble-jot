@@ -6,9 +6,9 @@
 
 // Pebble Time 2 is 200x228. The 60px measured text occupies y=77..136;
 // the text viewport occupies y=75..197, leaving blank paper below.
-static const JotReaderTouchLayout short_note = {200, 228, 60, 0};
-static const JotReaderTouchLayout long_scrolled = {200, 228, 300, 160};
-static const JotReaderTouchLayout empty_layout = {0, 0, 0, 0};
+static const JotReaderTouchLayout short_note = {200, 228, 60, 0, 0};
+static const JotReaderTouchLayout long_scrolled = {200, 228, 300, 160, 181};
+static const JotReaderTouchLayout empty_layout = {0, 0, 0, 0, 0};
 
 static JotReaderTouchAction action_with_layout(
     bool peek, int sx, int sy, int ex, int ey, bool moved,
@@ -135,10 +135,49 @@ static void test_peek(void) {
          == JOT_READER_TOUCH_DISMISS_PEEK);
 }
 
+static void test_touch_drag(void) {
+  // The reader body is y=75..197 inclusive. The header, metadata and
+  // footer are fixed, even for very long notes.
+  assert(jot_reader_touch_can_drag(100, 75, &long_scrolled));
+  assert(jot_reader_touch_can_drag(100, 197, &long_scrolled));
+  assert(jot_reader_touch_can_drag(0, 110, &long_scrolled));
+  assert(jot_reader_touch_can_drag(199, 110, &long_scrolled));
+  assert(!jot_reader_touch_can_drag(100, 74, &long_scrolled));
+  assert(!jot_reader_touch_can_drag(100, 198, &long_scrolled));
+  assert(!jot_reader_touch_can_drag(100, 41, &long_scrolled));
+  assert(!jot_reader_touch_can_drag(100, 65, &long_scrolled));
+  assert(!jot_reader_touch_can_drag(100, 220, &long_scrolled));
+  assert(!jot_reader_touch_can_drag(-1, 100, &long_scrolled));
+  assert(!jot_reader_touch_can_drag(200, 100, &long_scrolled));
+  assert(!jot_reader_touch_can_drag(100, 100, &short_note));
+  assert(!jot_reader_touch_can_drag(100, 100, NULL));
+  assert(!jot_reader_touch_can_drag(100, 100, &empty_layout));
+
+  // Each 1px finger movement changes scroll by exactly 1px in the
+  // opposite direction. No inertia or full-page jumps on release.
+  assert(jot_reader_touch_scroll_after_drag(100, -1, &long_scrolled) == 101);
+  assert(jot_reader_touch_scroll_after_drag(100, 1, &long_scrolled) == 99);
+  assert(jot_reader_touch_scroll_after_drag(100, -47, &long_scrolled) == 147);
+  assert(jot_reader_touch_scroll_after_drag(10, 70, &long_scrolled) == 0);
+  assert(jot_reader_touch_scroll_after_drag(170, -50, &long_scrolled) == 181);
+  assert(jot_reader_touch_scroll_after_drag(181, -20, &long_scrolled) == 181);
+  assert(jot_reader_touch_scroll_after_drag(0, 20, &long_scrolled) == 0);
+  assert(jot_reader_touch_scroll_after_drag(0, -100, &short_note) == 0);
+  assert(jot_reader_touch_scroll_after_drag(0, -100, NULL) == 0);
+
+  // Release after a swipe must NEVER edit a saved note or dismiss Peek,
+  // even when the finger returns to where it started.
+  assert(action_with_layout(false, 100, 100, 100, 100, true, 180,
+                            &long_scrolled) == JOT_READER_TOUCH_NONE);
+  assert(action_with_layout(true, 100, 100, 100, 100, true, 180,
+                            &long_scrolled) == JOT_READER_TOUCH_NONE);
+}
+
 int main(void) {
+  test_touch_drag();
   test_back();
   test_saved_text();
   test_peek();
-  puts("Reader Back, saved-note text edit and draft-peek tests passed");
+  puts("Reader touch scrolling, Back, tap-to-edit and draft-peek tests passed");
   return 0;
 }

@@ -45,3 +45,26 @@ JotReaderTouchAction jot_reader_touch_action(bool peek, int start_x,
     return JOT_READER_TOUCH_EDIT;
   return JOT_READER_TOUCH_NONE;
 }
+
+bool jot_reader_touch_can_drag(int x, int y,
+                                const JotReaderTouchLayout *layout) {
+  if (!layout || layout->scroll_max <= 0 || layout->screen_width <= 0 ||
+      layout->screen_height <= JOT_READER_HEADER_H +
+                               JOT_READER_META_H +
+                               JOT_READER_FOOTER_H) return false;
+  const int viewport_top = JOT_READER_HEADER_H + JOT_READER_META_H;
+  const int viewport_bottom = layout->screen_height - JOT_READER_FOOTER_H;
+  return x >= 0 && x < layout->screen_width &&
+         y >= viewport_top && y < viewport_bottom;
+}
+
+int jot_reader_touch_scroll_after_drag(int scroll_y, int finger_delta_y,
+                                       const JotReaderTouchLayout *layout) {
+  if (!layout || layout->scroll_max <= 0) return 0;
+  // Scroll position grows when the finger moves UP. No velocity boost,
+  // fixed-step jumps or inertia: every move reflects actual finger travel.
+  const int proposed = scroll_y - finger_delta_y;
+  if (proposed < 0) return 0;
+  if (proposed > layout->scroll_max) return layout->scroll_max;
+  return proposed;
+}

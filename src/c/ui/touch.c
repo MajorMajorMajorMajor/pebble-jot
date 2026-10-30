@@ -102,7 +102,9 @@ static uint32_t s_list_touch_ms;
 // accidentally activate Back on release.
 static bool s_reader_touch_active;
 static bool s_reader_touch_moved;
-static int16_t s_reader_touch_x, s_reader_touch_y;
+static bool s_reader_touch_dragging;
+static bool s_reader_touch_can_drag;
+static int16_t s_reader_touch_x, s_reader_touch_y, s_reader_touch_last_y;
 static uint32_t s_reader_touch_ms;
 // src/c/ui/touch.c describes the currently implemented bindings only.
 // docs/gesture-map.md and docs/gesture-map.csv preserve the complete original
@@ -544,15 +546,31 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
       s_reader_touch_moved = false;
       s_reader_touch_x = event->x;
       s_reader_touch_y = event->y;
+      s_reader_touch_last_y = event->y;
+      s_reader_touch_dragging = false;
+      const JotReaderTouchLayout layout = jot_reader_touch_layout();
+      s_reader_touch_can_drag = jot_reader_touch_can_drag(
+          event->x, event->y, &layout);
       s_reader_touch_ms = now_ms;
     } else if ((event->type == TouchEvent_PositionUpdate ||
                 event->type == TouchEvent_Liftoff) && s_reader_touch_active) {
       const int dx = event->x - s_reader_touch_x;
       const int dy = event->y - s_reader_touch_y;
-      // An excursion beyond tap slop is permanent for this stroke.
-      if (dx > JOT_READER_TAP_SLOP || dx < -JOT_READER_TAP_SLOP ||
-          dy > JOT_READER_TAP_SLOP || dy < -JOT_READER_TAP_SLOP)
+      const int abs_dx = dx < 0 ? -dx : dx;
+      const int abs_dy = dy < 0 ? -dy : dy;
+      // A drag cannot turn back into a tap, even when the finger
+      // returns to its starting location.
+      if (abs_dx > JOT_READER_TAP_SLOP ||
+          abs_dy > JOT_READER_TAP_SLOP)
         s_reader_touch_moved = true;
+      if (!s_reader_touch_dragging && s_reader_touch_can_drag &&
+          abs_dy > JOT_READER_TAP_SLOP && abs_dy >= abs_dx) {
+        s_reader_touch_dragging = true;
+        jot_reader_drag((int16_t)dy); // Include the initial movement.
+      } else if (s_reader_touch_dragging) {
+        jot_reader_drag((int16_t)(event->y - s_reader_touch_last_y));
+      }
+      s_reader_touch_last_y = event->y;
 
       if (event->type == TouchEvent_Liftoff) {
         const JotReaderTouchLayout layout = jot_reader_touch_layout();
@@ -561,6 +579,8 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
             event->x, event->y, s_reader_touch_moved,
             now_ms - s_reader_touch_ms, &layout);
         s_reader_touch_active = false;
+        s_reader_touch_dragging = false;
+        s_reader_touch_can_drag = false;
         if (action == JOT_READER_TOUCH_BACK ||
             action == JOT_READER_TOUCH_DISMISS_PEEK) {
           jot_reader_back();
@@ -573,6 +593,8 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
     return;
   }
   s_reader_touch_active = false;
+  s_reader_touch_dragging = false;
+  s_reader_touch_can_drag = false;
 
   if (s_mode == MODE_JOT && jot_list_is_open()) {
     const uint32_t now_ms = prv_now_ms();

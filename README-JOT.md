@@ -23,11 +23,38 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Notes list tap + NEW:** open a new blank editor (only a stationary tap activates it; buttons work too).
 - **Notes list Back:** from older notes or **+ NEW**, return to the newest note; at the newest note, exit Jot. From an empty list, Back exits.
 - **Reader Up / Down:** scroll the note vertically, 60 pixels per press (when it exceeds the screen).
+- **Reader / draft Peek vertical drag:** scroll long text smoothly, pixel for pixel, in the page body. Header, timestamp and footer stay fixed; ordinary taps keep their existing Back/edit/return behavior.
 - **Reader Select or brief tap on visible note text:** open that saved note in the keyboard editor; its origin is remembered until the edit is safely saved.
 - **Reader Back or tap the upper-left ← NOTES key:** return to the notes list without modifying the note.
 - **Draft peek short tap anywhere, Select, Back, or upper-left ← EDIT:** return to the same unsaved keyboard draft.
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
+
+## Long-note reader touch scrolling (v1.9.2 — Emery test pending)
+
+Issue #11 adds a pixel-by-pixel vertical drag to both the saved-note
+reader and the temporary unsaved-draft Peek. The finger may start anywhere
+inside the clipped text viewport (including blank paper); it must move
+more than 10px predominantly vertically before it can scroll. A direct
+finger-up move increases the page scroll position. Unlike a swipe-to-page,
+the content follows every position update without animation or inertia.
+The first drag update includes the whole displacement, later updates use
+only incremental deltas, and lift-off does not generate a jump.
+
+The pure `reader_touch.c` helpers validate the start inside the body
+(not header, date, footer or offscreen), require a scrollable note, and
+clamp the page position from zero to the measured viewport maximum.
+The editor/list gesture recognizers are untouched. Existing short taps
+on saved note text still edit, while stationary taps in draft Peek return
+to the unchanged editor. A dragged gesture remains ineligible for either
+tap action, even if it ends where it began. Up/Down physical buttons
+still scroll by 60 pixels. Footer hints on long notes say DRAG.
+
+Tests cover long/short/invalid viewport layouts, edge coordinates,
+1px movement, reversed direction and both scroll limits, together with
+sticky tap cancellation and navigation wiring. Watch testing should
+check repeated up/down drags on a long note, release and retouch,
+tap-to-edit after scrolling, blank draft Peek, and physical buttons.
 
 ## JOT2 1 MiB storage architecture (v1.9.0 — QA)
 

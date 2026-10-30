@@ -20,6 +20,7 @@ typedef struct {
   int screen_height;
   int text_height;
   int scroll_y;
+  int scroll_max; // Measured scroll limit from the live reader viewport.
 } JotReaderTouchLayout;
 
 typedef enum {
@@ -40,3 +41,14 @@ typedef enum {
 JotReaderTouchAction jot_reader_touch_action(bool peek, int start_x,
     int start_y, int end_x, int end_y, bool moved, uint32_t duration_ms,
     const JotReaderTouchLayout *layout);
+
+// Only gestures starting in the clipped body viewport may scroll. The
+// header, timestamp and footer remain fixed. Blank paper in the viewport
+// is a useful drag surface, but still NOT a tap-to-edit target.
+bool jot_reader_touch_can_drag(int start_x, int start_y,
+                               const JotReaderTouchLayout *layout);
+
+// Pixel-for-pixel finger tracking (finger up -> content down the page).
+// Clamps both ends, including overscroll and notes shorter than the screen.
+int jot_reader_touch_scroll_after_drag(int scroll_y, int finger_delta_y,
+                                       const JotReaderTouchLayout *layout);
