@@ -45,8 +45,10 @@ static void prv_draw_control_icon(GContext *ctx, const Key *key,
   const GColor cream = GColorFromRGB(255, 250, 239);
   const GColor charcoal = GColorFromRGB(41, 40, 43);
   const bool is_space = key == get_key(KEY_ENGLISH_SPACEBAR);
-  graphics_context_set_stroke_color(ctx, is_space ? charcoal :
-      level >= 128 ? GColorWhite : cream);
+  // Hold glyph contrast fixed; toggling cream/white at an intensity
+  // threshold looked like a separate flash over the fill transition.
+  (void)level;
+  graphics_context_set_stroke_color(ctx, is_space ? charcoal : cream);
   graphics_context_set_stroke_width(ctx, 3);
 
   if (key == get_key(KEY_ENGLISH_MENU)) {
@@ -306,13 +308,20 @@ static GColor prv_feedback_fill(bool special, bool space,
                       space ? GColorFromRGB(255, 196, 0) :
                               style->key_background_color;
   if (special) {
-    // Keep pale control glyphs readable, even at maximum highlight.
-    return GColorFromRGB(85, 85, 85);
+    // Neutral greys on the 64-colour palette. There are only two
+    // legible steps between deep charcoal and light slate: a short tap
+    // uses the soft shade, a longer press reaches the bright shade.
+    // Crucially the control icons stay the same cream throughout.
+    return step == 3 ? GColorFromRGB(170, 170, 170) :
+                       GColorFromRGB(85, 85, 85);
   }
   if (space) {
+    // Rich gold -> amber -> copper: each stage gets DARKER, never
+    // darker/bright/darker (which caused the Spacebar to flash).
+    // The original gold and its charcoal dash stay unchanged at rest.
     return step == 1 ? GColorFromRGB(255, 170, 0) :
-           step == 2 ? GColorFromRGB(255, 255, 0) :
-                       GColorFromRGB(255, 255, 85);
+           step == 2 ? GColorFromRGB(255, 85, 0) :
+                       GColorFromRGB(170, 85, 0);
   }
   // Warm cream -> pale peach -> honey -> tan (A's original endpoint).
   return step == 1 ? GColorFromRGB(255, 170, 170) :

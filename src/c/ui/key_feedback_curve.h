@@ -6,8 +6,8 @@
 // per-channel display can render as no visible colour change at all.
 enum {
   KEY_FEEDBACK_FRAME_MS = 25,
-  KEY_FEEDBACK_PRESS_MS = 70,
-  KEY_FEEDBACK_RELEASE_MS = 180,
+  KEY_FEEDBACK_PRESS_MS = 80,
+  KEY_FEEDBACK_RELEASE_MS = 190,
   KEY_FEEDBACK_MIN_VISIBLE_MS = 60,
   KEY_FEEDBACK_INITIAL_LEVEL = 128
 };

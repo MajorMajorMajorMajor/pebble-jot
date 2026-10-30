@@ -4,7 +4,28 @@
 
 Jot grew out of the [MessagEase-inspired gesture keyboard experiments](https://github.com/MajorMajorMajorMajor/messagease-test). Its keyboard supports taps, eight-direction swipes, eight directional drag-and-return gestures, and clockwise/counterclockwise circles. Clockwise circles on the letter grid enter digits 1–9 in calculator order; clockwise on Space enters 0.
 
-## Palette-aware key breathing (v1.11.3 — wrist QA pending)
+## Charcoal + Spacebar feedback correction (v1.11.4 — wrist QA pending)
+
+The 1.11.3 palette-aware pulse has a common **80ms eased press-in**
+and **190ms eased release-out** across *every* key, with the same
+minimum 60ms visible time on a quick tap. The **cream letter-key
+fill, 1px outline, labels and bevels are unchanged**.
+
+The two non-cream palettes had on-watch problems:
+- **Charcoal controls** used one identical grey at every intensity,
+  so their easing was effectively invisible. They now progress from
+  ink through two distinct neutral greys on the Pebble palette.
+  Icon colour stays fixed rather than abruptly toggling mid-animation.
+- **Gold Space** switched from darker to brighter yellow during one
+  press, creating a distracting blink. It now darkens consistently
+  from gold through amber to copper and returns in the reverse
+  order, with the original gold and charcoal dash restored at rest.
+
+Both have deliberately limited palette steps rather than fake RGB
+interpolation. The 25ms shared timer and input recognizer are unchanged;
+this requires another Emery wrist review before closing issue #29.
+
+## Palette-aware key breathing (v1.11.3 — superseded timing, cream style retained)
 
 The 1.11.2 comparison revealed that quick touches did not visibly fade:
 its starting RGB colour quantized to the **same** 64-colour palette
