@@ -4,6 +4,32 @@
 
 Jot grew out of the [MessagEase-inspired gesture keyboard experiments](https://github.com/MajorMajorMajorMajor/messagease-test). Its keyboard supports taps, eight-direction swipes, eight directional drag-and-return gestures, and clockwise/counterclockwise circles. Clockwise circles on the letter grid enter digits 1–9 in calculator order; clockwise on Space enters 0.
 
+## Key feedback comparison lab (v1.11.2 — wrist QA pending)
+
+This is an experiment for issue #29; it is **not** the final key feedback.
+All key outlines remain the original 1px charcoal border and the touch
+targets and recognizer timing are unchanged. One 25ms timer animates
+the touched key only, with a 50ms ease-in and an eased falloff after
+release (no inertia, no key motion). Quick taps still get an immediate
+64/255-strength visual acknowledgement. A later touch cancels the old
+animation; leaving the keyboard destroys the timer safely.
+
+Compare two dimensions independently:
+
+| Key row | Fill / label / bevel treatment | Fade length by column |
+| --- | --- | --- |
+| A N I | A: gentle cream-to-tan fill only | A=100ms, N=150ms, I=200ms |
+| H O R | B: stronger fill and slight boldening of centre glyph | H=100ms, O=150ms, R=200ms |
+| T E S | C: warm fill and tactile bevel response | T=100ms, E=150ms, S=200ms |
+| Left controls | D: charcoal brightening with fixed border | All=250ms |
+| Gold Space | E: brighter gold pulse with fixed border | 250ms |
+
+The colour transitions are quantized to the watch's available palette,
+so the 25ms ticks may not all display different shades. The goal is to
+identify the most pleasing actual *perceived* combination on Emery.
+The exact animation and release lengths are verified by host tests, but
+look/feel need watch verification before promoting a winner.
+
 ## Emery virtual-size headroom (v1.11.1 — awaiting SDK build)
 
 The 1.11.0 build reached **65,716 bytes** of `.text + .data + .bss`,

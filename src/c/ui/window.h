@@ -22,3 +22,5 @@ void keyboard_window_set_content_layer(KeyboardWindow *self, Layer *content_laye
 UIDimensions compute_ui_dimensions(const KeyboardWindow *self);
 // Visual feedback uses only the currently loaded keyboard, if any.
 void keyboard_window_highlight_touch_key(int touch_index);
+
+void keyboard_window_release_touch_key(void);

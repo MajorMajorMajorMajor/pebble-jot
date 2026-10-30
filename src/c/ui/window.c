@@ -214,3 +214,8 @@ void keyboard_window_highlight_touch_key(int touch_index) {
   if (s_loaded_keyboard && s_loaded_keyboard->grid)
     key_grid_highlight_touch_key(s_loaded_keyboard->grid, touch_index);
 }
+
+void keyboard_window_release_touch_key(void) {
+  if (s_loaded_keyboard && s_loaded_keyboard->grid)
+    key_grid_release_touch_key(s_loaded_keyboard->grid);
+}

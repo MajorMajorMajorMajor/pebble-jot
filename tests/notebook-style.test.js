@@ -72,18 +72,31 @@ assert.doesNotMatch(alert, /EDITOR_PADDING_X\s*=/);
 
 console.log('Pocket Notebook visual styling and unchanged gesture geometry verified');
 
-// #29: pressed feedback must be visual-only on the touched key, not
-// a changed gesture classifier, moving key frame or persistent highlight.
+// #29: five wrist-test styles and four independent fade timings.
 const keyGrid = fs.readFileSync('src/c/ui/key_grid.c', 'utf8');
 const keyButton = fs.readFileSync('src/c/ui/key_button.c', 'utf8');
 const keyboardWindow = fs.readFileSync('src/c/ui/window.c', 'utf8');
 const feedbackTouch = fs.readFileSync('src/c/ui/touch.c', 'utf8');
+const feedbackCurve = fs.readFileSync('src/c/ui/key_feedback_curve.c', 'utf8');
 assert.match(keyGrid, /void key_grid_highlight_touch_key\(/);
 assert.match(keyGrid, /KEY_ENGLISH_SPACEBAR, KEY_ENGLISH_BACKSPACE, KEY_ENGLISH_RETURN/);
-assert.match(keyButton, /void key_button_set_pressed\(/);
+assert.match(keyGrid, /void key_grid_release_touch_key\(/);
+assert.match(keyGrid, /app_timer_register\(25, prv_pulse_tick, grid\)/);
+assert.match(keyGrid, /prv_cancel_pulse\(this\)/);
+assert.match(keyGrid, /key_feedback_ease\(elapsed, 50\)/);
+assert.match(keyGrid, /key_feedback_release_ms\(grid->touch_index\)/);
+assert.match(keyButton, /void key_button_set_feedback_level\(/);
 assert.match(keyButton, /layer_mark_dirty\(button->base_layer\)/);
-assert.match(keyButton, /button->pressed \?/);
+assert.match(keyButton, /button->feedback_level/);
+assert.match(keyButton, /const bool middle/);
+assert.match(keyButton, /const bool bottom/);
+assert.match(keyButton, /prv_draw_key_bevel\(ctx, face, special, space, bottom, level\)/);
+assert.match(keyButton, /graphics_context_set_stroke_color\(ctx, style->key_outline_color\)/);
+assert.doesNotMatch(keyButton, /button->pressed\s*\?/);
+assert.match(feedbackCurve, /static const uint16_t durations\[3\] = \{100, 150, 200\}/);
+assert.match(feedbackCurve, /return 250;/);
 assert.match(keyboardWindow, /void keyboard_window_highlight_touch_key\(/);
+assert.match(keyboardWindow, /void keyboard_window_release_touch_key\(/);
 assert.match(feedbackTouch, /TouchEvent_Touchdown:[\s\S]*?keyboard_window_highlight_touch_key\(s_touch_key\)/);
-assert.match(feedbackTouch, /app_timer_register\(\s*90, prv_clear_key_feedback, NULL\)/);
-assert.match(feedbackTouch, /void touch_deinit\(void\) \{\s*prv_cancel_key_feedback\(\)/);
+assert.match(feedbackTouch, /if \(s_mode == MODE_JOT\)[\s\S]*?keyboard_window_release_touch_key\(\)/);
+assert.match(feedbackTouch, /void touch_deinit\(void\)[\s\S]*?keyboard_window_highlight_touch_key\(-1\)/);

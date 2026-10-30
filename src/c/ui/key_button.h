@@ -10,7 +10,7 @@ typedef struct KeyButtonLayer KeyButtonLayer;
 
 KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *style);
 // Visual-only pressed state; never changes touch hitboxes or gesture mapping.
-void key_button_set_pressed(KeyButtonLayer *button, bool pressed);
+void key_button_set_feedback_level(KeyButtonLayer *button, uint8_t level);
 void key_button_destroy(KeyButtonLayer *button);
 
 Layer *key_button_get_layer(KeyButtonLayer *button);

@@ -5,6 +5,7 @@
 #include "ui/key_button.h"
 
 #include "ui/key_grid.h"
+#include "ui/key_feedback_curve.h"
 
 // Warm paper shows through the inset key borders and rounded corners.
 // These are drawing details only: KeyButton frames remain the same.
@@ -27,7 +28,61 @@ struct KeyGrid {
   KeyButtonLayer **buttons;
   const Layout *layout;
   int pressed_button; // -1 = no touch in progress.
+  int touch_index;
+  uint8_t level, release_level;
+  uint32_t phase_start_ms;
+  bool releasing;
+  AppTimer *pulse_timer; // One timer total; no per-key animation allocs.
 };
+
+static uint32_t prv_clock_ms(void) {
+  time_t seconds;
+  const uint16_t milliseconds = time_ms(&seconds, NULL);
+  return (uint32_t)seconds * 1000u + milliseconds;
+}
+
+static void prv_pulse_tick(void *context);
+
+static void prv_cancel_pulse(KeyGrid *grid) {
+  if (!grid->pulse_timer) return;
+  app_timer_cancel(grid->pulse_timer);
+  grid->pulse_timer = NULL;
+}
+
+static void prv_schedule_pulse(KeyGrid *grid) {
+  grid->pulse_timer = app_timer_register(25, prv_pulse_tick, grid);
+  if (!grid->pulse_timer && grid->pressed_button >= 0) {
+    // Animation failure never leaves a key stuck highlighted.
+    grid->level = grid->releasing ? 0 : 255;
+    key_button_set_feedback_level(
+        grid->buttons[grid->pressed_button], grid->level);
+    if (grid->releasing) grid->pressed_button = -1;
+  }
+}
+
+static void prv_pulse_tick(void *context) {
+  KeyGrid *grid = context;
+  grid->pulse_timer = NULL;
+  if (grid->pressed_button < 0) return;
+  const uint32_t elapsed = prv_clock_ms() - grid->phase_start_ms;
+  if (grid->releasing) {
+    const uint16_t duration = key_feedback_release_ms(grid->touch_index);
+    const uint8_t progress = key_feedback_ease(elapsed, duration);
+    grid->level = (uint16_t)grid->release_level * (255 - progress) / 255;
+  } else {
+    const uint8_t progress = key_feedback_ease(elapsed, 50);
+    grid->level = 64 + (uint16_t)191 * progress / 255;
+  }
+  key_button_set_feedback_level(
+      grid->buttons[grid->pressed_button], grid->level);
+  if (grid->releasing && elapsed >= key_feedback_release_ms(grid->touch_index)) {
+    grid->pressed_button = -1;
+  } else if (!grid->releasing && elapsed >= 50) {
+    // Remain lit until liftoff without running an idle timer.
+  } else {
+    prv_schedule_pulse(grid);
+  }
+}
 
 // create a key grid
 KeyGrid *key_grid_create(const Layout *layout, GRect frame, const UIStyle *style) {
@@ -101,16 +156,17 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame, const UIStyle *style
     .button_count = button_count,
     .buttons = buttons,
     .layout = layout,
-    .pressed_button = -1
+    .pressed_button = -1,
+    .touch_index = -1
   };  
   
   return grid;
 }
 
-void key_grid_destroy(KeyGrid *grid) {  
+void key_grid_destroy(KeyGrid *grid) {
   KeyGrid *this = grid;
-  if (!this)
-    return;
+  if (!this) return;
+  prv_cancel_pulse(this);
 
   // destroy the buttons
   size_t i;
@@ -158,10 +214,26 @@ void key_grid_highlight_touch_key(KeyGrid *grid, int touch_index) {
       }
     }
   }
-  if (target == grid->pressed_button) return;
+  prv_cancel_pulse(grid);
   if (grid->pressed_button >= 0) {
-    key_button_set_pressed(grid->buttons[grid->pressed_button], false);
+    key_button_set_feedback_level(grid->buttons[grid->pressed_button], 0);
   }
   grid->pressed_button = target;
-  if (target >= 0) key_button_set_pressed(grid->buttons[target], true);
+  grid->touch_index = touch_index;
+  grid->releasing = false;
+  grid->phase_start_ms = prv_clock_ms();
+  grid->level = target < 0 ? 0 : 64; // Immediate tactile acknowledgement.
+  if (target >= 0) {
+    key_button_set_feedback_level(grid->buttons[target], grid->level);
+    prv_schedule_pulse(grid);
+  }
+}
+
+void key_grid_release_touch_key(KeyGrid *grid) {
+  if (!grid || grid->pressed_button < 0 || grid->releasing) return;
+  prv_cancel_pulse(grid);
+  grid->release_level = grid->level;
+  grid->phase_start_ms = prv_clock_ms();
+  grid->releasing = true;
+  prv_schedule_pulse(grid);
 }

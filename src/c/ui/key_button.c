@@ -9,10 +9,13 @@
 #include "ui/style.h"
 #include "ui/key_button.h"
 
+typedef struct KeyButtonLayer KeyButtonLayer;
+
 struct KeyLabelLayer {
   const KeyLabel *key_label;
   const UIStyle *style;
   const Key *key;
+  const KeyButtonLayer *owner;
 
   Layer *layer;
 };
@@ -24,7 +27,7 @@ struct KeyButtonLayer {
   const UIStyle *style;
 
   Layer *base_layer;
-  bool pressed;
+  uint8_t feedback_level; // 0=rest, 255=full press.
   KeyLabelLayer *label_layers[KEY_LABEL_COUNT];
 };
 
@@ -34,13 +37,15 @@ struct KeyButtonLayer {
 
 // Visual-only glyphs: keep the original key labels and gesture mapping.
 // The left column is ink-dark; the wide Space key carries the gold accent.
-static void prv_draw_control_icon(GContext *ctx, const Key *key, GRect bounds) {
+static void prv_draw_control_icon(GContext *ctx, const Key *key,
+                                  GRect bounds, uint8_t level) {
   const int cx = bounds.size.w / 2;
   const int cy = bounds.size.h / 2 - 1;
   const GColor cream = GColorFromRGB(255, 250, 239);
   const GColor charcoal = GColorFromRGB(41, 40, 43);
   const bool is_space = key == get_key(KEY_ENGLISH_SPACEBAR);
-  graphics_context_set_stroke_color(ctx, is_space ? charcoal : cream);
+  graphics_context_set_stroke_color(ctx, is_space ? charcoal :
+      level >= 128 ? GColorWhite : cream);
   graphics_context_set_stroke_width(ctx, 3);
 
   if (key == get_key(KEY_ENGLISH_MENU)) {
@@ -99,7 +104,8 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
        label->key == get_key(KEY_ENGLISH_BACKSPACE) ||
        label->key == get_key(KEY_ENGLISH_RETURN) ||
        label->key == get_key(KEY_ENGLISH_SPACEBAR))) {
-    prv_draw_control_icon(ctx, label->key, bounds);
+    prv_draw_control_icon(ctx, label->key, bounds,
+                          label->owner->feedback_level);
     return;
   }
 
@@ -192,23 +198,28 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
         }
       }
       graphics_context_set_text_color(ctx, text_color);
-      graphics_draw_text(
-        ctx,
-        key_label->text, // char *text; durable storage
-
-        text_font, // GFont font
-        text_frame,  // GRect box
-        text_overflow_mode, // GTextOverflowMode overflow_mode
-        text_alignment, // GTextAlignment alignment
-        NULL // GTextAttributes text_attributes; optional
-      );
+      graphics_draw_text(ctx, key_label->text, text_font, text_frame,
+                         text_overflow_mode, text_alignment, NULL);
+      // B: middle-row letters reinforce the main glyph very slightly.
+      // This keeps the hitbox fixed; only the visible stroke gains weight.
+      const Key *k = label->key;
+      const bool middle = k == get_key(KEY_ENGLISH_H) ||
+                          k == get_key(KEY_ENGLISH_O) ||
+                          k == get_key(KEY_ENGLISH_R);
+      if (middle && key_label->slot == KEY_LABEL_CENTER &&
+          label->owner->feedback_level >= 128) {
+        text_frame.origin.x += 1;
+        graphics_draw_text(ctx, key_label->text, text_font, text_frame,
+                           text_overflow_mode, text_alignment, NULL);
+      }
     }
   }
 }
 
 
 static KeyLabelLayer *prv_label_create(const KeyLabel *key_label, const Key *key,
-                                       GRect frame, const UIStyle *style){
+                                       GRect frame, const UIStyle *style,
+                                       const KeyButtonLayer *owner){
   // No label, no layer
   if (key_label->type == KEY_LABEL_TYPE_NONE) {
     return NULL;
@@ -227,6 +238,7 @@ static KeyLabelLayer *prv_label_create(const KeyLabel *key_label, const Key *key
     .key_label = key_label,
     .style = style,
     .key = key,
+    .owner = owner,
     .layer = layer,
   };
 
@@ -254,7 +266,7 @@ static void prv_label_destroy(KeyLabelLayer *label) {
 // around the upper corners, including the top-right shoulder. The lower
 // bevel is reserved for light keys and follows both bottom corners.
 static void prv_draw_key_bevel(GContext *ctx, GRect face, bool special,
-                               bool space) {
+                               bool space, bool bottom, uint8_t level) {
   const int x0 = face.origin.x + 1;
   const int y0 = face.origin.y + 1;
   const int x1 = face.origin.x + face.size.w - 2;
@@ -264,7 +276,8 @@ static void prv_draw_key_bevel(GContext *ctx, GRect face, bool special,
                                     GColorWhite;
 
   graphics_context_set_stroke_width(ctx, 1);
-  graphics_context_set_stroke_color(ctx, highlight);
+  graphics_context_set_stroke_color(ctx,
+      bottom && level >= 128 ? GColorFromRGB(190, 170, 120) : highlight);
 
   // Left edge -> rounded upper-left -> full top -> rounded upper-right.
   graphics_draw_line(ctx, GPoint(x0, y1 - 6), GPoint(x0, y0 + 5));
@@ -280,6 +293,7 @@ static void prv_draw_key_bevel(GContext *ctx, GRect face, bool special,
     // Subtle lower/right-side ink bevel, also exactly one pixel thick.
     graphics_context_set_stroke_color(ctx,
         space ? GColorFromRGB(194, 127, 0) :
+        bottom && level >= 128 ? GColorFromRGB(119, 105, 76) :
                 GColorFromRGB(177, 147, 96));
     graphics_draw_line(ctx, GPoint(x0, y1 - 5), GPoint(x0 + 1, y1 - 3));
     graphics_draw_line(ctx, GPoint(x0 + 1, y1 - 3),
@@ -291,6 +305,11 @@ static void prv_draw_key_bevel(GContext *ctx, GRect face, bool special,
                        GPoint(x1 - 1, y1 - 3));
     graphics_draw_line(ctx, GPoint(x1 - 1, y1 - 3), GPoint(x1, y1 - 5));
   }
+}
+
+static uint8_t prv_blend(uint8_t a, uint8_t b, uint8_t level) {
+  return (uint8_t)(((uint16_t)a * (255 - level) +
+                    (uint16_t)b * level + 127) / 255);
 }
 
 static void prv_draw_key_background (Layer *layer, GContext *ctx){
@@ -306,23 +325,44 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   const int w = bounds.size.w;
   const int h = bounds.size.h;
   const GColor charcoal = GColorFromRGB(41, 40, 43);
+  const uint8_t level = button->feedback_level;
+  const bool middle = button->key == get_key(KEY_ENGLISH_H) ||
+                      button->key == get_key(KEY_ENGLISH_O) ||
+                      button->key == get_key(KEY_ENGLISH_R);
+  const bool bottom = button->key == get_key(KEY_ENGLISH_T) ||
+                      button->key == get_key(KEY_ENGLISH_E) ||
+                      button->key == get_key(KEY_ENGLISH_S);
 
   // One-pixel ink outline and flush 1px inner bevel follow the rounded
   // face. All painting stays within the same unchanged 4x4 touch cell.
   const GRect face = GRect(2, 1, w - 4, h - 3);
-  graphics_context_set_fill_color(ctx,
-      button->pressed ?
-        (special ? GColorFromRGB(85, 86, 90) :
-         space ? GColorFromRGB(255, 224, 89) :
-                 GColorFromRGB(255, 225, 159)) :
+  // All feedback is inside the ORIGINAL 1px border. Base palette is
+  // deliberately preserved at level zero. Pebble's limited RGB palette
+  // quantizes the intermediate steps, which makes this an A/B wrist test.
+  uint8_t r0 = special ? 41 : 255;
+  uint8_t g0 = special ? 40 : space ? 196 : 238;
+  uint8_t b0 = special ? 43 : space ? 0 : 190;
+  // A/top: understated fill. B/middle: stronger fill + glyph weight.
+  // C/bottom: fill + softened bevel. D/dark: lighter charcoal.
+  // E/Space: brighter gold.
+  const uint8_t r1 = special ? 125 : space ? 255 :
+                     middle ? 176 : bottom ? 198 : 215;
+  const uint8_t g1 = special ? 123 : space ? 240 :
+                     middle ? 145 : bottom ? 161 : 177;
+  const uint8_t b1 = special ? 127 : space ? 95 :
+                     middle ? 89 : bottom ? 102 : 108;
+  graphics_context_set_fill_color(ctx, level ?
+      GColorFromRGB(prv_blend(r0, r1, level),
+                    prv_blend(g0, g1, level),
+                    prv_blend(b0, b1, level)) :
       special ? charcoal :
       space ? GColorFromRGB(255, 196, 0) : style->key_background_color);
   graphics_fill_rect(ctx, face, style->key_corner_radius, GCornersAll);
-  graphics_context_set_stroke_color(ctx, button->pressed ?
-      GColorFromRGB(169, 95, 43) : style->key_outline_color);
+  // The original ink outline is ALWAYS the same, regardless of the pulse.
+  graphics_context_set_stroke_color(ctx, style->key_outline_color);
   graphics_context_set_stroke_width(ctx, 1);
   graphics_draw_round_rect(ctx, face, style->key_corner_radius);
-  prv_draw_key_bevel(ctx, face, special, space);
+  prv_draw_key_bevel(ctx, face, special, space, bottom, level);
 }
 
 KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *style) {
@@ -363,7 +403,8 @@ KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *st
 
         // create a new label layer, as big as the button's base layer
         GRect label_frame = layer_get_bounds(button->base_layer);
-        KeyLabelLayer *new_label = prv_label_create(key_label, button->key, label_frame, button->style);
+        KeyLabelLayer *new_label = prv_label_create(key_label, button->key,
+            label_frame, button->style, button);
         if (!new_label){
           // safe to call destroy on partially initialized button, because the destructor
           // skips null pointers and we initialized .label_layers to {0}
@@ -381,11 +422,18 @@ KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *st
     return button;
 }
 
-void key_button_set_pressed(KeyButtonLayer *button, bool pressed) {
-  if (!button || button->pressed == pressed) return;
-  button->pressed = pressed;
-  // Only the affected key repaints; labels and hit rectangles don't move.
+void key_button_set_feedback_level(KeyButtonLayer *button, uint8_t level) {
+  if (!button || button->feedback_level == level) return;
+  button->feedback_level = level;
+  // Only repaint this key. Middle-row glyph weight follows the level.
   if (button->base_layer) layer_mark_dirty(button->base_layer);
+  if (button->key == get_key(KEY_ENGLISH_H) ||
+      button->key == get_key(KEY_ENGLISH_O) ||
+      button->key == get_key(KEY_ENGLISH_R)) {
+    for (int i = 0; i < KEY_LABEL_COUNT; ++i)
+      if (button->label_layers[i])
+        layer_mark_dirty(button->label_layers[i]->layer);
+  }
 }
 
 void key_button_destroy(KeyButtonLayer *button){  

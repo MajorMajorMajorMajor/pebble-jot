@@ -28,6 +28,11 @@ jobs:
         run: node tests/editor-caret.test.js
       - name: Guard Emery RAM budget and long-note buffers
         run: node tests/ram-budget.test.js
+      - name: Test touch feedback timing and easing
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/key-feedback-curve-test.c src/c/ui/key_feedback_curve.c -o /tmp/jot-key-feedback-test
+          /tmp/jot-key-feedback-test
       - name: Verify Pocket Notebook editor styling
         run: node tests/notebook-style.test.js
       - name: Verify screen navigation wiring
