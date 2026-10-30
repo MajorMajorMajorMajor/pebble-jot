@@ -24,6 +24,8 @@ jobs:
         run: node tests/gesture-map.test.js
       - name: Verify editor caret overlay invariants
         run: node tests/editor-caret.test.js
+      - name: Guard Emery RAM budget and long-note buffers
+        run: node tests/ram-budget.test.js
       - name: Verify Pocket Notebook editor styling
         run: node tests/notebook-style.test.js
       - name: Verify screen navigation wiring

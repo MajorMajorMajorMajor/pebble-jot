@@ -65,7 +65,7 @@ assert.match(alert, /jot_caret_layout\(/);
 assert.match(alert, /static GFont prv_font\(void\)\s*\{\s*return fonts_get_system_font\(FONT_KEY_GOTHIC_18_BOLD\);\s*\}/);
 assert.match(alert, /text_layer_set_font\(s_textbox, font\)/);
 assert.match(alert, /const GFont font = prv_font\(\)/);
-assert.match(alert, /const GSize size = prv_measure\(s_text, font, width\)/);
+assert.match(alert, /const GSize size = prv_measure\(s_display_text, font, width\)/);
 assert.match(alert, /layer_set_clips\(s_root,\s*true\)/);
 assert.match(alert, /s_caret_index = cursor/);
 assert.doesNotMatch(alert, /EDITOR_PADDING_X\s*=/);

@@ -43,6 +43,25 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
+## Emery virtual-memory fix (v1.9.1 — SDK and watch verification pending)
+
+The initial 1.9.0 build failed at metadata injection: static text buffers
+pushed `.text + .data + .bss` to 78,312 bytes, but Pebble's
+`PebbleProcessInfo.virtual_size` is only 16-bit (maximum 65,535).
+This **RAM/build limit is separate** from the new up-to-1 MiB flash
+persistence allowance. The editor now renders directly from the store's
+stable note buffer, rather than copying the entire 4 KB note into another
+global array. Reader, phone-backup and store-read working buffers
+allocate on demand and release when no longer needed. The note index is
+packed to 16 bytes per entry, and the caret text-width callback uses
+a small stack-independent buffer which grows only for unusually long
+unbroken text. Existing disk format, 256-slot/4,095-byte bounds,
+transactional saves, keyboard geometry and visual styling remain unchanged.
+
+Host CI checks the memory structure and all existing regressions. The
+Pebble SDK compilation and actual on-device memory behavior must still
+be verified on Emery.
+
 ## Room for a real notebook (v1.9.0 — QA release)
 
 Jot now uses the **up to 1 MiB per-app persistent-storage allowance** on

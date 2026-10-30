@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include <stdlib.h>
 #include "ui/alert.h"
 #include "ui/caret_layout.h"
 #include "jot/store.h"
@@ -12,6 +13,9 @@ static Layer *s_caret_layer;
 static TextLayer *s_statusbox;
 static char s_text[ALERT_MAX_LENGTH]; // Diagnostics/placeholder only.
 static const char *s_display_text = s_text;
+static char s_measure_small[128];
+static char *s_measure_heap;
+static size_t s_measure_capacity;
 static bool s_editor_mode;
 static bool s_placeholder;
 static size_t s_caret_index;
@@ -91,9 +95,17 @@ static void prv_draw_caret(Layer *layer, GContext *ctx) {
 static int prv_caret_measure_width(const char *text, size_t first,
                                   size_t last, void *context) {
   if (last <= first) return 0;
-  char piece[JOT_NOTE_TEXT_BYTES];
-  size_t count = last - first;
-  if (count >= sizeof piece) count = sizeof piece - 1;
+  const size_t count = last - first;
+  char *piece = s_measure_small;
+  if (count >= sizeof s_measure_small) {
+    if (count + 1 > s_measure_capacity) {
+      char *grown = realloc(s_measure_heap, count + 1);
+      if (!grown) return 0;
+      s_measure_heap = grown;
+      s_measure_capacity = count + 1;
+    }
+    piece = s_measure_heap;
+  }
   memcpy(piece, text + first, count);
   piece[count] = '\0';
   const GFont font = *(const GFont *)context;
@@ -277,4 +289,7 @@ void alert_ui_deinit(void) {
     layer_destroy(s_root);
     s_root = NULL;
   }
+  free(s_measure_heap);
+  s_measure_heap = NULL;
+  s_measure_capacity = 0;
 }
