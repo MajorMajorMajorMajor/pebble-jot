@@ -18,7 +18,7 @@ UIStyle get_ui_style(void) {
     .key_corner_radius = 6,
     
     .key_outline_color = GColorFromRGB(41, 40, 43),
-    .key_background_color = GColorFromRGB(255, 250, 239),
+    .key_background_color = GColorFromRGB(255, 238, 190),
     
     .label_center_color = GColorBlack,
     .label_peripheral_color = GColorDarkGray,

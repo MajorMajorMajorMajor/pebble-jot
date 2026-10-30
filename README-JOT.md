@@ -29,7 +29,29 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
-## Editor typography trial (v1.8.2 — awaiting Emery test)
+## High-contrast notebook paper and key bevels (v1.8.3 — wrist test pending)
+
+On-device v1.8.2 photos confirm the 44px writing strip and Gothic 18 Bold
+font feel well-proportioned. This follow-up strengthens the paper
+treatment without increasing the editor height: filled charcoal border,
+visible horizontal blue-gray rules, a 2px red rule at x=10, and left
+padding of 18px (right padding 5px). The placeholder loses two leading
+spaces now that the text begins past the rule. The text viewport, caret
+geometry, and layout measurement use the exact same inset width to avoid
+incorrect wrapping or cursor positions.
+
+Key faces gain 3px in height inside their original 4x4 cells; shadows
+below the faces are removed and replaced with 2px top/left bevel
+highlights. Cream is slightly warmer for contrast with white highlights;
+dark action controls receive slate highlights, Space pale-gold. Center
+text labels rise 2px, with unchanged font weights and peripheral hints.
+
+No changes to the 44px editor/keyboard boundary, hit tests, gesture
+recognition, saving, or persistence. Source-level tests guard the
+insets, color/stroke choices, absence of old drop shadows and fixed
+touch geometry. Real Pebble Time 2 display testing remains necessary.
+
+## Editor typography trial (v1.8.2 — verified on Emery)
 
 The real-watch v1.8.1 photo confirmed that a 44px writing strip is more
 comfortable, with typing still working. The next controlled visual
@@ -62,7 +84,7 @@ on hardware before accepting #21. The real-watch test confirmed that
 Keyboard colors and icons now match the drawn-paper direction chosen for
 the notes list: light cream letter keys, dark charcoal action keys,
 gold Space, soft ruled-paper underlays, 6px key rounding, and raised
-ink-like shadow/outline shapes. The editor strip has subtle paper
+ink-like bevel/outline shapes. The editor strip has subtle paper
 rules, a narrow red left-margin mark, and no app header. SAVE, Backspace,
 Return, and Space receive compact vector glyphs rather than words; 123
 remains text. All labels and key IDs in the underlying keyboard map

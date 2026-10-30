@@ -43,7 +43,28 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
-## Larger editor writing (v1.8.2 — wrist test pending)
+## Pocket Notebook contrast and bevel polish (v1.8.3 — awaiting wrist test)
+
+Emery photos of 1.8.2 confirmed that 44px and Gothic 18 Bold work together,
+but the notebook's red margin and light horizontal rules were difficult to
+see. The editor now draws a stronger 2px ink frame, visible blue-gray paper
+rules, and a saturated 2px red margin line at x=10. Note text begins at
+x=18 with 5px of right clearance. The placeholder no longer adds its own
+invisible leading spaces. The same left inset and narrower content width
+drive note wrapping, caret layout, scrolling, and the TextLayer, so no
+saved text or cursor offsets are changed.
+
+The keyboard now uses **inset top/left highlights rather than downward
+drop shadows**. Rounded key faces are 3px taller within the existing
+4x4 rectangles, and central text labels move up 2px for visual balance.
+The pale parchment fill was adjusted to keep white highlights visible on
+Pebble's limited color palette. Charcoal controls and the gold Space key
+retain their identities. This is a *painting and text-inset* revision;
+44px editor height, touch targets, gestures, note storage, save behavior,
+and reader/list navigation are untouched. Visual verification on Emery
+is still required before issue #21 can close.
+
+## Larger editor writing (v1.8.2 — verified on Emery)
 
 After real-world testing confirmed the 44px text strip feels comfortable
 and typing remains accurate, the note editor now tries Pebble's native
@@ -73,15 +94,15 @@ not favor the result, revert the one shared constant.
 
 Jot now gives the quick editor the same paper-and-ink character as the list:
 a warm ruled writing strip with a red notebook margin, cream letter keys
-with rounded charcoal outlines and small down-shadows, charcoal control
+with rounded charcoal outlines and inset highlights, charcoal control
 keys, and a gold Space key. The upper-left SAVE action, Backspace, Return,
 and Space use drawn vector icons rather than text; the familiar 123 key
 retains its clear label. The original A-N-I / H-O-R / T-E-S keyboard and
 small peripheral letter hints are unchanged.
 
-This is a **visual-only change**: the text strip is still 40px tall, the
-keyboard grid remains exactly four columns and four rows in the same
-positions, and every key keeps its original *full rectangular* hit area.
+This is a **visual-only change**: the text strip originally used 40px
+(subsequently expanded to 44px in v1.8.1). The keyboard grid stays four
+columns and four rows, and every key retains its *full rectangular* hit area.
 No new header, bitmap resource, gesture behavior, save route, cursor
 placement, note storage, or list/reader navigation is introduced. The
 source-level theme test checks these constraints. Emulator/physical Pebble
@@ -254,6 +275,6 @@ See [README-JOT.md](README-JOT.md) for detailed controls and limits, and [TOUCH_
 
 ## Next steps
 
-The editor gestures, hairline caret, notes-list touch scrolling, button navigation, saved-reader tap-to-edit, and v1.7.4 touch SAVE → reader flow have been verified on Emery. Next: test v1.8.2's larger editor typography on the watch, then refine visual contrast and prioritize safer/larger storage and backup/restore before the Emery-only beta. Touch-to-position-caret (#17) remains deliberately deferred; key gestures are unchanged.
+The editor gestures, hairline caret, notes-list touch scrolling, button navigation, saved-reader tap-to-edit, and v1.7.4 touch SAVE → reader flow have been verified on Emery. Next: verify v1.8.3's higher-contrast notebook frame, ruled lines and key bevels on Emery, then prioritize safer/larger storage and backup/restore before the beta. Touch-to-position-caret (#17) remains deliberately deferred; key gestures are unchanged.
 
 Pebble SDK documentation: <https://developer.repebble.com>

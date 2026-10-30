@@ -22,7 +22,8 @@ const layout = fs.readFileSync('src/c/ui/caret_layout.c', 'utf8');
 assert.match(alert, /jot_caret_layout\(/);
 assert.match(alert, /prv_caret_measure_width/);
 assert.match(alert, /caret_top\s*\+=\s*caret\.row\s*\*\s*step/);
-assert.match(alert, /s_caret_x\s*=\s*EDITOR_PADDING_X\s*\+\s*caret\.x/);
+assert.match(alert, /s_caret_x\s*=\s*EDITOR_PADDING_LEFT\s*\+\s*caret\.x/);
+assert.match(alert, /const int width\s*=\s*bounds\.size\.w\s*-\s*EDITOR_PADDING_LEFT\s*-\s*EDITOR_PADDING_RIGHT/);
 
 // Positioning must follow the real start of a displayed row, not the
 // longest suffix that happens to fit in an empty row.

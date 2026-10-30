@@ -16,7 +16,7 @@ const keyLabels = fs.readFileSync('src/c/keyboard/key.c', 'utf8');
 assert.match(styleHeader, /JOT_EDITOR_CONTENT_HEIGHT\s*=\s*44/);
 assert.match(style, /\.content_height_px\s*=\s*JOT_EDITOR_CONTENT_HEIGHT/);
 assert.match(style, /\.key_corner_radius\s*=\s*6/);
-assert.match(style, /\.key_background_color\s*=\s*GColorFromRGB\(255,\s*250,\s*239\)/);
+assert.match(style, /\.key_background_color\s*=\s*GColorFromRGB\(255,\s*238,\s*190\)/);
 assert.match(grid, /layer_set_update_proc\(layer,\s*prv_draw_notebook_grid\)/);
 assert.match(grid, /frame\.size\.w\s*\*\s*pos->col\s*\/\s*layout->cols/);
 assert.match(grid, /frame\.size\.h\s*\*\s*pos->row\s*\/\s*layout->rows/);
@@ -28,8 +28,11 @@ assert.match(touch, /s_header_touch_active\s*=\s*event->y\s*>=\s*0\s*&&\s*event-
 assert.match(touch, /const bool tap\s*=\s*event->y\s*>=\s*0\s*&&\s*event->y\s*<\s*JOT_EDITOR_CONTENT_HEIGHT/);
 assert.match(touch, /s_touch_key == 13 && gesture_index == 0/);
 
-assert.match(key, /const GRect shadow = GRect\(2,\s*4,\s*w - 4,\s*h - 6\)/);
-assert.match(key, /const GRect face = GRect\(2,\s*1,\s*w - 4,\s*h - 6\)/);
+assert.doesNotMatch(key, /const GRect shadow\s*=/);
+assert.match(key, /const GRect face = GRect\(2,\s*1,\s*w - 4,\s*h - 3\)/);
+assert.match(key, /const GColor highlight\s*=/);
+assert.match(key, /graphics_context_set_stroke_color\(ctx, highlight\)/);
+assert.match(key, /\(h \/ 2\) - 2/);
 assert.match(key, /graphics_draw_round_rect\(ctx,\s*face,\s*style->key_corner_radius\)/);
 assert.match(key, /prv_draw_control_icon\(ctx,\s*label->key,\s*bounds\)/);
 for (const symbol of ['MENU', 'BACKSPACE', 'RETURN', 'SPACEBAR']) {
@@ -40,7 +43,13 @@ assert.match(keyLabels, /\[KEY_ENGLISH_MENU\][\s\S]*?\.text = "SAVE"/);
 assert.match(keyLabels, /\[KEY_ENGLISH_123\][\s\S]*?\.text = "123"/);
 
 assert.match(alert, /graphics_draw_round_rect\(ctx,/);
-assert.match(alert, /GColorFromRGB\(185,\s*72,\s*56\)/);
+assert.match(alert, /GColorFromRGB\(231,\s*72,\s*58\)/);
+assert.match(alert, /GColorFromRGB\(150,\s*172,\s*181\)/);
+assert.match(alert, /EDITOR_MARGIN_RULE_X\s*=\s*10/);
+assert.match(alert, /EDITOR_PADDING_LEFT\s*=\s*18/);
+assert.match(alert, /EDITOR_PADDING_RIGHT\s*=\s*5/);
+assert.match(alert, /snprintf\(s_text, sizeof s_text, "Write something\.\.\."\)/);
+assert.match(alert, /GRect\(EDITOR_PADDING_LEFT, -scroll_y, width, height\)/);
 assert.match(alert, /jot_caret_layout\(/);
 assert.match(alert, /static GFont prv_font\(void\)\s*\{\s*return fonts_get_system_font\(FONT_KEY_GOTHIC_18_BOLD\);\s*\}/);
 assert.match(alert, /text_layer_set_font\(s_textbox, font\)/);
@@ -48,6 +57,6 @@ assert.match(alert, /const GFont font = prv_font\(\)/);
 assert.match(alert, /const GSize size = prv_measure\(s_text, font, width\)/);
 assert.match(alert, /layer_set_clips\(s_root,\s*true\)/);
 assert.match(alert, /s_caret_index = cursor/);
-assert.doesNotMatch(alert, /EDITOR_PADDING_X\s*=\s*(?!3\b)\d+/);
+assert.doesNotMatch(alert, /EDITOR_PADDING_X\s*=/);
 
 console.log('Pocket Notebook visual styling and unchanged gesture geometry verified');

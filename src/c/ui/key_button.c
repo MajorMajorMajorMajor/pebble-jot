@@ -127,8 +127,8 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
       switch (key_label->slot) {
         case KEY_LABEL_CENTER: {
           const UIFont *ui_font;
-          // Four-letter SAVE needs the compact bold face within the
-          // existing 50px menu cell; all other key sizes stay unchanged.
+          // The save key now draws an icon; ordinary central glyphs
+          // keep the large familiar face and their original touch cell.
           ui_font = label->key == get_key(KEY_ENGLISH_MENU) ?
                     style->label_peripheral_font :
                     style->label_center_font;
@@ -143,7 +143,7 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
           int h = ui_font->height_px;
 
           int x = (box.origin.x) + (box.size.w / 2) - (w / 2);
-          int y = (box.origin.y) + (box.size.h / 2) - (h / 2);
+          int y = (box.origin.y) + (box.size.h / 2) - (h / 2) - 2;
 
           text_frame = GRect(x, y, w, h);
           break;
@@ -262,12 +262,11 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   const int h = bounds.size.h;
   const GColor charcoal = GColorFromRGB(41, 40, 43);
 
-  // The face and 3px down-shadow sit *inside* the unchanged cell geometry.
-  // Touch classification still uses the full 4x4 rectangles, with no gaps.
-  const GRect shadow = GRect(2, 4, w - 4, h - 6);
-  const GRect face = GRect(2, 1, w - 4, h - 6);
-  graphics_context_set_fill_color(ctx, charcoal);
-  graphics_fill_rect(ctx, shadow, style->key_corner_radius, GCornersAll);
+  // Raised key faces replace the old downward drop shadow. The face
+  // grows 3px vertically, but remains inside its original 4x4 hit cell.
+  // The two-pixel ink rim and top/left bevel give depth without changing
+  // any gestures or leaving a muddy strip beneath the labels.
+  const GRect face = GRect(2, 1, w - 4, h - 3);
   graphics_context_set_fill_color(ctx,
       special ? charcoal :
       space ? GColorFromRGB(255, 209, 88) : style->key_background_color);
@@ -275,6 +274,20 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   graphics_context_set_stroke_color(ctx, style->key_outline_color);
   graphics_context_set_stroke_width(ctx, 2);
   graphics_draw_round_rect(ctx, face, style->key_corner_radius);
+
+  // Highlights use quantization-safe contrast for Pebble's color display:
+  // slate on dark controls, white on parchment, pale gold on Space.
+  const GColor highlight = special ? GColorFromRGB(119, 116, 115) :
+                            space ? GColorFromRGB(255, 255, 170) :
+                                    GColorWhite;
+  graphics_context_set_stroke_color(ctx, highlight);
+  graphics_context_set_stroke_width(ctx, 2);
+  graphics_draw_line(ctx, GPoint(face.origin.x + 7, face.origin.y + 4),
+                     GPoint(face.origin.x + face.size.w - 9,
+                            face.origin.y + 4));
+  graphics_draw_line(ctx, GPoint(face.origin.x + 4, face.origin.y + 7),
+                     GPoint(face.origin.x + 4,
+                            face.origin.y + face.size.h - 9));
 }
 
 KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *style) {

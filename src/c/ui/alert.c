@@ -16,7 +16,11 @@ static size_t s_caret_index;
 static int s_caret_x, s_caret_y, s_caret_height;
 
 enum {
-  EDITOR_PADDING_X = 3,
+  // Leave a visible notebook margin: 2px ink frame, 2px red rule at x=10,
+  // then 6px of paper before the first glyph or insertion caret.
+  EDITOR_PADDING_LEFT = 18,
+  EDITOR_PADDING_RIGHT = 5,
+  EDITOR_MARGIN_RULE_X = 10,
   LAYOUT_MAX_H = 4096,
   // Reserve a few real pixels under the font and caret: the text-layout
   // bounds can stop before the bottom of letters such as g, j, p and y.
@@ -39,22 +43,34 @@ static GSize prv_measure(const char *text, GFont font, int width) {
 static void prv_background(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
   const GColor ink = GColorFromRGB(41, 40, 43);
-  // A small ruled-paper text strip, not an additional header. Keep its
-  // existing text positioning, clipping and caret geometry.
-  graphics_context_set_fill_color(ctx, GColorFromRGB(255, 250, 239));
-  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
-  graphics_context_set_stroke_color(ctx, GColorFromRGB(221, 209, 183));
+  // The ink frame is a filled 2px rim, stronger than a one-pixel
+  // outline and visible on Emery. The inner paper face preserves the
+  // entire 44px viewport; text and cursor are drawn on top unchanged.
+  graphics_context_set_fill_color(ctx, ink);
+  graphics_fill_rect(ctx, bounds, 5, GCornersAll);
+  graphics_context_set_fill_color(ctx, GColorFromRGB(255, 245, 220));
+  graphics_fill_rect(ctx, GRect(2, 1, bounds.size.w - 4,
+                               bounds.size.h - 3), 4, GCornersAll);
+
+  // Medium blue-gray ruled lines remain visible after Pebble's color
+  // quantization. The red margin has 2px of saturated ink for contrast.
+  graphics_context_set_stroke_color(ctx, GColorFromRGB(150, 172, 181));
   graphics_context_set_stroke_width(ctx, 1);
-  for (int y = 19; y < bounds.size.h - 1; y += 18) {
-    graphics_draw_line(ctx, GPoint(2, y),
-                       GPoint(bounds.size.w - 2, y));
+  for (int y = 19; y < bounds.size.h - 3; y += 18) {
+    graphics_draw_line(ctx, GPoint(3, y),
+                       GPoint(bounds.size.w - 4, y));
   }
-  graphics_context_set_stroke_color(ctx, GColorFromRGB(185, 72, 56));
-  graphics_draw_line(ctx, GPoint(1, 2),
-                     GPoint(1, bounds.size.h - 3));
-  graphics_context_set_stroke_color(ctx, ink);
-  graphics_draw_round_rect(ctx,
-                           GRect(0, 0, bounds.size.w, bounds.size.h), 5);
+  graphics_context_set_stroke_color(ctx, GColorFromRGB(231, 72, 58));
+  graphics_context_set_stroke_width(ctx, 2);
+  graphics_draw_line(ctx, GPoint(EDITOR_MARGIN_RULE_X, 3),
+                     GPoint(EDITOR_MARGIN_RULE_X, bounds.size.h - 5));
+
+  // Subtle inner bottom edge gives the paper a little thickness while
+  // keeping the caret and text region free of decorative overlays.
+  graphics_context_set_stroke_width(ctx, 1);
+  graphics_context_set_stroke_color(ctx, GColorFromRGB(188, 161, 124));
+  graphics_draw_line(ctx, GPoint(4, bounds.size.h - 4),
+                     GPoint(bounds.size.w - 5, bounds.size.h - 4));
 }
 
 static void prv_draw_caret(Layer *layer, GContext *ctx) {
@@ -85,7 +101,7 @@ static int prv_caret_measure_width(const char *text, size_t first,
 static void prv_reflow(void) {
   if (!s_root || !s_textbox) return;
   const GRect bounds = layer_get_bounds(s_root);
-  const int width = bounds.size.w - 2 * EDITOR_PADDING_X;
+  const int width = bounds.size.w - EDITOR_PADDING_LEFT - EDITOR_PADDING_RIGHT;
   const GFont font = prv_font();
 
   text_layer_set_font(s_textbox, font);
@@ -94,7 +110,7 @@ static void prv_reflow(void) {
 
   int height = bounds.size.h;
   int scroll_y = 0;
-  s_caret_x = EDITOR_PADDING_X;
+  s_caret_x = EDITOR_PADDING_LEFT;
   s_caret_y = 1;
   s_caret_height = 12;
 
@@ -117,9 +133,10 @@ static void prv_reflow(void) {
           s_text, s_caret_index, width, prv_caret_measure_width,
           (void *)&font);
       caret_top += caret.row * step;
-      s_caret_x = EDITOR_PADDING_X + caret.x;
+      s_caret_x = EDITOR_PADDING_LEFT + caret.x;
     }
-    if (s_caret_x >= bounds.size.w - 1) s_caret_x = bounds.size.w - 2;
+    if (s_caret_x >= bounds.size.w - EDITOR_PADDING_RIGHT)
+      s_caret_x = bounds.size.w - EDITOR_PADDING_RIGHT - 1;
     // Descenders reach below the ink's ordinary baseline. The original
     // step-2 caret appeared to float above the tails of g/j/p/y on Emery.
     s_caret_height = step + 2;
@@ -141,7 +158,7 @@ static void prv_reflow(void) {
   }
 
   layer_set_frame(text_layer_get_layer(s_textbox),
-                  GRect(EDITOR_PADDING_X, -scroll_y, width, height));
+                  GRect(EDITOR_PADDING_LEFT, -scroll_y, width, height));
   if (s_caret_layer) {
     layer_set_hidden(s_caret_layer, !s_editor_mode);
     layer_mark_dirty(s_caret_layer);
@@ -188,7 +205,7 @@ void alert_set_editor(const char *note, size_t cursor,
   // never inserted as a printable character or saved with the note.
   s_placeholder = !*note;
   if (s_placeholder) {
-    snprintf(s_text, sizeof s_text, "  Write something...");
+    snprintf(s_text, sizeof s_text, "Write something...");
     s_caret_index = 0;
   } else {
     snprintf(s_text, sizeof s_text, "%s", note);
@@ -204,7 +221,9 @@ Layer *alert_ui_init(GRect frame) {
   layer_set_update_proc(s_root, prv_background);
   layer_set_clips(s_root, true);  // Never paint over the gesture keyboard.
 
-  s_textbox = text_layer_create(GRect(3, 0, frame.size.w - 6,
+  s_textbox = text_layer_create(GRect(EDITOR_PADDING_LEFT, 0,
+                                     frame.size.w - EDITOR_PADDING_LEFT -
+                                     EDITOR_PADDING_RIGHT,
                                      frame.size.h));
   if (!s_textbox) {
     layer_destroy(s_root);
