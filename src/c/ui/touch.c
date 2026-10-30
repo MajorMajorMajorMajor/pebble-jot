@@ -67,7 +67,7 @@ typedef struct {
 
 static const char *const s_keys[] = {
   "A", "N", "I", "H", "O", "R", "T", "E", "S",
-  "SPACE", "BACKSPACE", "RETURN", "123", "KB"
+  "SPACE", "BACKSPACE", "RETURN", "123", "KB", "NUM_SPACE"
 };
 
 static const char *const s_gestures[] = {
@@ -337,6 +337,8 @@ static int prv_key_at(int x, int y) {
   static const int8_t keys[4][4] = {
     {13, 0, 1, 2}, {12, 3, 4, 5}, {10, 6, 7, 8}, {11, 9, 9, 9}
   };
+  if (s_mode == MODE_JOT && keyboard_window_number_face_active() &&
+      row == 3 && col >= 1) return jot_number_face_bottom_touch(col);
   return keys[row][col];
 }
 
@@ -499,7 +501,8 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
           if (strcmp(direction, s_gestures[i]) == 0) { gesture_index = (int)i; break; }
         }
         if (strcmp(direction, "STILL") == 0) gesture_index = 0;
-        const char *binding = (s_touch_key >= 0 && gesture_index >= 0) ?
+        const char *binding = (s_touch_key >= 0 && s_touch_key < 14 &&
+                               gesture_index >= 0) ?
                               s_bindings[s_touch_key][gesture_index] : "";
         if (s_mode == MODE_JOT) {
           // The physical 123/ABC cell switches faces on tap only.
@@ -509,12 +512,14 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
           } else if (s_touch_key == 13 && gesture_index == 0) {
             jot_editor_touch_save();
           } else if (keyboard_window_number_face_active() &&
-                     jot_number_face_small_space_tap(
-                         s_touch_key, gesture_index, s_stroke.start_x,
-                         layer_get_bounds(window_get_root_layer(
-                             window_stack_get_top_window())).size.w)) {
-            // Distinct small Space tap on the right side of the gold key.
-            jot_input(" ");
+                     s_touch_key == 14 && gesture_index >= 0) {
+            // Own Space cell: same swipe/cursor semantics as ABC Space.
+            if (!prv_jot_cursor_command(9, gesture_index))
+              jot_input(s_bindings[9][gesture_index]);
+          } else if (keyboard_window_number_face_active() &&
+                     s_touch_key == 9) {
+            // Two-column zero remains its own key: no embedded Space.
+            jot_input(jot_number_face_binding(9, gesture_index));
           } else if (keyboard_window_number_face_active() &&
                      s_touch_key >= 0 && s_touch_key < 9) {
             // Workbook-defined cursor gestures belong to numeric 9 and 3.

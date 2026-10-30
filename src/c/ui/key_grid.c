@@ -221,13 +221,13 @@ void key_grid_highlight_touch_key(KeyGrid *grid, int touch_index) {
     KEY_NUMBER_4, KEY_NUMBER_5, KEY_NUMBER_6,
     KEY_NUMBER_1, KEY_NUMBER_2, KEY_NUMBER_3,
     KEY_NUMBER_ZERO, KEY_ENGLISH_BACKSPACE, KEY_ENGLISH_RETURN,
-    KEY_NUMBER_ABC, KEY_ENGLISH_MENU
+    KEY_NUMBER_ABC, KEY_ENGLISH_MENU, KEY_NUMBER_SPACEBAR
   };
   const KeyId *touch_keys = grid->layout == get_layout(LAYOUT_ENGLISH_123) ?
                             number_keys : abc_keys;
   int target = -1;
   if (touch_index >= 0 &&
-      touch_index < 14) {
+      touch_index < (grid->layout == get_layout(LAYOUT_ENGLISH_123) ? 15 : 14)) {
     const KeyId id = touch_keys[touch_index];
     for (size_t i = 0; i < grid->button_count; ++i) {
       if (grid->layout->keys[i].key_id == id) {

@@ -12,7 +12,7 @@ static const char *const s_bindings[9][19] = {
   { "4", "", "%", "", "_", "", "[", "(", "{", "", "‰", "", "¬", "", "]", ")", "}", "¼", "¼" }, // 4
   { "5", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "a", "a" }, // 5
   { "6", "", "}", ")", "]", "", "@", "", "|", "", "{", "(", "[", "", "ª", "", "¦", "ⁿ", "ⁿ" }, // 6
-  { "1", "¨", "", "*", "\t", "", "\b", "<", "~", "˝", "", "†", "\t", "", "\b", "‹", "˜", "∫", "∫" }, // 1
+  { "1", "¨", "", "*", "", "", "\b", "<", "~", "˝", "", "†", "", "", "\b", "‹", "˜", "∫", "∫" }, // 1
   { "2", "", "'", "", ":", ".", ",", "", "\"", "", "”", "", "„", "…", "‚", "", "“", "Π", "Π" }, // 2
   { "3", "&", "°", ">", " ", "", ";", "#", "", "§", "0", "3", " ", "", ";", "£", "", "Σ", "Σ" }, // 3
 };
@@ -42,8 +42,7 @@ JotNumberPictogram jot_number_face_pictogram(int key, int direction) {
   if (key == 2) { // 9: up arrow, Return
     if (direction == 1) return JOT_NUM_PICTO_UP;
     if (direction == 2) return JOT_NUM_PICTO_RETURN;
-  } else if (key == 6) { // 1: Tab, Backspace
-    if (direction == 4) return JOT_NUM_PICTO_TAB;
+  } else if (key == 6) { // 1: only Backspace works.
     if (direction == 6) return JOT_NUM_PICTO_BACKSPACE;
   } else if (key == 8) { // 3: Space, cursor down
     if (direction == 4) return JOT_NUM_PICTO_SPACE;
@@ -66,8 +65,7 @@ const char *jot_number_face_legend(int key, int direction) {
          text : NULL;
 }
 
-bool jot_number_face_small_space_tap(int key, int gesture,
-                                     int x, int screen_width) {
-  return key == 9 && gesture == 0 && screen_width > 0 &&
-         x >= (screen_width * 3) / 4 && x < screen_width;
+int jot_number_face_bottom_touch(int col) {
+  if (col == 1 || col == 2) return 9;
+  return col == 3 ? 14 : -1;
 }

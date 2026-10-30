@@ -20,7 +20,7 @@ static const LayoutKeyPosition english_abc_keys[] = {
   {KEY_ENGLISH_SPACEBAR,  3, 1, 1, 3},
 };
 
-// Identical hit targets; only the faces and the tap/down bindings change.
+// 123 has its own 2-column ZERO and single-column Space; ABC unchanged.
 static const LayoutKeyPosition english_123_keys[] = {
   {KEY_NUMBER_7, 0, 1, 1, 1},
   {KEY_NUMBER_8, 0, 2, 1, 1},
@@ -35,7 +35,8 @@ static const LayoutKeyPosition english_123_keys[] = {
   {KEY_NUMBER_ABC,        1, 0, 1, 1},
   {KEY_ENGLISH_BACKSPACE, 2, 0, 1, 1},
   {KEY_ENGLISH_RETURN,    3, 0, 1, 1},
-  {KEY_NUMBER_ZERO,       3, 1, 1, 3},
+  {KEY_NUMBER_ZERO,       3, 1, 1, 2},
+  {KEY_NUMBER_SPACEBAR,   3, 3, 1, 1},
 };
 
 static const Layout s_layouts[LAYOUT_COUNT] = { 

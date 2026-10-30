@@ -12,11 +12,10 @@ typedef enum {
   JOT_NUM_PICTO_NONE = 0,
   JOT_NUM_PICTO_UP, JOT_NUM_PICTO_DOWN,
   JOT_NUM_PICTO_RETURN, JOT_NUM_PICTO_BACKSPACE,
-  JOT_NUM_PICTO_TAB, JOT_NUM_PICTO_SPACE
+  JOT_NUM_PICTO_SPACE
 } JotNumberPictogram;
 JotNumberPictogram jot_number_face_pictogram(int touch_index, int direction);
 
-// The bottom-right quarter of the screen is a real mini Space tap
-// target, inside the shared wide ZERO key. No geometry/gesture changes.
-bool jot_number_face_small_space_tap(int touch_index, int gesture_index,
-                                     int start_x, int screen_width);
+// Bottom-row numeric cells: 0 uses two columns (index 9), and
+// the separate one-column Space uses index 14.
+int jot_number_face_bottom_touch(int column);

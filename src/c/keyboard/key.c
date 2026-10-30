@@ -100,6 +100,8 @@ static const Key s_keys[KEY_COUNT] = {
     { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "0" } } },
   [KEY_NUMBER_ABC] = { .labels = {
     { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "ABC" } } },
+  [KEY_NUMBER_SPACEBAR] = { .labels = {
+    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "SPACE" } } },
 };
 
 const Key *get_key(KeyId key_id) {
