@@ -381,7 +381,6 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
                        button->key == get_key(KEY_ENGLISH_BACKSPACE) ||
                        button->key == get_key(KEY_ENGLISH_RETURN);
   const bool space = button->key == get_key(KEY_ENGLISH_SPACEBAR) ||
-                     button->key == get_key(KEY_NUMBER_ZERO) ||
                      button->key == get_key(KEY_NUMBER_SPACEBAR);
   const GRect bounds = layer_get_bounds(layer);
   const int w = bounds.size.w;
