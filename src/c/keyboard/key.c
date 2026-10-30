@@ -1,6 +1,8 @@
 #include "keyboard/key.h"
 #include "keyboard/key_label.h"
 
+// Peripheral ABC legends are painted directly on the key face (no extra
+// KeyLabel layers) using the same 8-direction layout as the numeric face.
 static const Key s_keys[KEY_COUNT] = {  
   [KEY_ENGLISH_A] = {
     .labels = {
@@ -10,7 +12,6 @@ static const Key s_keys[KEY_COUNT] = {
   [KEY_ENGLISH_N] = {
     .labels = {
       { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "n" },
-      { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = "l" },
     }
   },
   [KEY_ENGLISH_I] = {
@@ -21,14 +22,11 @@ static const Key s_keys[KEY_COUNT] = {
   [KEY_ENGLISH_H] = {
     .labels = {
       { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "h" },
-      { .slot = KEY_LABEL_RIGHT,  .type = KEY_LABEL_TYPE_TEXT, .text = "k" },
     }
   },
   [KEY_ENGLISH_O] = {
     .labels = {
       { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "o" },
-      { .slot = KEY_LABEL_RIGHT,  .type = KEY_LABEL_TYPE_TEXT, .text = "b" },
-      { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = "d" },
     }
   },
   [KEY_ENGLISH_R] = {
@@ -44,7 +42,6 @@ static const Key s_keys[KEY_COUNT] = {
   [KEY_ENGLISH_E] = {
     .labels = {
       { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "e" },
-      { .slot = KEY_LABEL_RIGHT,  .type = KEY_LABEL_TYPE_TEXT, .text = "z" },
     }
   },  
   [KEY_ENGLISH_S] = {

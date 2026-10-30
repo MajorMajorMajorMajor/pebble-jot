@@ -1,3 +1,32 @@
+## Jot 1.15.0 — The alphabet reveals itself (Emery QA pending)
+
+The **ABC** face now paints all 20 implemented primary peripheral
+characters around the existing nine central keys. The eight compass
+positions match the swipes exactly: A v; N l; I x; H k; O q/u/p/b/j/d/g/c;
+R m; T y; E w/z/:/./,; S f. The central ANIHORTES letters, 123
+face, existing control icons, rounded key borders, touch hitboxes and
+animation are unchanged.
+
+The peripheral glyphs use the proven numeric face's native
+Gothic 14 Bold font, 8-position placement and blue (0,85,170) accent,
+drawn **within the existing key background layer**. The old five
+peripheral KeyLabel child layers were removed, avoiding duplicate
+labels and extra per-key layers. The O key is intentionally the most
+densely labeled; real wrist QA will determine whether its centre and
+corners need typographic refinement.
+
+**Primary labels are permanently visible for now.** There are **no**
+Spacebar gesture toggles: hiding an alphabet by accidental gesture
+would be too alarming. Secondary labels and their future
+settings-controlled visibility live in #34, with Tab #31, Compose #32,
+and Shift #33 separately deferred. No new text input commands, reserved
+gesture assignments, storage format or key-repeat behavior are added.
+
+Pure C mapping tests cover 20 glyphs, every direction and missing keys;
+source tests compare displayed glyphs with the runtime touch bindings.
+The SDK build and legibility still require Emery hardware validation
+before closing #2.
+
 ## Jot 1.14.0 — Kinetic scrolling (Emery QA pending)
 
 The saved-note reader, draft Peek, and note list now use a shared

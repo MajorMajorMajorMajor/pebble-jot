@@ -5,6 +5,7 @@
 #include "keyboard/key.h"
 #include "keyboard/key_label.h"
 #include "keyboard/number_face.h"
+#include "keyboard/primary_face.h"
 #include <stddef.h>
 
 #include "ui/font.h"
@@ -338,6 +339,32 @@ static void prv_draw_number_legends(GContext *ctx, const Key *key,
   }
 }
 
+
+// All letter-face sublabels live on the existing key background layer,
+// exactly like number-face legends. No layer allocations or input changes.
+// Directional compass around the unchanged central label:
+// NW N NE / W [CENTER] E / SW S SE.
+static void prv_draw_primary_legends(GContext *ctx, const Key *key,
+                                    GRect bounds) {
+  const ptrdiff_t index = key - get_key(KEY_ENGLISH_A);
+  if (index < 0 || index >= 9) return;
+  static const int8_t xs[8] = {0,1,2,2,2,1,0,0};
+  static const int8_t ys[8] = {0,0,0,1,2,2,2,1};
+  const int w = bounds.size.w, h = bounds.size.h;
+  const int col[3] = {3, (w - 16) / 2, w - 19};
+  const int row[3] = {2, (h - 14) / 2, h - 17};
+  const GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
+  graphics_context_set_text_color(ctx, GColorFromRGB(0, 85, 170));
+  for (int d = 0; d < 8; ++d) {
+    const char symbol = jot_primary_face_legend((int)index, d);
+    if (!symbol) continue;
+    const char text[2] = {symbol, '\\0'};
+    graphics_draw_text(ctx, text, font,
+        GRect(col[xs[d]], row[ys[d]], 16, 15),
+        GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  }
+}
+
 // 64-colour Pebble palette: each displayed RGB channel has only four
 // levels (0/85/170/255). No computed RGB interpolation, so each step
 // is a genuinely different on-device colour. All letter keys use the
@@ -403,6 +430,7 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   graphics_draw_round_rect(ctx, face, style->key_corner_radius);
   prv_draw_key_bevel(ctx, face, special, space);
   prv_draw_number_legends(ctx, button->key, bounds);
+  prv_draw_primary_legends(ctx, button->key, bounds);
 }
 
 KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *style) {

@@ -24,6 +24,12 @@ jobs:
         run: node tests/backup-js.test.js
       - name: Check canonical gesture mapping
         run: node tests/gesture-map.test.js
+      - name: Verify Jot 1.15 alphabet primary labels
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/primary-face-test.c src/c/keyboard/primary_face.c -o /tmp/jot-primary-face-test
+          /tmp/jot-primary-face-test
+          node tests/primary-face-layout.test.js
       - name: Test 123 numeric face bindings
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
