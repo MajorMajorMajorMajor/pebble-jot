@@ -14,6 +14,8 @@
 // later, when we have other windows (KeyboardWindow, SettingsWindow, etc.),
 // we can factor out the common code into UIWindow and include a UIWindow here 
 // instead of a Window.
+static KeyboardWindow *s_loaded_keyboard;
+
 struct KeyboardWindow {
   // abstract data
   KeyboardState *state;  
@@ -84,7 +86,8 @@ static void prv_window_load(Window *window) {
   // add grid layer to the window
   Layer *grid_layer = key_grid_get_layer(self->grid);
   layer_add_child(root_layer, grid_layer);
-  
+  s_loaded_keyboard = self;
+
   // add content layer to the window
   prv_attach_content_layer(self);
 }
@@ -92,7 +95,8 @@ static void prv_window_load(Window *window) {
 // Pebble OS invokes this when the window is destroyed, or (in the future) 
 // to free resources bound to the window when it is not on screen. 
 static void prv_window_unload(Window *window) {
-  KeyboardWindow *self = window_get_user_data(window);  
+  KeyboardWindow *self = window_get_user_data(window);
+  if (s_loaded_keyboard == self) s_loaded_keyboard = NULL;  
   PEBBLE_ASSERT(self);
 
   // Don't unload the content layer, it's owned by the client app;
@@ -204,4 +208,9 @@ void keyboard_window_set_content_layer(KeyboardWindow *self, Layer *content_laye
   }
     
   prv_attach_content_layer(self);
+}
+
+void keyboard_window_highlight_touch_key(int touch_index) {
+  if (s_loaded_keyboard && s_loaded_keyboard->grid)
+    key_grid_highlight_touch_key(s_loaded_keyboard->grid, touch_index);
 }

@@ -2,6 +2,7 @@
 
 #include "ui/alert.h"
 #include "ui/style.h"
+#include "ui/window.h"
 #include "ui/touch.h"
 #include "jot/jot.h"
 #include "jot/store.h"
@@ -83,6 +84,20 @@ static char s_typed[160];
 static size_t s_typed_len;
 static uint32_t s_typing_id;
 static int s_touch_key = -1;
+static AppTimer *s_key_feedback_timer;
+// Keep the touched key lit briefly after liftoff, so even a quick
+// tap or swipe has visible feedback. New touchdown cancels the timer.
+static void prv_clear_key_feedback(void *context) {
+  (void)context;
+  s_key_feedback_timer = NULL;
+  keyboard_window_highlight_touch_key(-1);
+}
+static void prv_cancel_key_feedback(void) {
+  if (s_key_feedback_timer) {
+    app_timer_cancel(s_key_feedback_timer);
+    s_key_feedback_timer = NULL;
+  }
+}
 
 // A touch originating in the editor text strip is reserved for
 // peek/read mode, never for keyboard gestures.
@@ -121,7 +136,7 @@ static const char *const s_bindings[14][19] = {
   { "t", "¨", "y", "*", "", "", "\b", "<", "~", "˝", "Y", "†", "", "", "\b", "‹", "˜", "1", "T" }, // t
   { "e", "w", "'", "z", ":", ".", ",", "", "\"", "W", "”", "Z", "„", "…", "‚", "", "“", "2", "E" }, // e
   { "s", "&", "°", ">", " ", "", ";", "#", "f", "§", "º", "›", " ", "", ";", "£", "F", "3", "S" }, // s
-  { " ", "", "", "", " ", " ", " ", "", "", "", "", "", " ", " ", " ", "", "", "", "0" }, // spacebar
+  { " ", "", "", "", " ", " ", " ", "", "", "", "", "", " ", " ", " ", "", "", "0", " " }, // spacebar
   { "\b", "\b", "", "", "", "", "\b", "\b", "\b", "", "", "", "", "", "", "", "", "", "" }, // backspace
   { "\n", "\n", "", "\n", "\n", "\n", "\n", "\n", "", "", "", "", "", "", "", "", "", "", "" }, // enter
   { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" }, // 123
@@ -375,7 +390,10 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
   switch (event->type) {
     case TouchEvent_Touchdown:
       prv_cancel_feedback();
+      prv_cancel_key_feedback();
       s_touch_key = prv_key_at(event->x, event->y);
+      if (s_mode == MODE_JOT)
+        keyboard_window_highlight_touch_key(s_touch_key);
       // Assign the trial key from its first touchdown, not the button selector.
       if (s_mode == MODE_TRACE && !s_trial_key_set) {
         s_trial_key = s_touch_key;
@@ -484,6 +502,14 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
                s_stroke.move_count);
 
       s_stroke.active = false;
+      if (s_mode == MODE_JOT) {
+        // The pressed key is a visual echo only. Use the DOWN key, not
+        // the final gesture destination; recognition stays unchanged.
+        prv_cancel_key_feedback();
+        s_key_feedback_timer = app_timer_register(
+            90, prv_clear_key_feedback, NULL);
+        if (!s_key_feedback_timer) prv_clear_key_feedback(NULL);
+      }
       if (s_mode == MODE_TYPING || s_mode == MODE_JOT) {
         int gesture_index = -1;
         for (unsigned i = 0; i < sizeof s_gestures / sizeof s_gestures[0]; ++i) {
@@ -950,6 +976,8 @@ void touch_init(void) {
 }
 
 void touch_deinit(void) {
+  prv_cancel_key_feedback();
+  keyboard_window_highlight_touch_key(-1);
   jot_deinit();
   prv_cancel_feedback();
   if (s_touch_enabled) {

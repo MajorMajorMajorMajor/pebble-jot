@@ -24,7 +24,9 @@ struct KeyGrid {
   Layer *layer;  
 
   size_t button_count; // one button per key
-  KeyButtonLayer **buttons; 
+  KeyButtonLayer **buttons;
+  const Layout *layout;
+  int pressed_button; // -1 = no touch in progress.
 };
 
 // create a key grid
@@ -96,8 +98,10 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame, const UIStyle *style
   }
   *grid = (KeyGrid){
     .layer = layer, 
-    .button_count = button_count, 
-    .buttons = buttons
+    .button_count = button_count,
+    .buttons = buttons,
+    .layout = layout,
+    .pressed_button = -1
   };  
   
   return grid;
@@ -131,4 +135,33 @@ void key_grid_destroy(KeyGrid *grid) {
 
 Layer *key_grid_get_layer(KeyGrid *grid) {
   return grid->layer;
+}
+
+void key_grid_highlight_touch_key(KeyGrid *grid, int touch_index) {
+  if (!grid || !grid->layout) return;
+  // Recognizer order differs from the visual layout's last five keys.
+  static const KeyId touch_keys[] = {
+    KEY_ENGLISH_A, KEY_ENGLISH_N, KEY_ENGLISH_I,
+    KEY_ENGLISH_H, KEY_ENGLISH_O, KEY_ENGLISH_R,
+    KEY_ENGLISH_T, KEY_ENGLISH_E, KEY_ENGLISH_S,
+    KEY_ENGLISH_SPACEBAR, KEY_ENGLISH_BACKSPACE, KEY_ENGLISH_RETURN,
+    KEY_ENGLISH_123, KEY_ENGLISH_MENU
+  };
+  int target = -1;
+  if (touch_index >= 0 &&
+      touch_index < (int)(sizeof touch_keys / sizeof touch_keys[0])) {
+    const KeyId id = touch_keys[touch_index];
+    for (size_t i = 0; i < grid->button_count; ++i) {
+      if (grid->layout->keys[i].key_id == id) {
+        target = (int)i;
+        break;
+      }
+    }
+  }
+  if (target == grid->pressed_button) return;
+  if (grid->pressed_button >= 0) {
+    key_button_set_pressed(grid->buttons[grid->pressed_button], false);
+  }
+  grid->pressed_button = target;
+  if (target >= 0) key_button_set_pressed(grid->buttons[target], true);
 }

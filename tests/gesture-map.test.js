@@ -68,6 +68,17 @@ assert.equal(mapping.get('spacebar')['Return E'],
   '[Cursor Forward 1 Word]', 'word movement must remain reserved');
 assert.equal(mapping.get('spacebar')['Return W'],
   '[Cursor Backward 1 Word]', 'word movement must remain reserved');
+// #28: the canonical spacebar clockwise circle is 0, counterclockwise Space.
+// Previously 0 was mistakenly bound to CCW. Keep circle recognition unchanged.
+assert.equal(mapping.get('spacebar').CW, '0');
+assert.equal(mapping.get('spacebar').CCW, '[Space]');
+const spaceBindings = implementation.match(/\{([^\n]+)\}, \/\/ spacebar/);
+assert.ok(spaceBindings, 'spacebar must have an explicit runtime binding row');
+const runtimeSpace = [...spaceBindings[1].matchAll(/"((?:\\.|[^"\\])*)"/g)]
+  .map(match => match[1]);
+assert.equal(runtimeSpace.length, 19);
+assert.equal(runtimeSpace[17], '0', 'clockwise Space must type 0');
+assert.equal(runtimeSpace[18], ' ', 'counterclockwise Space remains Space');
 // Jot implements all four original forward-delete directions, without
 // remapping the other backspace gestures or the diagnostic typing mode.
 for (const [direction, index] of [['NE', 2], ['E', 3], ['SE', 4], ['S', 5]]) {

@@ -24,6 +24,7 @@ struct KeyButtonLayer {
   const UIStyle *style;
 
   Layer *base_layer;
+  bool pressed;
   KeyLabelLayer *label_layers[KEY_LABEL_COUNT];
 };
 
@@ -310,10 +311,15 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   // face. All painting stays within the same unchanged 4x4 touch cell.
   const GRect face = GRect(2, 1, w - 4, h - 3);
   graphics_context_set_fill_color(ctx,
+      button->pressed ?
+        (special ? GColorFromRGB(85, 86, 90) :
+         space ? GColorFromRGB(255, 224, 89) :
+                 GColorFromRGB(255, 225, 159)) :
       special ? charcoal :
       space ? GColorFromRGB(255, 196, 0) : style->key_background_color);
   graphics_fill_rect(ctx, face, style->key_corner_radius, GCornersAll);
-  graphics_context_set_stroke_color(ctx, style->key_outline_color);
+  graphics_context_set_stroke_color(ctx, button->pressed ?
+      GColorFromRGB(169, 95, 43) : style->key_outline_color);
   graphics_context_set_stroke_width(ctx, 1);
   graphics_draw_round_rect(ctx, face, style->key_corner_radius);
   prv_draw_key_bevel(ctx, face, special, space);
@@ -373,6 +379,13 @@ KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *st
     }
 
     return button;
+}
+
+void key_button_set_pressed(KeyButtonLayer *button, bool pressed) {
+  if (!button || button->pressed == pressed) return;
+  button->pressed = pressed;
+  // Only the affected key repaints; labels and hit rectangles don't move.
+  if (button->base_layer) layer_mark_dirty(button->base_layer);
 }
 
 void key_button_destroy(KeyButtonLayer *button){  

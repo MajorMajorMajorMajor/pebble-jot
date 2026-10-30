@@ -4,6 +4,23 @@
 
 Jot grew out of the [MessagEase-inspired gesture keyboard experiments](https://github.com/MajorMajorMajorMajor/messagease-test). Its keyboard supports taps, eight-direction swipes, eight directional drag-and-return gestures, and clockwise/counterclockwise circles. Clockwise circles on the letter grid enter digits 1–9 in calculator order; clockwise on Space enters 0.
 
+## Gesture keyboard cleanup (v1.11.0 — wrist QA pending)
+
+- **#28:** Clockwise loop on the wide gold Space key now inserts **0**.
+  Counterclockwise loop inserts a space, as defined in the canonical
+  English-LH gesture worksheet. Circle-recognition geometry and the
+  nine letter-key digit mappings remain unchanged.
+- **#29:** Each key now subtly lights up while touched, including
+  during a swipe, with a 90ms afterglow on liftoff. Only the initiating
+  key is highlighted; there is no touch-target or timing change in
+  the gesture classifier. A new touchdown immediately replaces the old
+  highlight, and keyboard unload/deinitialization clears the state.
+  The existing paper, charcoal controls, gold Space, labels and bevels
+  are preserved.
+
+Host mapping and visual state wiring tests cover these additions.
+The exact look and 90ms feedback duration need a watch review.
+
 ## Status
 
 **Early working prototype.** Jot has been built and photographed running on a real Pebble, with live text entry and a notes list visible on-device. This does **not** yet establish comprehensive verification of persistence, deletion, or every gesture on all hardware. The app currently targets **emery (Pebble Time 2)**.
