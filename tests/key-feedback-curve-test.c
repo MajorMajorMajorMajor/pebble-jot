@@ -14,6 +14,14 @@ int main(void) {
   assert(KEY_FEEDBACK_RELEASE_MS == 190);
   assert(KEY_FEEDBACK_MIN_VISIBLE_MS == 60);
   assert(KEY_FEEDBACK_INITIAL_LEVEL == 128);
+  // Only charcoal controls get the softer on-touch ramp.
+  for (int key = 0; key <= 9; ++key)
+    assert(key_feedback_initial_level(key) == KEY_FEEDBACK_INITIAL_LEVEL);
+  for (int key = 10; key < 14; ++key) {
+    assert(key_feedback_initial_level(key) == 80);
+    assert(key_feedback_palette_step(key_feedback_initial_level(key)) == 1);
+  }
+  assert(key_feedback_initial_level(-1) == KEY_FEEDBACK_INITIAL_LEVEL);
   for (int i = 0; i < 14; ++i)
     assert(key_feedback_release_ms(i) == 190);
 

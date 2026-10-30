@@ -80,8 +80,9 @@ static void prv_pulse_tick(void *context) {
     // colour; no intermediate computed RGB value can collapse to rest.
     const uint8_t progress = key_feedback_ease(elapsed,
                                                KEY_FEEDBACK_PRESS_MS);
-    grid->level = KEY_FEEDBACK_INITIAL_LEVEL +
-       (uint16_t)(255 - KEY_FEEDBACK_INITIAL_LEVEL) * progress / 255;
+    const uint8_t start = key_feedback_initial_level(grid->touch_index);
+    grid->level = start +
+       (uint16_t)(255 - start) * progress / 255;
   }
   key_button_set_feedback_level(
       grid->buttons[grid->pressed_button], grid->level);
@@ -235,8 +236,9 @@ void key_grid_highlight_touch_key(KeyGrid *grid, int touch_index) {
   grid->releasing = false;
   grid->phase_start_ms = prv_clock_ms();
   grid->touch_start_ms = grid->phase_start_ms;
-  grid->level = target < 0 ? 0 : KEY_FEEDBACK_INITIAL_LEVEL;
-  // Stage 2 is visible on the first rendered frame, even on quick taps.
+  grid->level = target < 0 ? 0 : key_feedback_initial_level(touch_index);
+  // Controls begin with the quieter sepia step; the approved letter and
+  // Space feedback still starts at its original intensity.
   if (target >= 0) {
     key_button_set_feedback_level(grid->buttons[target], grid->level);
     prv_schedule_pulse(grid);
@@ -252,8 +254,9 @@ void key_grid_release_touch_key(KeyGrid *grid) {
   // fired yet. Never rewind the highlight when beginning the fade.
   const uint8_t progress = key_feedback_ease(
       held_ms, KEY_FEEDBACK_PRESS_MS);
-  const uint8_t at_release = KEY_FEEDBACK_INITIAL_LEVEL +
-      (uint16_t)(255 - KEY_FEEDBACK_INITIAL_LEVEL) * progress / 255;
+  const uint8_t start = key_feedback_initial_level(grid->touch_index);
+  const uint8_t at_release = start +
+      (uint16_t)(255 - start) * progress / 255;
   if (at_release > grid->level) grid->level = at_release;
   grid->release_level = grid->level;
   grid->release_hold_ms = held_ms < KEY_FEEDBACK_MIN_VISIBLE_MS ?

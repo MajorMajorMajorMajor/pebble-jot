@@ -4,7 +4,28 @@
 
 Jot grew out of the [MessagEase-inspired gesture keyboard experiments](https://github.com/MajorMajorMajorMajor/messagease-test). Its keyboard supports taps, eight-direction swipes, eight directional drag-and-return gestures, and clockwise/counterclockwise circles. Clockwise circles on the letter grid enter digits 1–9 in calculator order; clockwise on Space enters 0.
 
-## Charcoal + Spacebar feedback correction (v1.11.4 — wrist QA pending)
+## Warm charcoal feedback study (v1.11.5 — wrist QA pending)
+
+The v1.11.4 gold Spacebar and cream letter keys are **approved
+unchanged**. The charcoal feedback was still a little abrupt on Emery:
+neutral grey on a 64-colour Pebble screen offers only two usable
+intermediate lightness values. This pass **only** adjusts charcoal
+control-key feedback, introducing three distinct restrained sepia
+palette values (deep olive → russet → warm clay), with a quieter
+first-touch stage. The original resting charcoal, cream control
+glyphs, outlines and bevels remain exactly as before.
+
+**80ms eased in / 190ms eased out** is still shared by every key,
+with the existing 60ms minimum quick-tap visibility. Only controls
+(Backspace, Return, 123, Save; touch indices 10–13) start from
+intensity 80 instead of 128. Cream and gold keep their original
+palettes and initial intensities. No gestures, touch hitboxes, timers
+or note storage are changed.
+
+The warm tint and final cream-on-clay contrast require physical
+Emery review before closing #29.
+
+## Charcoal + Spacebar feedback correction (v1.11.4 — wrist QA complete for cream/Space)
 
 The 1.11.3 palette-aware pulse has a common **80ms eased press-in**
 and **190ms eased release-out** across *every* key, with the same

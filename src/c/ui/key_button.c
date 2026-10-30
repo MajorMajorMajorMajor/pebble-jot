@@ -308,12 +308,13 @@ static GColor prv_feedback_fill(bool special, bool space,
                       space ? GColorFromRGB(255, 196, 0) :
                               style->key_background_color;
   if (special) {
-    // Neutral greys on the 64-colour palette. There are only two
-    // legible steps between deep charcoal and light slate: a short tap
-    // uses the soft shade, a longer press reaches the bright shade.
-    // Crucially the control icons stay the same cream throughout.
-    return step == 3 ? GColorFromRGB(170, 170, 170) :
-                       GColorFromRGB(85, 85, 85);
+    // The 64-colour Pebble screen has only two usable brighter greys.
+    // A sepia/ochre gamut provides THREE distinct restrained steps
+    // while keeping contrast against the unchanged cream glyphs.
+    // Deep olive -> russet -> warm clay, never the pale grey flash.
+    return step == 1 ? GColorFromRGB(85, 85, 0) :
+           step == 2 ? GColorFromRGB(170, 85, 0) :
+                       GColorFromRGB(170, 85, 85);
   }
   if (space) {
     // Rich gold -> amber -> copper: each stage gets DARKER, never

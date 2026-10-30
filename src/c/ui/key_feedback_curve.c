@@ -12,6 +12,11 @@ uint8_t key_feedback_ease(uint32_t elapsed_ms, uint16_t duration_ms) {
   return (uint8_t)((p * p * (765u - 2u * p) + 32512u) / 65025u);
 }
 
+uint8_t key_feedback_initial_level(int touch_index) {
+  return touch_index >= 10 && touch_index <= 13 ? 80 :
+         KEY_FEEDBACK_INITIAL_LEVEL;
+}
+
 uint8_t key_feedback_palette_step(uint8_t intensity) {
   if (!intensity) return 0;
   if (intensity < 96) return 1;

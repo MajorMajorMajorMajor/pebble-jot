@@ -22,3 +22,8 @@ uint8_t key_feedback_ease(uint32_t elapsed_ms, uint16_t duration_ms);
 // Boundaries are intentionally below our initial intensity of 128, so quick
 // taps have a visible colour on their very first frame.
 uint8_t key_feedback_palette_step(uint8_t intensity);
+
+// Controls start one palette step softer than letter/Space keys so their
+// first paint is a gentle warm acknowledgement, not a bright snap.
+// Physical touch indices 10..13 are Backspace, Return, 123 and Save.
+uint8_t key_feedback_initial_level(int touch_index);
