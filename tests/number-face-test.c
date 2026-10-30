@@ -34,25 +34,22 @@ int main(void) {
   assert(jot_number_face_binding(-1,0)==NULL);
   assert(jot_number_face_binding(10,0)==NULL);
   assert(jot_number_face_binding(0,19)==NULL);
-  // Never display a promised action until it actually works.
-  assert(jot_number_face_legend(0,0)==NULL); // 7 NW Compose
-  assert(jot_number_face_pictogram(0,0)==JOT_NUM_PICTO_NONE);
+  // Hidden control legends do not disable their gesture commands.
+  // 9 N cursor up, 9 NE Return, 1 SW Backspace, 3 S cursor down,
+  // 3 SE Space and the unsupported 1 SE Tab have no little pictos.
+  assert(jot_number_face_legend(0,0)==NULL); // Compose
   assert(jot_number_face_legend(2,1)==NULL);
-  assert(jot_number_face_pictogram(2,1)==JOT_NUM_PICTO_UP);
-  assert(jot_number_face_pictogram(2,2)==JOT_NUM_PICTO_RETURN);
-  assert(jot_number_face_pictogram(6,4)==JOT_NUM_PICTO_NONE);
-  assert(jot_number_face_pictogram(6,6)==JOT_NUM_PICTO_BACKSPACE);
-  assert(jot_number_face_pictogram(8,4)==JOT_NUM_PICTO_SPACE);
-  assert(jot_number_face_pictogram(8,5)==JOT_NUM_PICTO_DOWN);
-  assert(jot_number_face_pictogram(7,1)==JOT_NUM_PICTO_NONE);
+  assert(jot_number_face_legend(2,2)==NULL);
+  assert(jot_number_face_legend(6,4)==NULL);
+  assert(jot_number_face_legend(6,6)==NULL);
+  assert(jot_number_face_legend(8,4)==NULL);
+  assert(jot_number_face_legend(8,5)==NULL);
   assert(jot_number_face_legend(-1,0)==NULL);
-  // No unsupported Unicode boxes or invisible controls in the tiny
-  // font-based legends. Real UTF-8 gesture bindings remain unchanged.
   for (int key=0;key<9;key++)
     for (int d=0;d<8;d++) {
       const char *label=jot_number_face_legend(key,d);
       if (label) {
-        assert(label[0]>=' ' && label[0]<='~');
+        assert(label[0]>' ' && label[0]<='~');
         assert(label[1]=='\0');
       }
     }
@@ -65,7 +62,6 @@ int main(void) {
   // Unsupported Tab is not advertised or inserted.
   assert(!*jot_number_face_binding(6,4));
   assert(!*jot_number_face_binding(6,12));
-  assert(jot_number_face_pictogram(6,4)==JOT_NUM_PICTO_NONE);
   puts("Canonical numeric bindings and eight-direction legends passed");
   return 0;
 }

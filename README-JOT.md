@@ -1,28 +1,28 @@
-## Numeric keyboard face (v1.12.0 — awaiting Emery QA)
+## Jot 1.12.0 — restrained blue numeric legends (Emery QA pending)
 
-The 123 keyboard now has its proper 4×4 geometry. Numbers 7–9,
-4–6, and 1–3 fill the nine letter positions. On the bottom row,
-**0 spans exactly two columns** and **Space is a separate ordinary
-one-column key**. No virtual sub-key or tap-zone split is needed.
-The left controls remain Save / ABC / Backspace / Return.
+The 123 keyboard uses the same cream keys, charcoal controls, gold
+accents, 1px outlines, bevels and press animations as the approved
+ABC keyboard. **Blue is only for the small bold peripheral legends**,
+which now use Gothic 14 Bold for improved wrist readability.
 
-The numeric face alone uses a cool sea-glass blue-green palette:
-pale cyan number keys, bold dark teal compass legends, a richer
-teal zero and a deep-blue Space key. Pebble's native 1px icon
-drawings represent implemented actions without Unicode missing-glyph
-boxes. The 1px outline and existing touch feedback remain. ABC's
-warm paper-and-gold palette is unchanged.
+The bottom row consists of a normal **two-column gold 0** and a
+separate **one-column gold Space key, left completely blank**.
+Both have their own normal key hitbox and feedback.
 
-Numeric print gestures come from docs/gesture-map.csv. Unsupported
-functions are reserved, not advertised: in particular, **Tab is
-not implemented** and its former icon and output are now disabled.
-Supported Return, Backspace, Space and cursor gestures remain.
-On the dedicated Space key, the familiar left/right cursor
-gestures still work. Moving between ABC and 123 keeps the draft
-and caret intact; reader/list and storage are unaffected.
+As in full-size MessagEase, editor control gestures are *not*
+advertised with little pictograms. On the 123 face **9↑** moves
+the cursor up, **3↓** moves it down, **9↗** inserts Return,
+**1↙** deletes backward, and **3↘** inserts Space. All
+these commands remain enabled and are documented here instead of
+drawn. Tab and Compose remain unimplemented and unlabelled.
 
-This change needs an on-watch Emery build and contrast/legibility
-test before #27 can be closed.
+The separate blank Space supports normal tap and left/right cursor
+swipes; other printable digit and punctuation gestures follow
+`docs/gesture-map.csv`. Glyphs not supported by Pebble's small font
+remain hidden rather than showing empty boxes.
+
+ABC input, note editing, storage and reader are unchanged.
+Physical Emery contrast/legibility QA still required.
 
 # Jot — detailed behavior and developer notes
 

@@ -1,27 +1,28 @@
-## Jot 1.12.0 — the other half of the keyboard (Emery QA pending)
+## Jot 1.12.0 — restrained blue numeric legends (Emery QA pending)
 
-Tap **123** to switch from the approved ABC face to a genuine second 4×4
-keyboard. The digit positions are 7–9, 4–6, 1–3, and the left column is
-still Save / ABC / Backspace / Return. **The bottom row is a two-column 0
-and a separate one-column Space key**, not two virtual touch regions
-inside a shared key. Both keys have independent press feedback and the
-normal Space gestures (including left/right cursor navigation) remain.
+The 123 keyboard uses the same cream keys, charcoal controls, gold
+accents, 1px outlines, bevels and press animations as the approved
+ABC keyboard. **Blue is only for the small bold peripheral legends**,
+which now use Gothic 14 Bold for improved wrist readability.
 
-The numeric face uses pale-cyan number keys, a teal zero, a blue Space
-key and **bold dark-teal peripheral legends**. The ABC keyboard retains
-its original paper-and-gold styling, dimensions and gestures.
-Each numeric gesture follows the implemented mappings in
-`docs/gesture-map.csv`; native 1px pictograms are used for supported
-editor controls. Missing font glyphs are hidden rather than appearing
-as empty squares. **Tab and Compose are not implemented** and are not
-advertised. Unavailable gestures are deliberately left reserved.
+The bottom row consists of a normal **two-column gold 0** and a
+separate **one-column gold Space key, left completely blank**.
+Both have their own normal key hitbox and feedback.
 
-The keyboard face is allocated on demand and a failed allocation
-leaves the previous face intact. Storage, draft/caret state, note
-reader and list are unchanged. Host regression tests cover the
-distinct bottom-row touch cells, input routing, numeric binding
-table and visual invariants. Physical Pebble SDK compilation and
-wrist readability are awaiting approval.
+As in full-size MessagEase, editor control gestures are *not*
+advertised with little pictograms. On the 123 face **9↑** moves
+the cursor up, **3↓** moves it down, **9↗** inserts Return,
+**1↙** deletes backward, and **3↘** inserts Space. All
+these commands remain enabled and are documented here instead of
+drawn. Tab and Compose remain unimplemented and unlabelled.
+
+The separate blank Space supports normal tap and left/right cursor
+swipes; other printable digit and punctuation gestures follow
+`docs/gesture-map.csv`. Glyphs not supported by Pebble's small font
+remain hidden rather than showing empty boxes.
+
+ABC input, note editing, storage and reader are unchanged.
+Physical Emery contrast/legibility QA still required.
 
 # Jot — a pocket notebook for Pebble
 

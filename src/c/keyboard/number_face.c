@@ -33,35 +33,19 @@ const char *jot_number_face_binding(int key, int gesture) {
 
 
 // The 8 straight swipes: NW, N, NE, E, SE, S, SW, W.
-// Symbols that aren't safely printable on Pebble are not advertised
-// as text; supported action hints are drawn as native little pictograms.
+// Only displayable punctuation appears. Control gestures stay active
+// but have no tiny pictograms, as with full-size MessagEase.
 static const uint8_t s_straight_gestures[8] = {8,1,2,3,4,5,6,7};
-
-JotNumberPictogram jot_number_face_pictogram(int key, int direction) {
-  if (direction < 0 || direction >= 8) return JOT_NUM_PICTO_NONE;
-  if (key == 2) { // 9: up arrow, Return
-    if (direction == 1) return JOT_NUM_PICTO_UP;
-    if (direction == 2) return JOT_NUM_PICTO_RETURN;
-  } else if (key == 6) { // 1: only Backspace works.
-    if (direction == 6) return JOT_NUM_PICTO_BACKSPACE;
-  } else if (key == 8) { // 3: Space, cursor down
-    if (direction == 4) return JOT_NUM_PICTO_SPACE;
-    if (direction == 5) return JOT_NUM_PICTO_DOWN;
-  }
-  return JOT_NUM_PICTO_NONE;
-}
 
 const char *jot_number_face_legend(int key, int direction) {
   if (key < 0 || key >= 9 || direction < 0 || direction >= 8)
-    return NULL;
-  if (jot_number_face_pictogram(key, direction) != JOT_NUM_PICTO_NONE)
     return NULL;
   // Don't paint multi-byte Unicode punctuation with Gothic 14: many
   // valid storage glyphs have no Pebble font glyph and display as boxes.
   // Bindings still insert the exact canonical UTF-8 symbols; their
   // legends remain absent until we can supply verified pixel-art.
   const char *text = s_bindings[key][s_straight_gestures[direction]];
-  return text[0] >= ' ' && text[0] <= '~' && text[1] == '\0' ?
+  return text[0] > ' ' && text[0] <= '~' && text[1] == '\0' ?
          text : NULL;
 }
 
