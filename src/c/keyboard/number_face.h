@@ -1,8 +1,6 @@
 #pragma once
-
-// A pure, SDK-independent mapping from physical touch index (0..13) to
-// the numeric face. Only number cells (0..8) and the wide zero (9)
-// are handled here. Controls and cursor commands retain their own routing.
-// gesture: 0=Tap; 5=Down; 18=CCW, consistent with the alphabet face.
-// Unknown gestures deliberately enter nothing, never hidden letters.
+// Numeric face: the existing 14 touch indexes and 19 recognizer gestures,
+// with every printable output drawn from docs/gesture-map.csv.
 const char *jot_number_face_binding(int touch_index, int gesture_index);
+// Small NW/N/NE/E/SE/S/SW/W labels for number keys 0..8.
+const char *jot_number_face_legend(int touch_index, int direction);

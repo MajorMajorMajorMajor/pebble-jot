@@ -30,6 +30,13 @@ const cursorBranch = touch.indexOf('!prv_jot_cursor_command(s_touch_key, gesture
 assert.ok(numericBranch > 0 && cursorBranch > numericBranch,
   'number DOWN punctuation must run before ABC cursor shortcuts');
 assert.match(touch,/jot_input\(jot_number_face_binding\(s_touch_key, gesture_index\)\)/);
+assert.match(touch,/s_touch_key == 2 && gesture_index == 1/);
+assert.match(touch,/s_touch_key == 8 && gesture_index == 5/);
+assert.match(touch,/jot_store_move_cursor\(JOT_CURSOR_UP\)/);
+assert.match(touch,/jot_store_move_cursor\(JOT_CURSOR_DOWN\)/);
+assert.match(button,/FONT_KEY_GOTHIC_28_BOLD/);
+assert.match(button,/prv_draw_number_legends\(ctx, button->key, bounds\)/);
+assert.match(button,/jot_number_face_legend\(\(int\)index, d\)/);
 assert.match(touch,/jot_number_face_binding\(s_touch_key, gesture_index\)/);
 assert.match(touch,/jot_editor_touch_save\(\)/);
 assert.match(touch,/prv_jot_cursor_command\(s_touch_key, gesture_index\)/);

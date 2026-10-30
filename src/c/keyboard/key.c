@@ -77,34 +77,25 @@ static const Key s_keys[KEY_COUNT] = {
       { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "RET" },
     }
   },
-  // Numeric face: big number at centre, small DOWN-swipe punctuation hint.
+  // Numeric edge legends render in key_button.c (no additional Pebble layers).
   [KEY_NUMBER_7] = { .labels = {
-    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "7" },
-    { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = "(" } } },
+    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "7" } } },
   [KEY_NUMBER_8] = { .labels = {
-    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "8" },
-    { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = ")" } } },
+    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "8" } } },
   [KEY_NUMBER_9] = { .labels = {
-    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "9" },
-    { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = "/" } } },
+    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "9" } } },
   [KEY_NUMBER_4] = { .labels = {
-    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "4" },
-    { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = "-" } } },
+    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "4" } } },
   [KEY_NUMBER_5] = { .labels = {
-    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "5" },
-    { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = "." } } },
+    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "5" } } },
   [KEY_NUMBER_6] = { .labels = {
-    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "6" },
-    { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = ":" } } },
+    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "6" } } },
   [KEY_NUMBER_1] = { .labels = {
-    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "1" },
-    { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = "," } } },
+    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "1" } } },
   [KEY_NUMBER_2] = { .labels = {
-    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "2" },
-    { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = "?" } } },
+    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "2" } } },
   [KEY_NUMBER_3] = { .labels = {
-    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "3" },
-    { .slot = KEY_LABEL_BOTTOM, .type = KEY_LABEL_TYPE_TEXT, .text = "!" } } },
+    { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "3" } } },
   [KEY_NUMBER_ZERO] = { .labels = {
     { .slot = KEY_LABEL_CENTER, .type = KEY_LABEL_TYPE_TEXT, .text = "0" } } },
   [KEY_NUMBER_ABC] = { .labels = {

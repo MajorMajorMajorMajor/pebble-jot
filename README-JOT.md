@@ -3,12 +3,15 @@
 Tapping 123 while editing opens the second 4 × 4 face. Every key retains
 the established hitbox, colouring, 1px bevels and press pulse. The left
 column stays SAVE / ABC / Backspace / Return; tapping ABC restores letters.
-The nine letter positions now show numbers 7–9, 4–6, 1–3 with small
-punctuation labels along the bottom. Tap to type the number, or swipe
-DOWN to type its little mark: 7→(, 8→), 9→/, 4→-, 5→.,
-6→:, 1→,, 2→?, 3→!. The wide gold key is 0 when tapped;
-a down/CCW swipe inserts Space, and East/West preserve the established
-cursor shortcuts. Original ABC bindings are never rewritten.
+The digits 7–9, 4–6, 1–3 now have small mauve glyphs around all eight
+compass positions, matching the numeric rows in docs/gesture-map.csv.
+Every printable mapping from the source, including return swipes and
+circles, is available. Key 9 ↑ moves the caret up, 3 ↓ moves it down,
+1 ↙ performs Backspace, 9 ↗ enters Return and 1 ↘ enters Tab.
+Compose and other unsupported actions remain reserved. The large gold 0
+takes visual priority over a small Space dash: tap is 0; downward and
+diagonal-down or CCW inserts Space; E/W keeps existing cursor movement.
+ABC mappings are unchanged.
 
 The screen rebuilds one grid on toggle and destroys the previous grid,
 cancelling the old animation timer. Creation failure does not change

@@ -510,9 +510,17 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
             jot_editor_touch_save();
           } else if (keyboard_window_number_face_active() &&
                      s_touch_key >= 0 && s_touch_key < 9) {
-            // Numeric positions own their DOWN swipes, including 3 -> !.
-            // The alphabet's I/S cursor shortcuts are unchanged in ABC.
-            jot_input(jot_number_face_binding(s_touch_key, gesture_index));
+            // Workbook-defined cursor gestures belong to numeric 9 and 3.
+            // Never run the alphabet I/S cursor shortcuts on this face.
+            if (s_touch_key == 2 && gesture_index == 1) {
+              jot_store_move_cursor(JOT_CURSOR_UP);
+              jot_refresh_editor();
+            } else if (s_touch_key == 8 && gesture_index == 5) {
+              jot_store_move_cursor(JOT_CURSOR_DOWN);
+              jot_refresh_editor();
+            } else {
+              jot_input(jot_number_face_binding(s_touch_key, gesture_index));
+            }
           } else if (!prv_jot_cursor_command(s_touch_key, gesture_index) &&
                      !prv_jot_forward_delete_command(s_touch_key, gesture_index)) {
             // Gold zero taps 0; DOWN/CCW inserts a Space. East/West keep
