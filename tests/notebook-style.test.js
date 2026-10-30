@@ -77,13 +77,13 @@ console.log('Pocket Notebook visual styling and unchanged gesture geometry verif
 const keyGrid = fs.readFileSync('src/c/ui/key_grid.c', 'utf8');
 const keyButton = fs.readFileSync('src/c/ui/key_button.c', 'utf8');
 const keyboardWindow = fs.readFileSync('src/c/ui/window.c', 'utf8');
-const touch = fs.readFileSync('src/c/ui/touch.c', 'utf8');
+const feedbackTouch = fs.readFileSync('src/c/ui/touch.c', 'utf8');
 assert.match(keyGrid, /void key_grid_highlight_touch_key\(/);
 assert.match(keyGrid, /KEY_ENGLISH_SPACEBAR, KEY_ENGLISH_BACKSPACE, KEY_ENGLISH_RETURN/);
 assert.match(keyButton, /void key_button_set_pressed\(/);
 assert.match(keyButton, /layer_mark_dirty\(button->base_layer\)/);
 assert.match(keyButton, /button->pressed \?/);
 assert.match(keyboardWindow, /void keyboard_window_highlight_touch_key\(/);
-assert.match(touch, /TouchEvent_Touchdown:[\s\S]*?keyboard_window_highlight_touch_key\(s_touch_key\)/);
-assert.match(touch, /app_timer_register\(\s*90, prv_clear_key_feedback, NULL\)/);
-assert.match(touch, /void touch_deinit\(void\) \{\s*prv_cancel_key_feedback\(\)/);
+assert.match(feedbackTouch, /TouchEvent_Touchdown:[\s\S]*?keyboard_window_highlight_touch_key\(s_touch_key\)/);
+assert.match(feedbackTouch, /app_timer_register\(\s*90, prv_clear_key_feedback, NULL\)/);
+assert.match(feedbackTouch, /void touch_deinit\(void\) \{\s*prv_cancel_key_feedback\(\)/);
