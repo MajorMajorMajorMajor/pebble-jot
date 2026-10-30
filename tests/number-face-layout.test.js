@@ -22,7 +22,8 @@ assert.match(window,/KeyGrid \*next = key_grid_create\(get_layout\(next_id\)/);
 assert.match(window,/if \(!next\) return false/);
 assert.match(window,/key_grid_destroy\(old\)/);
 assert.match(grid,/grid->layout == get_layout\(LAYOUT_ENGLISH_123\)/);
-assert.match(button,/button->key == get_key\(KEY_NUMBER_ZERO\)/);
+// Zero uses the ordinary number-key cream fill and bevel, not gold Space styling.
+assert.doesNotMatch(button,/button->key == get_key\(KEY_NUMBER_ZERO\)/);
 assert.match(button,/label->key == get_key\(KEY_NUMBER_ABC\)/);
 assert.match(touch,/s_touch_key == 12 && gesture_index == 0/);
 assert.match(touch,/keyboard_window_toggle_number_face\(\)/);
