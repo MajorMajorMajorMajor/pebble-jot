@@ -80,7 +80,7 @@ assert.doesNotMatch(stroke, /s_touch_key == 13 && gesture_index == 0\) jot_show_
 assert.match(stroke, /APP_LOG\(APP_LOG_LEVEL_INFO, "TYPE,/);
 assert.match(key, /\[KEY_ENGLISH_MENU\][\s\S]*?"SAVE"/);
 assert.doesNotMatch(key, /\[KEY_ENGLISH_MENU\][\s\S]*?"KB"/);
-assert.match(paint, /label->key == get_key\(KEY_ENGLISH_MENU\)\s*\?\s*style->label_peripheral_font/);
+assert.match(paint, /label->key == get_key\(KEY_ENGLISH_MENU\)\s*\|\|\s*label->key == get_key\(KEY_NUMBER_ABC\)\s*\?\s*style->label_peripheral_font/);
 
 // The store preserves an existing auto-saved slot (no duplicate record)
 // and a failed persist write never marks the note clean.
