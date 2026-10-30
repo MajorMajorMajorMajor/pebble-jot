@@ -19,7 +19,7 @@ assert.match(s, /s_mode != MODE_JOT/);
 assert.match(s, /jot_list_is_open\(\) \|\| jot_reader_is_open\(\)/);
 assert.match(s, /const int threshold2 = JOT_REPEAT_SWIPE_MIN_PX/);
 assert.match(s, /if \(dx \* dx \+ dy \* dy < threshold2\) return JOT_REPEAT_NONE/);
-assert.match(s, /jot_input\("\\\\b"\)/); // Verify actual C escape in source.
+assert.ok(s.includes('jot_input("' + String.fromCharCode(92) + 'b");'), 'repeat uses a real C backspace escape');
 assert.match(s, /jot_delete_forward\(\)/);
 assert.match(s, /jot_store_move_cursor\(move\)/);
 assert.match(s, /prv_update_repeat\(event, now_ms\)/);

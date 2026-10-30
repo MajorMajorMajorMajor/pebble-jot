@@ -418,7 +418,7 @@ static void prv_repeat_tick(void *context) {
     case JOT_REPEAT_CURSOR_UP:    move = JOT_CURSOR_UP; break;
     case JOT_REPEAT_CURSOR_DOWN:  move = JOT_CURSOR_DOWN; break;
     case JOT_REPEAT_BACKSPACE:
-      jot_input("\\b");
+      jot_input("\b");
       is_cursor = false;
       break;
     case JOT_REPEAT_FORWARD_DELETE:

@@ -36,7 +36,7 @@ jobs:
         run: node tests/ram-budget.test.js
       - name: Test gesture-held key repeat and release safety
         run: |
-          cc -std=c11 -Wall -Wextra -Werror -I src/c \\
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/key-repeat-test.c src/c/ui/key_repeat.c -o /tmp/jot-key-repeat-test
           /tmp/jot-key-repeat-test
           node tests/key-repeat-routing.test.js
