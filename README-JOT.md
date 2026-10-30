@@ -30,6 +30,30 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
+## Native Pebble action bar refinement (v1.10.1 — Emery QA pending)
+
+Native Pebble SDK `ActionBarLayer` now replaces the custom dark drawn
+panel. It owns action icons, spacing and physical button highlights.
+The Up/Down and confirm/cancel assets are reused from open-source
+PebbleOS; 18px Jot-specific white pencil and trash icons complete the
+set. The normal background is dark, while Delete mode makes the native
+bar red.
+
+**Armed Delete display:** the reader's status/footer displays exactly
+`Confirm delete?`; Up is blank (still cancels if pressed), Select shows
+the checkmark, and Down shows the X. Back also cancels as before.
+The collapsed nub is a plain, fully filled black oval slice with no
+interior gold mark. Its `graphics_fill_oval` primitive is taken from
+the same drawing approach as PebbleOS's round ActionBar background.
+The note viewport itself is not reflowed.
+
+Native `ActionBarLayer` is added to the window when Select opens the
+review bar and removed when Back closes it; the ordinary reader click
+provider is then restored so physical Up/Down continue scrolling.
+The overlay touch hitbox uses platform `ACTION_BAR_WIDTH` instead of
+the old handmade 74px panel. Draft Peek remains action-bar free.
+The JOT2 storage format and keyboard gestures are untouched.
+
 ## Persistent action-bar triage (v1.10.0 — Emery wrist test pending)
 
 Issue #10 uses a slim black-and-gold overlay on saved reader pages, with

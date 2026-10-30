@@ -43,6 +43,34 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
+## Native ActionBarLayer and safe delete confirmation (v1.10.1 — Emery QA pending)
+
+Jot's hand-drawn reader action panel has been replaced with Pebble's
+native `ActionBarLayer`: system-managed button press feedback, icon
+positioning, and the correct physical width (34 pixels on Emery).
+The bar uses the official PebbleOS Up/Down triangle icons and Jot's
+pencil for editing. Holding Select enters persistent Delete mode, with
+a red bar and a white trash can icon.
+
+Once deletion is armed, the footer reads **"Confirm delete?"**.
+The Up icon becomes blank (but the physical Up button cancels), Select
+becomes a checkmark (confirm), and Down becomes an X (cancel).
+Physical Back also cancels. Only a second separate Select press can
+delete. Successful deletion shows the next note while leaving Delete
+mode active.
+
+When closed, the familiar right-edge action nub is now a completely
+solid black oval slice with no small speck inside. The nub uses the
+same oval fill primitive as the open-source PebbleOS ActionBar drawing
+code. The native action bar is removed when closed, restoring normal
+60-pixel button scrolling and preserving gesture scrolling, tap-to-edit,
+and draft Peek.
+
+Official PebbleOS action icons are attributed under
+`resources/icons/ATTRIBUTION.md`. Host tests check the native SDK API
+wiring and delete-confirmation icon states; physical Emery appearance
+and build still require QA.
+
 ## Persistent reader action bar (v1.10.0 — awaiting Emery wrist test)
 
 Issue #10 adds a saved-note review mode for rapidly triaging up to 256 notes.

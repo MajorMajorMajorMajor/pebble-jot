@@ -1,7 +1,7 @@
 {
   "name": "pebble-jot",
   "author": "MakeAwesomeHappen",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "keywords": [
     "pebble-app"
   ],
@@ -32,7 +32,44 @@
       "BackupFinal"
     ],
     "resources": {
-      "media": []
+      "media": [
+        {
+          "type": "bitmap",
+          "name": "JOT_ACTION_UP",
+          "file": "icons/action_up.png",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "JOT_ACTION_DOWN",
+          "file": "icons/action_down.png",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "JOT_ACTION_PENCIL",
+          "file": "icons/action_pencil.png",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "JOT_ACTION_TRASH",
+          "file": "icons/action_trash.png",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "JOT_ACTION_CHECK",
+          "file": "icons/action_check.png",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "JOT_ACTION_X",
+          "file": "icons/action_x.png",
+          "spaceOptimization": "memory"
+        }
+      ]
     },
     "capabilities": [
       "configurable"

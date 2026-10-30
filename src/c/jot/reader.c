@@ -16,7 +16,17 @@ enum {
 
 static Window *s_window;
 static Layer *s_chrome;
-static Layer *s_actions; // Overlay: no note text reflow or extra text buffer.
+static ActionBarLayer *s_action_bar; // Native PebbleOS control.
+static bool s_action_bar_attached;
+static Layer *s_nub; // Solid collapsed-side affordance.
+enum { ICON_UP, ICON_DOWN, ICON_PENCIL, ICON_TRASH, ICON_CHECK, ICON_X, ICON_COUNT };
+static GBitmap *s_icons[ICON_COUNT];
+static const uint32_t s_icon_ids[ICON_COUNT] = {
+  RESOURCE_ID_JOT_ACTION_UP, RESOURCE_ID_JOT_ACTION_DOWN,
+  RESOURCE_ID_JOT_ACTION_PENCIL, RESOURCE_ID_JOT_ACTION_TRASH,
+  RESOURCE_ID_JOT_ACTION_CHECK, RESOURCE_ID_JOT_ACTION_X
+};
+static void prv_reader_clicks(void *context);
 static Layer *s_paper;
 static Layer *s_viewport;
 static TextLayer *s_text_layer;
@@ -44,7 +54,32 @@ bool jot_reader_is_peek(void) {
 }
 
 static void prv_mark_review(void) {
-  if (s_actions) layer_mark_dirty(s_actions);
+  if (s_nub) layer_set_hidden(s_nub, s_review.open);
+  if (s_action_bar) {
+    if (s_review.open) {
+      // SDK handles alignment, button highlighting and window geometry.
+      action_bar_layer_set_background_color(s_action_bar,
+          s_review.delete_mode ? GColorFromRGB(202, 39, 47) : prv_ink());
+      if (s_review.armed)
+        action_bar_layer_clear_icon(s_action_bar, BUTTON_ID_UP);
+      else
+        action_bar_layer_set_icon(s_action_bar, BUTTON_ID_UP, s_icons[ICON_UP]);
+      action_bar_layer_set_icon(s_action_bar, BUTTON_ID_SELECT,
+          s_review.armed ? s_icons[ICON_CHECK] :
+          s_review.delete_mode ? s_icons[ICON_TRASH] : s_icons[ICON_PENCIL]);
+      action_bar_layer_set_icon(s_action_bar, BUTTON_ID_DOWN,
+          s_review.armed ? s_icons[ICON_X] : s_icons[ICON_DOWN]);
+      if (!s_action_bar_attached) {
+        action_bar_layer_add_to_window(s_action_bar, s_window);
+        s_action_bar_attached = true;
+      }
+    } else if (s_action_bar_attached) {
+      // SDK removes the window's click provider with the action bar.
+      action_bar_layer_remove_from_window(s_action_bar);
+      s_action_bar_attached = false;
+      window_set_click_config_provider(s_window, prv_reader_clicks);
+    }
+  }
   if (s_chrome) layer_mark_dirty(s_chrome);
 }
 
@@ -126,6 +161,7 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
                      0, GCornerNone);
   graphics_context_set_text_color(ctx, GColorWhite);
   const char *hint = s_open_error ? "COULD NOT OPEN NOTE" :
+                     s_review.armed ? "Confirm delete?" :
                      s_review_message ? s_review_message :
                      s_is_peek ? (s_scroll_max ? "DRAG scroll  TAP return" :
                                                  "TAP to return to typing") :
@@ -141,79 +177,28 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
 }
 
 
-static GRect prv_action_panel(GRect bounds) {
-  return GRect(bounds.size.w - 76,
-               JOT_READER_HEADER_H + JOT_READER_META_H + 7,
-               74, 111);
-}
-
-static void prv_draw_actions(Layer *layer, GContext *ctx) {
-  if (s_is_peek) return;
+// Solid closed-state nub. The open-source PebbleOS ActionBar uses the
+// same graphics_fill_oval primitive for circular background drawing.
+// There is no standalone collapsed ActionBar widget in the SDK.
+static void prv_draw_nub(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
-  const GColor ink = prv_ink();
-  const GColor gold = prv_yellow();
-  if (!s_review.open) {
-    // Discreet semicircular action nub on the right edge. It hints
-    // that the physical Select button can open the review controls.
-    graphics_context_set_fill_color(ctx, ink);
-    graphics_fill_circle(ctx,
-        GPoint(bounds.size.w + 11, bounds.size.h / 2), 21);
-    graphics_context_set_stroke_color(ctx, gold);
-    graphics_context_set_stroke_width(ctx, 1);
-    graphics_draw_line(ctx, GPoint(bounds.size.w - 5,
-                                  bounds.size.h / 2 - 3),
-                       GPoint(bounds.size.w - 5,
-                              bounds.size.h / 2 + 3));
-    return;
-  }
-
-  const GRect panel = prv_action_panel(bounds);
-  graphics_context_set_fill_color(ctx, ink);
-  graphics_fill_rect(ctx, panel, 8, GCornersAll);
-  graphics_context_set_stroke_color(ctx, gold);
-  graphics_context_set_stroke_width(ctx, 1);
-  graphics_draw_round_rect(ctx, panel, 8);
-  const int section_h = panel.size.h / 3;
-  graphics_draw_line(ctx,
-      GPoint(panel.origin.x + 6, panel.origin.y + section_h),
-      GPoint(panel.origin.x + panel.size.w - 7,
-             panel.origin.y + section_h));
-  graphics_draw_line(ctx,
-      GPoint(panel.origin.x + 6, panel.origin.y + 2 * section_h),
-      GPoint(panel.origin.x + panel.size.w - 7,
-             panel.origin.y + 2 * section_h));
-
-  // The middle action changes persistently on long Select. The only
-  // irreversible action requires two separate short Select presses.
-  const char *middle = s_review.armed ? "CONFIRM" :
-                       s_review.delete_mode ? "DELETE" : "EDIT";
-  const char *labels[3] = {"NEWER", middle, "OLDER"};
-  for (int i = 0; i < 3; ++i) {
-    const bool emphasis = i == 1;
-    graphics_context_set_text_color(ctx, emphasis ? gold : GColorWhite);
-    graphics_draw_text(ctx, labels[i],
-        fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-        GRect(panel.origin.x + 4, panel.origin.y + i * section_h + 9,
-              panel.size.w - 8, section_h - 10),
-        GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
-  }
+  const GRect oval = GRect(bounds.size.w - 11,
+      bounds.size.h / 2 - 20, 40, 40);
+  graphics_context_set_fill_color(ctx, prv_ink());
+  graphics_fill_oval(ctx, oval, GOvalScaleModeFitCircle);
 }
 
 bool jot_reader_action_overlay_hit(int16_t x, int16_t y) {
-  if (!jot_reader_is_open() || s_is_peek || !s_actions) return false;
-  const GRect bounds = layer_get_bounds(s_actions);
+  if (!jot_reader_is_open() || s_is_peek) return false;
   if (s_review.open) {
-    const GRect panel = prv_action_panel(bounds);
-    return x >= panel.origin.x &&
-           x < panel.origin.x + panel.size.w &&
-           y >= panel.origin.y &&
-           y < panel.origin.y + panel.size.h;
+    const GRect bounds = layer_get_bounds(window_get_root_layer(s_window));
+    return x >= bounds.size.w - ACTION_BAR_WIDTH && x < bounds.size.w &&
+           y >= 0 && y < bounds.size.h;
   }
-  // Ignore taps on the decorative edge nub so they cannot edit notes.
-  return x >= bounds.size.w - 11 &&
-         x < bounds.size.w &&
-         y >= bounds.size.h / 2 - 21 &&
-         y < bounds.size.h / 2 + 21;
+  if (!s_nub) return false;
+  const GRect bounds = layer_get_bounds(s_nub);
+  return x >= bounds.size.w - 11 && x < bounds.size.w &&
+         y >= bounds.size.h / 2 - 20 && y < bounds.size.h / 2 + 20;
 }
 
 static void prv_draw_paper(Layer *layer, GContext *ctx) {
@@ -422,6 +407,7 @@ static void prv_reader_select(ClickRecognizerRef ref, void *context) {
     jot_reader_back();
     return;
   }
+  if (!s_action_bar) { jot_reader_edit_current(); return; }
   const JotReaderReviewAction action = jot_reader_review_select(&s_review);
   s_review_message = NULL;
   prv_mark_review();
@@ -430,7 +416,7 @@ static void prv_reader_select(ClickRecognizerRef ref, void *context) {
 }
 
 static void prv_reader_select_hold(ClickRecognizerRef ref, void *context) {
-  if (s_is_peek) return; // Drafts are never navigable or deletable.
+  if (s_is_peek || !s_action_bar) return; // Drafts are never deletable.
   jot_reader_review_hold(&s_review);
   s_review_message = NULL;
   prv_mark_review();
@@ -487,18 +473,34 @@ static void prv_reader_load(Window *window) {
     }
   }
 
-  // This full-screen overlay draws only the nub/bar. It sits ABOVE paper
-  // without shifting or resizing the reader's text viewport.
-  s_actions = layer_create(bounds);
-  if (s_actions) {
-    layer_set_update_proc(s_actions, prv_draw_actions);
-    layer_add_child(window_get_root_layer(window), s_actions);
+  // The closed nub is opaque and unmarked. The expanded bar is native.
+  if (!s_is_peek) {
+    s_nub = layer_create(bounds);
+    if (s_nub) {
+      layer_set_update_proc(s_nub, prv_draw_nub);
+      layer_add_child(window_get_root_layer(window), s_nub);
+    }
+    for (int i = 0; i < ICON_COUNT; ++i)
+      s_icons[i] = gbitmap_create_with_resource(s_icon_ids[i]);
+    s_action_bar = action_bar_layer_create();
+    if (s_action_bar)
+      action_bar_layer_set_click_config_provider(s_action_bar,
+                                                  prv_reader_clicks);
   }
 }
 
 static void prv_reader_unload(Window *window) {
-  if (s_actions) layer_destroy(s_actions);
-  s_actions = NULL;
+  if (s_action_bar_attached && s_action_bar)
+    action_bar_layer_remove_from_window(s_action_bar);
+  s_action_bar_attached = false;
+  if (s_action_bar) action_bar_layer_destroy(s_action_bar);
+  s_action_bar = NULL;
+  for (int i = 0; i < ICON_COUNT; ++i) {
+    if (s_icons[i]) gbitmap_destroy(s_icons[i]);
+    s_icons[i] = NULL;
+  }
+  if (s_nub) layer_destroy(s_nub);
+  s_nub = NULL;
   jot_reader_review_reset(&s_review);
   s_review_message = NULL;
   if (s_text_layer) text_layer_destroy(s_text_layer);
