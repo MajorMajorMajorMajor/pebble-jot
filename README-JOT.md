@@ -30,6 +30,18 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
+## Alpha background trial (v1.10.4 — real Emery check needed)
+
+`prv_action_bar_background()` now returns
+`GColorFromRGBA(41, 40, 43, 170)` (approximately 2/3 opacity).
+The SDK `ActionBarLayer` setter accepts the color, but the actual
+background composition must be proven by watching live note text
+beneath the open native bar. Only the alpha helper, version, docs
+and structural test change in this commit. If compositing is poor or
+not supported, revert this one commit to the opaque v1.10.3 baseline
+without undoing the native icon or boundary polish. No reader reflow
+was implemented.
+
 ## Triage action polish (v1.10.3 baseline)
 
 - No content reflow: the native bar still overlays the full-width note

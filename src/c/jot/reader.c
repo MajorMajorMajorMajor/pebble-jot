@@ -46,10 +46,13 @@ static GColor prv_ink(void) { return GColorFromRGB(41, 40, 43); }
 static GColor prv_yellow(void) { return GColorFromRGB(255, 209, 88); }
 static GColor prv_paper(void) { return GColorFromRGB(249, 242, 219); }
 
-// Keep opaque black for the baseline review pass. The alpha experiment is
-// isolated in a follow-up commit so it can be reverted without losing
-// icon, boundary or safety refinements.
-static GColor prv_action_bar_background(void) { return prv_ink(); }
+// Alpha-only experiment (v1.10.4): GColor8 has two bits of alpha on
+// Emery. 170/255 requests approximately 2/3 opacity. Whether the native
+// ActionBar actually composites it against the reader is hardware QA.
+// Revert this commit to restore the stable opaque-bar baseline.
+static GColor prv_action_bar_background(void) {
+  return GColorFromRGBA(41, 40, 43, 170);
+}
 
 bool jot_reader_is_open(void) {
   return s_window && window_stack_get_top_window() == s_window;

@@ -43,6 +43,23 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
+## Native action bar alpha experiment (v1.10.4 — Emery QA pending)
+
+This is intentionally a **one-commit, hardware-testable experiment**,
+layered on top of the green v1.10.3 opaque baseline. The native
+`ActionBarLayer` background now receives
+`GColorFromRGBA(41, 40, 43, 170)`, requesting roughly 2/3 opacity
+through Pebble's quantized alpha. The SDK accepts a `GColor`, but
+only the physical Emery display can establish whether the ActionBar
+renderer blends the background with the note rather than drawing a
+solid slab. The red destructive-action tile stays opaque and localized.
+
+If this does not reveal underlying text satisfactorily, **revert only
+the v1.10.4 alpha commit** and revisit temporarily reducing the reader
+viewport width. All stock icons, slimmer nub, hidden boundary arrows,
+two-press deletion and long-note touch scrolling are retained when
+that experiment is rolled back.
+
 ## Action bar refinement — baseline without reader reflow (v1.10.3)
 
 This pass deliberately keeps the full-width reader and native SDK

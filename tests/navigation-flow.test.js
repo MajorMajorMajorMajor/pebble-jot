@@ -226,6 +226,7 @@ assert.doesNotMatch(reader, /"FIRST NOTE"|"LAST NOTE"/);
 assert.match(reader, /GPoint\(bounds\.size\.w \+ 14, bounds\.size\.h \/ 2\), 20/);
 assert.match(reader, /s_review\.armed\s*\?\s*"Confirm delete\?"\s*:/);
 assert.match(reader, /action_bar_layer_set_background_color\(\s*s_action_bar, prv_action_bar_background\(\)\)/);
+assert.match(reader, /GColorFromRGBA\(41,\s*40,\s*43,\s*170\)/); // Isolated alpha experiment.
 assert.doesNotMatch(reader, /action_bar_layer_set_background_color\(s_action_bar,\s*s_review\.delete_mode/);
 assert.match(reader, /graphics_fill_circle\(ctx,\s*GPoint\(bounds\.size\.w \+ 14, bounds\.size\.h \/ 2\), 20\)/);
 assert.doesNotMatch(reader, /graphics_fill_oval\(/); // Private PebbleOS API, not in public SDK.
