@@ -317,7 +317,9 @@ bool jot_store_preview(int slot, char *out, size_t capacity, time_t *created) {
     text = record.text;
   }
   size_t n = 0;
-  while (text[n] && text[n] != '\n' && n + 1 < capacity) ++n;
+  // Keep explicit line breaks so a note card can show its second line.
+  // The existing renderer clips any further wrapped lines.
+  while (text[n] && n + 1 < capacity) ++n;
   // Never end a string in the middle of a UTF-8 codepoint.
   while (n && (((unsigned char)text[n] & 0xC0) == 0x80)) --n;
   memcpy(out, text, n);

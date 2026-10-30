@@ -198,6 +198,8 @@ static void prv_cards_draw(Layer *layer, GContext *ctx) {
 
     graphics_context_set_text_color(ctx, ink);
     if (!*preview) strcpy(preview, "(empty)");
+    // The existing text rectangle fits two Gothic 18 lines. A hard LF
+    // can now show the following line; extra text stays inside the card.
     graphics_draw_text(ctx, preview,
                        fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
                        GRect(x + 10, y + 1, w - 70, h - 2),

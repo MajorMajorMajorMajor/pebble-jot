@@ -43,7 +43,7 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
-## Touch SAVE → read the finished note (v1.7.4 — watch test pending)
+## Touch SAVE → read the finished note (v1.7.4 — verified on Emery)
 
 The upper-left keyboard key now reads **SAVE** instead of KB. A stationary
 tap in Jot mode **saves your current text and opens that exact note
@@ -71,7 +71,17 @@ reuse its record rather than duplicating it.
 The keyboard cell dimensions, other gesture bindings, storage format
 and backup flow are unchanged. Host regression checks cover save
 ordering, error handling, the existing button behavior and the new
-SAVE key label. Physical Pebble Time 2 validation is still needed.
+SAVE key label. The SAVE-to-reader interaction was subsequently verified on a physical Pebble Time 2; failure paths remain covered by host tests.
+
+## Two-line note card previews (v1.7.5 — watch test pending)
+
+Saved-note previews now preserve explicit newlines instead of cutting off
+everything after the first line. The notes list renders up to two visible
+lines within each existing card, with long text ellipsized. Previews are
+bounded and truncated only at valid UTF-8 boundaries. The card size,
+selection, touch hitboxes, gestures, stored note records, and full reader
+are unchanged. Host tests verify the second line and Unicode truncation.
+Physical Emery testing is the next step.
 
 ## Screen navigation (v1.6 — verified on Emery)
 
@@ -200,6 +210,6 @@ See [README-JOT.md](README-JOT.md) for detailed controls and limits, and [TOUCH_
 
 ## Next steps
 
-The main editor gestures, hairline caret, notes-list touch scrolling, button navigation and saved-reader tap-to-edit have been verified on Emery. The immediate priority is **physical testing of Jot 1.7.4's touch SAVE → reader flow**, followed by #17's touch-to-position-caret work, reader scrolling, robust backups and storage expansion. Keyboard geometry remains unchanged.
+The editor gestures, hairline caret, notes-list touch scrolling, button navigation, saved-reader tap-to-edit, and v1.7.4 touch SAVE → reader flow have been verified on Emery. Next: verify v1.7.5 two-line list previews on hardware, then prioritize conservative polish, safer/larger storage, and backup/restore before an Emery-only beta. Touch-to-position-caret (#17) is intentionally deferred to preserve the verified editor experience. Keyboard geometry remains unchanged.
 
 Pebble SDK documentation: <https://developer.repebble.com>

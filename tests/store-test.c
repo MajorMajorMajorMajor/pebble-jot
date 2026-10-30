@@ -145,6 +145,13 @@ int main(void) {
   const int multiline_slot = jot_store_slot_at(0);
   assert(multiline_slot >= 0);
   expect_note(multiline_slot, "first line\nsecond line");
+  // The list preview should include the second line of a saved note.
+  char list_preview[64];
+  time_t preview_created = 0;
+  assert(jot_store_preview(multiline_slot, list_preview,
+                           sizeof list_preview, &preview_created));
+  assert(strcmp(list_preview, "first line\nsecond line") == 0);
+  assert(preview_created != 0);
   jot_store_init();
   assert(jot_store_open(multiline_slot));
   assert(strcmp(jot_store_text(), "first line\nsecond line") == 0);
@@ -354,6 +361,22 @@ int main(void) {
   assert(jot_store_export(saved_slot, saved_copy, sizeof saved_copy,
                           &saved_created));
   assert(strcmp(saved_copy, "navigation test preserved") == 0);
+
+  // Both active and saved previews preserve LF and complete UTF-8 glyphs.
+  assert(jot_store_new());
+  assert(jot_store_input("A\nB\xC3\xA9" "Z"));
+  const int unicode_slot = jot_store_active_slot();
+  assert(unicode_slot >= 0);
+  char short_preview[5];
+  assert(jot_store_preview(unicode_slot, short_preview,
+                           sizeof short_preview, NULL));
+  assert(strcmp(short_preview, "A\nB") == 0); // Not half an accented glyph.
+  assert(jot_store_flush());
+  assert(jot_store_new());
+  char unicode_preview[16];
+  assert(jot_store_preview(unicode_slot, unicode_preview,
+                           sizeof unicode_preview, NULL));
+  assert(strcmp(unicode_preview, "A\nB\xC3\xA9" "Z") == 0);
 
   puts("Jot storage regression tests passed");
   return 0;

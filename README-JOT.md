@@ -29,7 +29,7 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
-## Touch SAVE → committed reader (v1.7.4 — Emery testing pending)
+## Touch SAVE → committed reader (v1.7.4 — verified on Emery)
 
 The old **KB** key at keyboard row 1, column 1 now reads **SAVE**. Its
 existing 50px-wide, dark-ink cell and all touch coordinate geometry remain
@@ -76,11 +76,21 @@ The host regression suite now checks the SAVE tap dispatch, label/font,
 save-before-window-stack ordering, rollback paths, no-op on empty
 drafts, editor reset only after reader success, and preservation of
 existing physical-button controls. Store-side tests still simulate
-write failures and check that drafts survive. The actual Pebble SDK
-build, key legibility, list-under-reader stack and touch behavior
-must be verified on Emery before
+write failures and check that drafts survive. The SAVE key's legibility and direct saved-reader transition were verified
+on physical Emery, and
 [issue #24](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/24)
-can close.
+is closed. Host regressions cover the failure and rollback paths.
+
+## Note-list two-line previews (v1.7.5 — awaiting watch verification)
+
+The notes list previously cut a preview at its first explicit LF even when the
+card had space for another line. `jot_store_preview()` now keeps embedded
+newlines, so the existing two-line card text box can display the next line.
+The 64-byte preview buffer still bounds reading; a truncation never ends
+inside a UTF-8 codepoint. Extra lines or long paragraphs remain clipped/
+ellipsized in the existing text rectangle. Drawing dimensions, button focus,
+touch-card hit testing, persistence format, and keyboard handling stay as-is.
+Host storage regression tests cover multiline and Unicode truncation.
 
 ## Touch saved-note text to edit (v1.7.3 — verified on Emery)
 
