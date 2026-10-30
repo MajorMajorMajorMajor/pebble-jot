@@ -21,6 +21,9 @@ static FakeEntry s_entries[JOT_NOTE_CAPACITY * RECORD_KEYS];
 static FakeEntry s_legacy[16];
 static bool s_fail_next_delete;
 static bool s_fail_next_write;
+static int s_fail_after_writes = -1;
+static size_t s_bytes_used;
+enum { FAKE_STORAGE_LIMIT = 1024 * 1024 };
 
 static FakeEntry *prv_entry(uint32_t key) {
   if (key >= LEGACY_KEY_FIRST && key < LEGACY_KEY_FIRST + 16)
@@ -43,8 +46,17 @@ int persist_write_data(uint32_t key, const void *data, size_t size) {
     s_fail_next_write = false;
     return E_ERROR;
   }
+  if (s_fail_after_writes >= 0) {
+    if (s_fail_after_writes == 0) {
+      s_fail_after_writes = -1;
+      return E_ERROR;
+    }
+    --s_fail_after_writes;
+  }
   FakeEntry *entry = prv_entry(key);
-  if (!entry || !data || size > SLOT_CAPACITY) return E_ERROR;
+  if (!entry || !data || size > SLOT_CAPACITY ||
+      s_bytes_used - entry->size + size > FAKE_STORAGE_LIMIT) return E_ERROR;
+  s_bytes_used = s_bytes_used - entry->size + size;
   memcpy(entry->bytes, data, size);
   entry->size = size;
   entry->exists = true;
@@ -58,6 +70,7 @@ status_t persist_delete(uint32_t key) {
     return E_ERROR;
   }
   if (!entry || !entry->exists) return E_DOES_NOT_EXIST;
+  s_bytes_used -= entry->size;
   entry->exists = false;
   entry->size = 0;
   // Official Pebble SDK contract: success is S_TRUE, not S_SUCCESS.
@@ -408,6 +421,25 @@ int main(void) {
   assert(jot_store_open(long_slot));
   assert(jot_store_text()[JOT_NOTE_TEXT_BYTES - 2] == 'X');
 
+  // Simulate power loss after writing two new chunks but BEFORE committing
+  // the header. Relaunch must still find the previous complete version.
+  assert(jot_store_set_cursor(2));
+  assert(jot_store_delete_forward());
+  assert(jot_store_input("Z"));
+  s_fail_after_writes = 2;
+  assert(!jot_store_flush());
+  assert(jot_store_dirty());
+  jot_store_init();
+  assert(jot_store_open(long_slot));
+  assert(jot_store_text()[2] == 'L');
+  assert(jot_store_set_cursor(2));
+  assert(jot_store_delete_forward());
+  assert(jot_store_input("Z"));
+  assert(jot_store_flush());
+  jot_store_init();
+  assert(jot_store_open(long_slot));
+  assert(jot_store_text()[2] == 'Z');
+
   // Up to 256 independent notes, beyond the previous 16-note ceiling.
   while (jot_store_count() < JOT_NOTE_CAPACITY) {
     assert(jot_store_new());
@@ -420,6 +452,35 @@ int main(void) {
   assert(jot_store_delete(long_slot));
   assert(jot_store_input("reclaimed"));
   assert(jot_store_flush());
+  assert(jot_store_count() == JOT_NOTE_CAPACITY);
+
+  // Model the firmware's entire 1 MiB budget. The last write must fail
+  // safely even though individual 4 KiB notes and 256 slots are supported.
+  int filled = 0;
+  int failed_slot = -1;
+  for (int rank = 0; rank < JOT_NOTE_CAPACITY; ++rank) {
+    const int slot = jot_store_slot_at(rank);
+    assert(slot >= 0);
+    assert(jot_store_open(slot));
+    const size_t length = jot_store_length();
+    if (length >= JOT_NOTE_TEXT_BYTES - 1) continue;
+    char tail[JOT_NOTE_TEXT_BYTES];
+    memset(tail, 'k', JOT_NOTE_TEXT_BYTES - 1 - length);
+    tail[JOT_NOTE_TEXT_BYTES - 1 - length] = '\0';
+    assert(jot_store_input(tail));
+    if (!jot_store_flush()) {
+      failed_slot = slot;
+      assert(jot_store_dirty());
+      break;
+    }
+    ++filled;
+  }
+  assert(filled > 150);
+  assert(failed_slot >= 0);
+  assert(s_bytes_used <= FAKE_STORAGE_LIMIT);
+  jot_store_init();
+  assert(jot_store_open(failed_slot));
+  assert(jot_store_length() < JOT_NOTE_TEXT_BYTES - 1);
   assert(jot_store_count() == JOT_NOTE_CAPACITY);
 
   puts("Jot storage regression tests passed");
