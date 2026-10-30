@@ -42,7 +42,9 @@ assert.match(key, /GColorFromRGB\(255,\s*209,\s*88\)/);
 assert.match(keyLabels, /\[KEY_ENGLISH_MENU\][\s\S]*?\.text = "SAVE"/);
 assert.match(keyLabels, /\[KEY_ENGLISH_123\][\s\S]*?\.text = "123"/);
 
-assert.match(alert, /graphics_draw_round_rect\(ctx,/);
+// Strong 2px filled ink rim, not the previous single stroked rectangle.
+assert.match(alert, /graphics_fill_rect\(ctx, bounds, 5, GCornersAll\)/);
+assert.match(alert, /graphics_fill_rect\(ctx, GRect\(2, 1, bounds\.size\.w - 4,/);
 assert.match(alert, /GColorFromRGB\(231,\s*72,\s*58\)/);
 assert.match(alert, /GColorFromRGB\(150,\s*172,\s*181\)/);
 assert.match(alert, /EDITOR_MARGIN_RULE_X\s*=\s*10/);
