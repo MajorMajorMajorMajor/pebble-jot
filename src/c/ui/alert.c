@@ -2,7 +2,7 @@
 #include "ui/alert.h"
 #include "ui/caret_layout.h"
 
-// The 40px strip is a clipped viewport containing a TextLayer for the
+// The editor strip is a clipped viewport containing a TextLayer for the
 // actual note and a separate, transparent 1px insertion-caret overlay.
 // Diagnostics still use the same viewport without a caret.
 static Layer *s_root;
@@ -37,7 +37,7 @@ static void prv_background(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
   const GColor ink = GColorFromRGB(41, 40, 43);
   // A small ruled-paper text strip, not an additional header. Keep its
-  // existing 40px frame, text positioning, clipping and caret geometry.
+  // existing text positioning, clipping and caret geometry.
   graphics_context_set_fill_color(ctx, GColorFromRGB(255, 250, 239));
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
   graphics_context_set_stroke_color(ctx, GColorFromRGB(221, 209, 183));
@@ -125,7 +125,7 @@ static void prv_reflow(void) {
 
     // The visual bottom must leave room for both the caret's full descent
     // and the font's descenders, which Pebble's measured height can clip
-    // against the fixed 40px keyboard boundary.
+    // against the shared editor/keyboard boundary.
     const int caret_bottom =
         caret_top + s_caret_height + EDITOR_DESCENDER_GUARD;
     if (caret_bottom > height) height = caret_bottom;

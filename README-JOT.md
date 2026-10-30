@@ -29,7 +29,19 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
-## Pocket Notebook editor styling (v1.8.0 — waiting for wrist photos)
+## Pocket Notebook writing-strip height trial (v1.8.1 — wrist test pending)
+
+The initial v1.8.0 notebook styling worked on real Emery but the 40px text
+area appeared visually cramped alongside the newly raised keys.
+This low-risk refinement increases the editor viewport to 44px and reduces
+the 188px keyboard to 184px, one pixel per row. The new shared
+`JOT_EDITOR_CONTENT_HEIGHT` constant controls both window layout and all
+editor-versus-keyboard touch decisions (key lookup and draft Peek).
+Text remains in the same caret-following view, and no new input commands or
+storage changes are introduced. Judge the actual height and touch alignment
+on hardware before accepting #21.
+
+## Pocket Notebook editor styling (v1.8.0 — verified on Emery)
 
 Keyboard colors and icons now match the drawn-paper direction chosen for
 the notes list: light cream letter keys, dark charcoal action keys,

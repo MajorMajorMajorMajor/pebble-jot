@@ -1,6 +1,7 @@
 #include <pebble.h>
 
 #include "ui/alert.h"
+#include "ui/style.h"
 #include "ui/touch.h"
 #include "jot/jot.h"
 #include "jot/store.h"
@@ -83,7 +84,7 @@ static size_t s_typed_len;
 static uint32_t s_typing_id;
 static int s_touch_key = -1;
 
-// A touch originating in the 40 px editor text strip is reserved for
+// A touch originating in the editor text strip is reserved for
 // peek/read mode, never for keyboard gestures.
 static bool s_header_touch_active;
 static int16_t s_header_touch_x, s_header_touch_y;
@@ -323,7 +324,7 @@ static void prv_track_position(int16_t x, int16_t y) {
 
 static int prv_key_at(int x, int y) {
   GRect bounds = layer_get_bounds(window_get_root_layer(window_stack_get_top_window()));
-  const int top = 40; // Matches UIStyle.content_height_px.
+  const int top = JOT_EDITOR_CONTENT_HEIGHT; // Matches UIStyle.content_height_px.
   if (x < 0 || x >= bounds.size.w || y < top || y >= bounds.size.h) return -1;
   const int col = x * 4 / bounds.size.w;
   const int row = (y - top) * 4 / (bounds.size.h - top);
@@ -621,7 +622,8 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
 
   if (s_mode == MODE_JOT) {
     if (event->type == TouchEvent_Touchdown) {
-      s_header_touch_active = event->y >= 0 && event->y < 40;
+      s_header_touch_active = event->y >= 0 &&
+                               event->y < JOT_EDITOR_CONTENT_HEIGHT;
       if (s_header_touch_active) {
         s_header_touch_x = event->x;
         s_header_touch_y = event->y;
@@ -634,7 +636,8 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
       if (event->type == TouchEvent_Liftoff) {
         const int dx = event->x - s_header_touch_x;
         const int dy = event->y - s_header_touch_y;
-        const bool tap = event->y >= 0 && event->y < 40 &&
+        const bool tap = event->y >= 0 &&
+                         event->y < JOT_EDITOR_CONTENT_HEIGHT &&
                          dx >= -12 && dx <= 12 &&
                          dy >= -12 && dy <= 12 &&
                          now_ms - s_header_touch_ms < 700;

@@ -43,7 +43,21 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
-## The Pocket Notebook editor (v1.8.0 — watch test pending)
+## Editor height tune-up (v1.8.1 — awaiting watch verification)
+
+The v1.8.0 Pocket Notebook styling made the writing strip feel more
+compressed on real hardware even though its height was still 40px.
+For the v1.8.1 wrist experiment, the writing strip gains 4px
+(**44px total**) and the keyboard becomes 184px instead of 188px
+at Emery's 228px display height. Each of the four keyboard rows loses
+only 1px. A single `JOT_EDITOR_CONTENT_HEIGHT` constant drives both
+the rendered layout and the touch classifier, including short-tap
+draft Peek, so there is no dead or mismatched touch band. The
+keyboard's column widths, key identities, gesture bindings, note
+storage and navigation remain unchanged. If hardware feedback does
+not favor the result, revert the one shared constant.
+
+## The Pocket Notebook editor (v1.8.0 — verified on Emery; height refined in 1.8.1)
 
 Jot now gives the quick editor the same paper-and-ink character as the list:
 a warm ruled writing strip with a red notebook margin, cream letter keys
@@ -228,6 +242,6 @@ See [README-JOT.md](README-JOT.md) for detailed controls and limits, and [TOUCH_
 
 ## Next steps
 
-The editor gestures, hairline caret, notes-list touch scrolling, button navigation, saved-reader tap-to-edit, and v1.7.4 touch SAVE → reader flow have been verified on Emery. Next: verify v1.8.0 notebook editor visuals on hardware, then prioritize safer/larger storage and backup/restore before an Emery-only beta. Touch-to-position-caret (#17) is intentionally deferred to preserve the verified editor experience. Keyboard geometry remains unchanged.
+The editor gestures, hairline caret, notes-list touch scrolling, button navigation, saved-reader tap-to-edit, and v1.7.4 touch SAVE → reader flow have been verified on Emery. Next: test v1.8.1's 44px writing strip on the watch, then refine visual contrast and prioritize safer/larger storage and backup/restore before the Emery-only beta. Touch-to-position-caret (#17) remains deliberately deferred; key gestures are unchanged.
 
 Pebble SDK documentation: <https://developer.repebble.com>

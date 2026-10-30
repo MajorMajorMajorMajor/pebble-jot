@@ -12,6 +12,6 @@ void alert_set_text(const char *new_text);
 void alert_set_editor(const char *note, size_t cursor, bool dirty,
                       bool save_error, bool full);
 
-// Owns the keyboard's existing 40-pixel content area. Geometry is unchanged.
+// Owns the editor content area; its height is shared by style and touch input.
 Layer *alert_ui_init(GRect frame);
 void alert_ui_deinit(void);

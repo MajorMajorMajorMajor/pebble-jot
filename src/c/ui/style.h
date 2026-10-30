@@ -2,6 +2,10 @@
 
 #include "ui/font.h"
 
+// Shared boundary between the Jot writing strip and keyboard hit grid.
+// Keep layout and touch input in lockstep when tuning the screen height.
+enum { JOT_EDITOR_CONTENT_HEIGHT = 44 };
+
 typedef struct UIStyle {
   unsigned int content_height_px;
   
