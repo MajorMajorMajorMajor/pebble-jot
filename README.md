@@ -1,42 +1,27 @@
-## Jot 1.12.0 — The other face of the keyboard (awaiting Emery QA)
+## Jot 1.12.0 — the other half of the keyboard (Emery QA pending)
 
-The previously inactive **123** key now switches to a numeric face with
-the **same 4 × 4 geometry, notebook paper and tactile feedback** as ABC.
-The three letter columns become **7 8 9 / 4 5 6 / 1 2 3**. The left
-column remains SAVE / ABC / Backspace / Return, and the gold wide key
-becomes **0**. Tapping ABC returns to the original keyboard without
-editing the note or moving the caret.
+Tap **123** to switch from the approved ABC face to a genuine second 4×4
+keyboard. The digit positions are 7–9, 4–6, 1–3, and the left column is
+still Save / ABC / Backspace / Return. **The bottom row is a two-column 0
+and a separate one-column Space key**, not two virtual touch regions
+inside a shared key. Both keys have independent press feedback and the
+normal Space gestures (including left/right cursor navigation) remain.
 
-The complete original number-face mapping in docs/gesture-map.csv now
-controls compass, return and circular gestures. Mauve legends surround the
-digit faces; cursor movement, Return and Backspace work where the original
-map assigns them. The 123 bottom row now has a **normal two-column 0** and a **normal
-single-column Space** key, each with its own Pebble touch/feedback area.
-The number keys use a cool sea-glass cyan fill, bold dark-teal legends,
-and a blue Space key. The established ABC style is unchanged.
-The Tab shortcut is intentionally not implemented or advertised.
-To avoid empty squares on the actual Pebble font, numeric peripheral
-legends now show only displayable one-character ASCII; built-in
-editor actions use native-drawn 1px pictograms. Canonical Unicode
-swipe outputs are preserved but hidden as legends until a proper
-font/icon replacement is available. Direction gestures still operate
-over the full shared key. Unsupported actions such as Compose have **no
-legend**. Implemented editor commands (caret up/down, Return, Tab,
-Backspace, and Space) use tiny native-drawn pictograms that work on
-Emery without missing Unicode font glyphs. Numeric hitboxes and the
-letter face remain unchanged.
-On the wide zero key, tap prints 0; down or counterclockwise produces
-Space. The original Space left/right cursor gestures remain available.
-Saved-note actions, note storage, reader/list navigation, and every
-existing ABC gesture retain their original behaviour. The diagnostic
-typing and gesture-map harness remain unchanged.
+The numeric face uses pale-cyan number keys, a teal zero, a blue Space
+key and **bold dark-teal peripheral legends**. The ABC keyboard retains
+its original paper-and-gold styling, dimensions and gestures.
+Each numeric gesture follows the implemented mappings in
+`docs/gesture-map.csv`; native 1px pictograms are used for supported
+editor controls. Missing font glyphs are hidden rather than appearing
+as empty squares. **Tab and Compose are not implemented** and are not
+advertised. Unavailable gestures are deliberately left reserved.
 
-The alternate face is created only when activated, not maintained as
-a second resident full grid. Allocation failure leaves the old layout
-available. Host tests guard number bindings, physical cell geometry,
-face-switching, cursor and deletion routing. Watch testing should check
-display contrast, repeat switching, punctuation drags, SAVE and editor
-return from the reader. This is not yet hardware approved.
+The keyboard face is allocated on demand and a failed allocation
+leaves the previous face intact. Storage, draft/caret state, note
+reader and list are unchanged. Host regression tests cover the
+distinct bottom-row touch cells, input routing, numeric binding
+table and visual invariants. Physical Pebble SDK compilation and
+wrist readability are awaiting approval.
 
 # Jot — a pocket notebook for Pebble
 
