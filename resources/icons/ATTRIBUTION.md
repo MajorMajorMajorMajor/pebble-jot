@@ -11,9 +11,10 @@ The four PNG assets `action_up.png`, `action_down.png`,
 
 The upstream PebbleOS project is licensed under
 [Apache-2.0](https://github.com/coredevices/pebbleos/blob/main/LICENSE).
-Jot preserves these four native icon graphics unmodified. The new Pencil
-and Trash images are copied unmodified from the official Pebble
-developer App Assets example icons (14×14 pixels):
+Jot preserves these four native icon graphics unmodified. The new Pencil and Trash glyphs are derived directly from the official
+Pebble developer App Assets example icons (14×14 pixels), resized to
+18×18 with pixel-sharp nearest-neighbour scaling and exported as valid
+non-interlaced RGBA with a transparent background for the SDK:
 https://developer.rebble.io/guides/app-resources/app-assets/
 Their original paths in `pebble-dev/developer.rebble.io` are
 `source/assets/images/guides/design-and-interaction/icons/action_bar_icon_edit.png`

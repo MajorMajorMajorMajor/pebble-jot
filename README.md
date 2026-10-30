@@ -55,7 +55,8 @@ action at Select, and the familiar two-press delete confirmation
 remains. The collapsed nub is slimmer (~6px visible).
 
 The pencil and trash use the **official Pebble developer example action
-icons** rather than Jot-created glyphs. Up/Down/Check/X remain upstream
+glyph artwork**, scaled slightly for legibility, rather than Jot-created
+shapes. Up/Down/Check/X remain upstream
 PebbleOS icon art. Pebble only exposes a single background color for
 the entire native bar; per-action red emphasis therefore lives in a
 small overlay child Layer on the native ActionBar.
