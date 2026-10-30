@@ -392,7 +392,7 @@ int main(void) {
   assert(jot_store_new());
   char long_text[JOT_NOTE_TEXT_BYTES];
   memset(long_text, 'L', sizeof long_text - 1);
-  long_text[sizeof long_text - 1] = '\\0';
+  long_text[sizeof long_text - 1] = '\0';
   assert(jot_store_input(long_text));
   assert(jot_store_flush());
   const int long_slot = jot_store_active_slot();

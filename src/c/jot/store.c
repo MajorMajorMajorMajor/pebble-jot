@@ -180,7 +180,7 @@ static bool prv_read(int slot, char *out, size_t capacity) {
                           out + offset, chunk) != (int)chunk) return false;
     offset += chunk;
   }
-  return out[header.length] == '\\0' &&
+  return out[header.length] == '\0' &&
          prv_checksum(out, header.length) == header.checksum;
 }
 
@@ -202,7 +202,7 @@ void jot_store_init(void) {
   s_length = 0;
   s_cursor = 0;
   s_keep_vertical_column = false;
-  s_text[0] = '\\0';
+  s_text[0] = '\0';
   s_dirty = false;
   // JOT1 keys are not readable by JOT2. Reclaim them on the QA watch.
   for (int i = 0; i < JOT_LEGACY_CAPACITY; ++i)
@@ -402,7 +402,7 @@ bool jot_store_preview(int slot, char *out, size_t capacity, time_t *created) {
   while (text[n] && n + 1 < capacity) ++n;
   while (n && (((unsigned char)text[n] & 0xC0) == 0x80)) --n;
   memcpy(out, text, n);
-  out[n] = '\\0';
+  out[n] = '\0';
   if (created) *created = (time_t)s_index[slot].timestamp;
   return true;
 }
