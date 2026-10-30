@@ -5,6 +5,7 @@
 #include "ui/style.h"
 #include "ui/window.h"
 #include "ui/touch.h"
+#include "ui/key_repeat.h"
 #include "jot/jot.h"
 #include "jot/store.h"
 #include "jot/reader.h"
@@ -211,6 +212,8 @@ static StrokeSummary *s_summaries;
 static size_t s_summary_count;
 static uint32_t s_summary_overflow;
 static AppTimer *s_feedback_timer;
+static AppTimer *s_repeat_timer;
+static JotRepeatState s_repeat;
 static char s_feedback_text[80];
 
 static uint32_t prv_now_ms(void) {
@@ -376,10 +379,102 @@ static void prv_show_export_status(void) {
   else if (s_mode == MODE_MENU) prv_show_menu();
 }
 
+
+static void prv_stop_repeat(void) {
+  if (s_repeat_timer) {
+    app_timer_cancel(s_repeat_timer);
+    s_repeat_timer = NULL;
+  }
+}
+
+static void prv_repeat_tick(void *context);
+
+static void prv_schedule_repeat(uint32_t delay_ms) {
+  prv_stop_repeat();
+  s_repeat_timer = app_timer_register(delay_ms, prv_repeat_tick, NULL);
+}
+
+static void prv_repeat_tick(void *context) {
+  (void)context;
+  s_repeat_timer = NULL;
+  // Repeat never leaks into notes list, reader, Peek or diagnostics.
+  if (!s_stroke.active || s_mode != MODE_JOT ||
+      jot_list_is_open() || jot_reader_is_open()) return;
+
+  const uint32_t now_ms = prv_now_ms();
+  if (!jot_key_repeat_due(&s_repeat, now_ms)) {
+    if (s_repeat.action != JOT_REPEAT_NONE && !s_repeat.blocked) {
+      const int32_t wait = (int32_t)(s_repeat.next_ms - now_ms);
+      prv_schedule_repeat(wait > 0 ? (uint32_t)wait : 1);
+    }
+    return;
+  }
+
+  JotCursorMove move;
+  bool is_cursor = true;
+  switch (s_repeat.action) {
+    case JOT_REPEAT_CURSOR_LEFT:  move = JOT_CURSOR_LEFT; break;
+    case JOT_REPEAT_CURSOR_RIGHT: move = JOT_CURSOR_RIGHT; break;
+    case JOT_REPEAT_CURSOR_UP:    move = JOT_CURSOR_UP; break;
+    case JOT_REPEAT_CURSOR_DOWN:  move = JOT_CURSOR_DOWN; break;
+    case JOT_REPEAT_BACKSPACE:
+      jot_input("\\b");
+      is_cursor = false;
+      break;
+    case JOT_REPEAT_FORWARD_DELETE:
+      jot_delete_forward();
+      is_cursor = false;
+      break;
+    default: return;
+  }
+  if (is_cursor && jot_store_move_cursor(move))
+    jot_refresh_editor();
+
+  // No catch-up flood if the Pebble event loop was occupied by rendering
+  // or autosave. One action per timer tick; release cancels the timer.
+  prv_schedule_repeat(JOT_REPEAT_INTERVAL_MS);
+}
+
+static JotRepeatAction prv_repeat_candidate(const TouchEvent *event) {
+  if (s_touch_key < 0) return JOT_REPEAT_NONE;
+  const int dx = (int)event->x - s_stroke.start_x;
+  const int dy = (int)event->y - s_stroke.start_y;
+  const int threshold2 = JOT_REPEAT_SWIPE_MIN_PX *
+                         JOT_REPEAT_SWIPE_MIN_PX;
+  int gesture = 0;
+  if (s_stroke.peak_sq >= (uint32_t)threshold2) {
+    // After an outward swipe returns to its origin, do not mistake the
+    // return/loop for a stationary Backspace tap.
+    if (dx * dx + dy * dy < threshold2) return JOT_REPEAT_NONE;
+    const char *direction = prv_direction(dx, dy, s_touch_key);
+    gesture = -1;
+    for (int i = 1; i <= 8; ++i) {
+      if (strcmp(direction, s_gestures[i]) == 0) {
+        gesture = i;
+        break;
+      }
+    }
+  }
+  return jot_key_repeat_action(s_touch_key, gesture,
+                               keyboard_window_number_face_active());
+}
+
+static void prv_update_repeat(const TouchEvent *event, uint32_t now_ms) {
+  if (s_mode != MODE_JOT) return;
+  const JotRepeatAction action = prv_repeat_candidate(event);
+  if (!jot_key_repeat_observe(&s_repeat, action, now_ms,
+                              event->x, event->y)) return;
+  prv_stop_repeat();
+  if (s_repeat.action != JOT_REPEAT_NONE && !s_repeat.blocked)
+    prv_schedule_repeat(JOT_REPEAT_DELAY_MS);
+}
+
 static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
   switch (event->type) {
     case TouchEvent_Touchdown:
       prv_cancel_feedback();
+      prv_stop_repeat();
+      jot_key_repeat_end(&s_repeat);
       s_touch_key = prv_key_at(event->x, event->y);
       if (s_mode == MODE_JOT)
         keyboard_window_highlight_touch_key(s_touch_key);
@@ -400,17 +495,28 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
         .last_x = event->x,
         .last_y = event->y,
       };
+      jot_key_repeat_begin(&s_repeat,
+          s_mode == MODE_JOT ? prv_repeat_candidate(event) :
+                               JOT_REPEAT_NONE,
+          now_ms, event->x, event->y);
+      if (s_repeat.action != JOT_REPEAT_NONE)
+        prv_schedule_repeat(JOT_REPEAT_DELAY_MS);
       break;
 
     case TouchEvent_PositionUpdate:
       if (s_stroke.active) {
         prv_track_position(event->x, event->y);
         ++s_stroke.move_count;
+        prv_update_repeat(event, now_ms);
       }
       break;
 
     case TouchEvent_Liftoff: {
       if (!s_stroke.active) return;
+      prv_stop_repeat();
+      // Always cancel the repeat stroke, including release after a change
+      // in gesture direction. A fired repeat must not dispatch once more.
+      const bool repeated = jot_key_repeat_end(&s_repeat);
       prv_track_position(event->x, event->y);
 
       // Extrema remain useful diagnostics, but the outward direction comes
@@ -505,6 +611,7 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
                                gesture_index >= 0) ?
                               s_bindings[s_touch_key][gesture_index] : "";
         if (s_mode == MODE_JOT) {
+          if (repeated) break; // Timer already committed editing commands.
           // The physical 123/ABC cell switches faces on tap only.
           // The saved draft and its caret remain in the same editor.
           if (s_touch_key == 12 && gesture_index == 0) {
@@ -1009,6 +1116,8 @@ void touch_init(void) {
 }
 
 void touch_deinit(void) {
+  prv_stop_repeat();
+  jot_key_repeat_end(&s_repeat);
   keyboard_window_highlight_touch_key(-1);
   jot_deinit();
   prv_cancel_feedback();

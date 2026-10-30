@@ -1,3 +1,29 @@
+## Jot 1.13.0 — Hold-to-repeat editing gestures (Emery QA pending)
+
+Holding an **editing gesture** now starts repeating after a deliberate
+550 ms pause, once every 135 ms until liftoff. Supported gestures are
+Backspace tap/N/NW/SW/W (delete preceding character), Backspace
+NE/E/SE/S (delete following character), T or numeric 1 SW (backspace),
+Space E/W (cursor right/left), I or numeric 9 N (cursor up), and S or
+numeric 3 S (cursor down). On the numeric keyboard the blank dedicated
+Space key supports E/W repeat; the wide zero key never becomes a
+cursor command.
+
+Single taps/swipes retain their existing *release* behavior. Only a
+held **stationary editing action** can repeat; movement greater than
+6 px restarts the 550 ms delay, and changing a gesture after repeats
+have started disables repetition for that stroke. A return-to-origin
+stroke cannot become an accidental repeating backspace tap. Once any
+repeat has fired, the corresponding liftoff does **not** execute a
+second action. Cursor Home/End, symbols, letters, Space insertion,
+Save, Return, face toggles and CW/CCW circles are intentionally not
+repeatable. Diagnostic trace mode stays untouched.
+
+No key geometry, swipe thresholds, stored note bytes, visual palette,
+or reader/list controls were changed. Host C timing/mapping tests and
+JS gesture-routing guards cover the behavior; Emery touch testing
+is still required before closing #19.
+
 ## Jot 1.12.0 — restrained blue numeric legends (Emery QA pending)
 
 The 123 keyboard uses the same cream keys, charcoal controls, gold
