@@ -254,11 +254,11 @@ assert.doesNotMatch(reader, /action_bar_layer_set_background_color\(s_action_bar
 assert.match(reader, /graphics_fill_circle\(ctx,\s*GPoint\(bounds\.size\.w \+ 14, bounds\.size\.h \/ 2\), 20\)/);
 assert.doesNotMatch(reader, /graphics_fill_oval\(/); // Private PebbleOS API, not in public SDK.
 assert.doesNotMatch(reader, /prv_draw_actions|prv_action_panel/);
-assert.match(touchHandler, /if \(blocked\) return/);
+assert.match(touchHandler, /if \(blocked \|\| s_reader_touch_suppress_tap\) return/);
 assert.match(touchHandler, /s_reader_touch_can_drag\s*&&/);
 assert.match(touchHandler, /abs_dy\s*>\s*JOT_READER_TAP_SLOP\s*&&\s*abs_dy\s*>=\s*abs_dx/);
 assert.match(touchHandler, /jot_reader_drag\(\(int16_t\)dy\)/);
-assert.match(touchHandler, /jot_reader_drag\(\(int16_t\)\(event->y - s_reader_touch_last_y\)\)/);
+assert.match(touchHandler, /jot_reader_drag\(\(int16_t\)movement\)/);
 assert.match(touchHandler, /JOT_READER_TOUCH_BACK/);
 assert.match(touchHandler, /JOT_READER_TOUCH_DISMISS_PEEK/);
 assert.match(touchHandler, /JOT_READER_TOUCH_EDIT/);
