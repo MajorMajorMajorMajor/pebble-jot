@@ -24,3 +24,8 @@ UIDimensions compute_ui_dimensions(const KeyboardWindow *self);
 void keyboard_window_highlight_touch_key(int touch_index);
 
 void keyboard_window_release_touch_key(void);
+
+// Switch between equally-sized 4x4 faces; does not recreate the editor.
+// Returns false if the alternate grid could not be allocated.
+bool keyboard_window_toggle_number_face(void);
+bool keyboard_window_number_face_active(void);

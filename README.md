@@ -1,3 +1,27 @@
+## Jot 1.12.0 — The other face of the keyboard (awaiting Emery QA)
+
+The previously inactive **123** key now switches to a numeric face with
+the **same 4 × 4 geometry, notebook paper and tactile feedback** as ABC.
+The three letter columns become **7 8 9 / 4 5 6 / 1 2 3**. The left
+column remains SAVE / ABC / Backspace / Return, and the gold wide key
+becomes **0**. Tapping ABC returns to the original keyboard without
+editing the note or moving the caret.
+
+For practical punctuation, a **downward swipe** on each number prints
+the small mark below it: **( ) / / - . : / , ? !** by row.
+On the wide zero key, tap prints 0; down or counterclockwise produces
+Space. The original Space left/right cursor gestures remain available.
+Saved-note actions, note storage, reader/list navigation, and every
+existing ABC gesture retain their original behaviour. The diagnostic
+typing and gesture-map harness remain unchanged.
+
+The alternate face is created only when activated, not maintained as
+a second resident full grid. Allocation failure leaves the old layout
+available. Host tests guard number bindings, physical cell geometry,
+face-switching, cursor and deletion routing. Watch testing should check
+display contrast, repeat switching, punctuation drags, SAVE and editor
+return from the reader. This is not yet hardware approved.
+
 # Jot — a pocket notebook for Pebble
 
 **A thought, one button away.** Jot is a lightweight, offline note-taking app for the Pebble Time 2. It opens directly into a writing surface and uses a compact touchscreen gesture keyboard for entering notes without reaching for your phone.

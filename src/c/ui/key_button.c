@@ -93,6 +93,7 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
   const UIStyle* style = label->style;
   const bool special = label->key == get_key(KEY_ENGLISH_MENU) ||
                        label->key == get_key(KEY_ENGLISH_123) ||
+                       label->key == get_key(KEY_NUMBER_ABC) ||
                        label->key == get_key(KEY_ENGLISH_BACKSPACE) ||
                        label->key == get_key(KEY_ENGLISH_RETURN);
 
@@ -139,7 +140,8 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
           const UIFont *ui_font;
           // The save key now draws an icon; ordinary central glyphs
           // keep the large familiar face and their original touch cell.
-          ui_font = label->key == get_key(KEY_ENGLISH_MENU) ?
+          ui_font = label->key == get_key(KEY_ENGLISH_MENU) ||
+                    label->key == get_key(KEY_NUMBER_ABC) ?
                     style->label_peripheral_font :
                     style->label_center_font;
           text_font = ui_font->gfont;
@@ -336,9 +338,11 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
 
   const bool special = button->key == get_key(KEY_ENGLISH_MENU) ||
                        button->key == get_key(KEY_ENGLISH_123) ||
+                       button->key == get_key(KEY_NUMBER_ABC) ||
                        button->key == get_key(KEY_ENGLISH_BACKSPACE) ||
                        button->key == get_key(KEY_ENGLISH_RETURN);
-  const bool space = button->key == get_key(KEY_ENGLISH_SPACEBAR);
+  const bool space = button->key == get_key(KEY_ENGLISH_SPACEBAR) ||
+                     button->key == get_key(KEY_NUMBER_ZERO);
   const GRect bounds = layer_get_bounds(layer);
   const int w = bounds.size.w;
   const int h = bounds.size.h;

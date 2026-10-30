@@ -219,3 +219,30 @@ void keyboard_window_release_touch_key(void) {
   if (s_loaded_keyboard && s_loaded_keyboard->grid)
     key_grid_release_touch_key(s_loaded_keyboard->grid);
 }
+
+bool keyboard_window_number_face_active(void) {
+  return s_loaded_keyboard && s_loaded_keyboard->state &&
+         s_loaded_keyboard->state->active_layout_id == LAYOUT_ENGLISH_123;
+}
+
+bool keyboard_window_toggle_number_face(void) {
+  KeyboardWindow *self = s_loaded_keyboard;
+  if (!self || !self->grid || !self->state) return false;
+  const LayoutId next_id = self->state->active_layout_id ==
+                           LAYOUT_ENGLISH_ABC ? LAYOUT_ENGLISH_123 :
+                                                 LAYOUT_ENGLISH_ABC;
+  const UIDimensions frames = compute_ui_dimensions(self);
+  // Allocate before removing the current face. Failed allocations leave
+  // existing keys fully usable, with no half-switched state.
+  KeyGrid *next = key_grid_create(get_layout(next_id),
+                                 frames.grid_frame, self->style);
+  if (!next) return false;
+  KeyGrid *old = self->grid;
+  layer_add_child(window_get_root_layer(self->window),
+                  key_grid_get_layer(next));
+  self->grid = next;
+  self->state->active_layout_id = next_id;
+  prv_attach_content_layer(self);
+  key_grid_destroy(old); // Also cancels any outstanding key pulse.
+  return true;
+}

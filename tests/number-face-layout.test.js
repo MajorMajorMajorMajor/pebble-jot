@@ -1,0 +1,32 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const read = p => fs.readFileSync(p,'utf8');
+const key = read('src/c/keyboard/key.c');
+const layout = read('src/c/keyboard/layout.c');
+const touch = read('src/c/ui/touch.c');
+const window = read('src/c/ui/window.c');
+const grid = read('src/c/ui/key_grid.c');
+const button = read('src/c/ui/key_button.c');
+const abc = read('src/c/keyboard/layout.h');
+assert.match(abc,/LAYOUT_ENGLISH_123,/);
+assert.match(layout,/english_123_keys\[\]/);
+assert.match(layout,/\[LAYOUT_ENGLISH_123\]/);
+for(const id of ['7','8','9','4','5','6','1','2','3']) {
+  assert.match(key,new RegExp('KEY_NUMBER_'+id));
+  assert.match(layout,new RegExp('KEY_NUMBER_'+id));
+}
+assert.match(layout,/KEY_NUMBER_ZERO,\s*3,\s*1,\s*1,\s*3/);
+assert.match(layout,/KEY_NUMBER_ABC,\s*1,\s*0,\s*1,\s*1/);
+assert.match(window,/KeyGrid \*next = key_grid_create\(get_layout\(next_id\)/);
+assert.match(window,/if \(!next\) return false/);
+assert.match(window,/key_grid_destroy\(old\)/);
+assert.match(grid,/grid->layout == get_layout\(LAYOUT_ENGLISH_123\)/);
+assert.match(button,/button->key == get_key\(KEY_NUMBER_ZERO\)/);
+assert.match(button,/label->key == get_key\(KEY_NUMBER_ABC\)/);
+assert.match(touch,/s_touch_key == 12 && gesture_index == 0/);
+assert.match(touch,/keyboard_window_toggle_number_face\(\)/);
+assert.match(touch,/jot_number_face_binding\(s_touch_key, gesture_index\)/);
+assert.match(touch,/jot_editor_touch_save\(\)/);
+assert.match(touch,/prv_jot_cursor_command\(s_touch_key, gesture_index\)/);
+assert.match(touch,/prv_jot_forward_delete_command\(s_touch_key, gesture_index\)/);
+console.log('123 layout geometry, display, routing and alphabet protections OK');

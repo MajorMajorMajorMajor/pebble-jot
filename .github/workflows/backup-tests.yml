@@ -24,6 +24,12 @@ jobs:
         run: node tests/backup-js.test.js
       - name: Check canonical gesture mapping
         run: node tests/gesture-map.test.js
+      - name: Test 123 numeric face bindings
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/number-face-test.c src/c/keyboard/number_face.c -o /tmp/jot-number-face-test
+          /tmp/jot-number-face-test
+          node tests/number-face-layout.test.js
       - name: Verify editor caret overlay invariants
         run: node tests/editor-caret.test.js
       - name: Guard Emery RAM budget and long-note buffers

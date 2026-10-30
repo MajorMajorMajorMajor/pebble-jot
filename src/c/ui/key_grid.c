@@ -209,16 +209,25 @@ Layer *key_grid_get_layer(KeyGrid *grid) {
 void key_grid_highlight_touch_key(KeyGrid *grid, int touch_index) {
   if (!grid || !grid->layout) return;
   // Recognizer order differs from the visual layout's last five keys.
-  static const KeyId touch_keys[] = {
+  static const KeyId abc_keys[] = {
     KEY_ENGLISH_A, KEY_ENGLISH_N, KEY_ENGLISH_I,
     KEY_ENGLISH_H, KEY_ENGLISH_O, KEY_ENGLISH_R,
     KEY_ENGLISH_T, KEY_ENGLISH_E, KEY_ENGLISH_S,
     KEY_ENGLISH_SPACEBAR, KEY_ENGLISH_BACKSPACE, KEY_ENGLISH_RETURN,
     KEY_ENGLISH_123, KEY_ENGLISH_MENU
   };
+  static const KeyId number_keys[] = {
+    KEY_NUMBER_7, KEY_NUMBER_8, KEY_NUMBER_9,
+    KEY_NUMBER_4, KEY_NUMBER_5, KEY_NUMBER_6,
+    KEY_NUMBER_1, KEY_NUMBER_2, KEY_NUMBER_3,
+    KEY_NUMBER_ZERO, KEY_ENGLISH_BACKSPACE, KEY_ENGLISH_RETURN,
+    KEY_NUMBER_ABC, KEY_ENGLISH_MENU
+  };
+  const KeyId *touch_keys = grid->layout == get_layout(LAYOUT_ENGLISH_123) ?
+                            number_keys : abc_keys;
   int target = -1;
   if (touch_index >= 0 &&
-      touch_index < (int)(sizeof touch_keys / sizeof touch_keys[0])) {
+      touch_index < 14) {
     const KeyId id = touch_keys[touch_index];
     for (size_t i = 0; i < grid->button_count; ++i) {
       if (grid->layout->keys[i].key_id == id) {

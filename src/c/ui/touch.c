@@ -1,5 +1,6 @@
 #include <pebble.h>
 
+#include "keyboard/number_face.h"
 #include "ui/alert.h"
 #include "ui/style.h"
 #include "ui/window.h"
@@ -501,14 +502,20 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
         const char *binding = (s_touch_key >= 0 && gesture_index >= 0) ?
                               s_bindings[s_touch_key][gesture_index] : "";
         if (s_mode == MODE_JOT) {
-          // In Jot mode the old KB tap is now SAVE: commit and show
-          // the saved note directly, while hardware Select still opens
-          // the list for quick capture. Non-tap KB gestures are unchanged.
-          if (s_touch_key == 13 && gesture_index == 0)
+          // The physical 123/ABC cell switches faces on tap only.
+          // The saved draft and its caret remain in the same editor.
+          if (s_touch_key == 12 && gesture_index == 0) {
+            keyboard_window_toggle_number_face();
+          } else if (s_touch_key == 13 && gesture_index == 0) {
             jot_editor_touch_save();
-          else if (!prv_jot_cursor_command(s_touch_key, gesture_index) &&
-                   !prv_jot_forward_delete_command(s_touch_key, gesture_index))
-            jot_input(binding);
+          } else if (!prv_jot_cursor_command(s_touch_key, gesture_index) &&
+                     !prv_jot_forward_delete_command(s_touch_key, gesture_index)) {
+            // The original alphabet mapping is never modified. The numeric
+            // face uses direct taps for digits and DOWN for visible marks.
+            const char *numeric = keyboard_window_number_face_active() ?
+                jot_number_face_binding(s_touch_key, gesture_index) : NULL;
+            jot_input(numeric ? numeric : binding);
+          }
           break;
         }
         APP_LOG(APP_LOG_LEVEL_INFO, "TYPE,%lu,%s,%s,%s,%lu,%u,%d,%d,%d,%d,%lu,%ld,%d,%d,%ld,%ld",

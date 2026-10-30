@@ -20,10 +20,34 @@ static const LayoutKeyPosition english_abc_keys[] = {
   {KEY_ENGLISH_SPACEBAR,  3, 1, 1, 3},
 };
 
+// Identical hit targets; only the faces and the tap/down bindings change.
+static const LayoutKeyPosition english_123_keys[] = {
+  {KEY_NUMBER_7, 0, 1, 1, 1},
+  {KEY_NUMBER_8, 0, 2, 1, 1},
+  {KEY_NUMBER_9, 0, 3, 1, 1},
+  {KEY_NUMBER_4, 1, 1, 1, 1},
+  {KEY_NUMBER_5, 1, 2, 1, 1},
+  {KEY_NUMBER_6, 1, 3, 1, 1},
+  {KEY_NUMBER_1, 2, 1, 1, 1},
+  {KEY_NUMBER_2, 2, 2, 1, 1},
+  {KEY_NUMBER_3, 2, 3, 1, 1},
+  {KEY_ENGLISH_MENU,      0, 0, 1, 1},
+  {KEY_NUMBER_ABC,        1, 0, 1, 1},
+  {KEY_ENGLISH_BACKSPACE, 2, 0, 1, 1},
+  {KEY_ENGLISH_RETURN,    3, 0, 1, 1},
+  {KEY_NUMBER_ZERO,       3, 1, 1, 3},
+};
+
 static const Layout s_layouts[LAYOUT_COUNT] = { 
   [LAYOUT_ENGLISH_ABC] = {
     .keys = english_abc_keys,
     .key_count = ARRAY_SIZE(english_abc_keys), // array size
+    .rows = 4,
+    .cols = 4
+  },
+  [LAYOUT_ENGLISH_123] = {
+    .keys = english_123_keys,
+    .key_count = ARRAY_SIZE(english_123_keys),
     .rows = 4,
     .cols = 4
   }

@@ -1,3 +1,22 @@
+## Numeric keyboard face (v1.12.0 — Emery QA pending)
+
+Tapping 123 while editing opens the second 4 × 4 face. Every key retains
+the established hitbox, colouring, 1px bevels and press pulse. The left
+column stays SAVE / ABC / Backspace / Return; tapping ABC restores letters.
+The nine letter positions now show numbers 7–9, 4–6, 1–3 with small
+punctuation labels along the bottom. Tap to type the number, or swipe
+DOWN to type its little mark: 7→(, 8→), 9→/, 4→-, 5→.,
+6→:, 1→,, 2→?, 3→!. The wide gold key is 0 when tapped;
+a down/CCW swipe inserts Space, and East/West preserve the established
+cursor shortcuts. Original ABC bindings are never rewritten.
+
+The screen rebuilds one grid on toggle and destroys the previous grid,
+cancelling the old animation timer. Creation failure does not change
+keyboard state. Both faces preserve note text, caret, autosave, storage,
+reader/list flow and physical controls. Only the standard note editor
+activates the numeric face; diagnostic tracing retains the original
+reference mapping. Hardware test pending.
+
 # Jot — detailed behavior and developer notes
 
 Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagEase-inspired touchscreen gesture keyboard. The main [README](README.md) is the best starting point.
