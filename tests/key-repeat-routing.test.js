@@ -23,8 +23,9 @@ assert.ok(s.includes('jot_input("' + String.fromCharCode(92) + 'b");'), 'repeat 
 assert.match(s, /jot_delete_forward\(\)/);
 assert.match(s, /jot_store_move_cursor\(move\)/);
 assert.match(s, /prv_update_repeat\(event, now_ms\)/);
-assert.match(c, /if \(state->fired\)/);
-assert.match(c, /state->blocked = true/);
+assert.match(c, /if \(state->fired\) return false/);
+assert.doesNotMatch(c, /state->blocked = true/);
+assert.doesNotMatch(s, /s_repeat\.blocked/);
 assert.match(c, /if \(gesture < 0 \|\| gesture > 8\)/);
 assert.match(c, /key == 14 && numeric/);
 assert.match(c, /key == 9 && !numeric/);

@@ -60,22 +60,42 @@ static void movement_and_safety(void) {
   assert(!jot_key_repeat_observe(&state, JOT_REPEAT_CURSOR_LEFT,
                                  690, 76, 104));
   assert(jot_key_repeat_due(&state, 700));
-  assert(jot_key_repeat_observe(&state, JOT_REPEAT_CURSOR_RIGHT,
-                                710, 105, 100));
-  assert(state.blocked && state.fired && !state.action);
-  assert(!jot_key_repeat_due(&state, 900));
+  // Once active, neither reversal, return to origin, nor a long slide
+  // into an unmapped gesture interrupts the latched LEFT movement.
+  assert(!jot_key_repeat_observe(&state, JOT_REPEAT_CURSOR_RIGHT,
+                                 710, 105, 100));
+  assert(!jot_key_repeat_observe(&state, JOT_REPEAT_NONE,
+                                 735, 190, 220));
+  assert(state.fired && state.action == JOT_REPEAT_CURSOR_LEFT);
+  assert(!jot_key_repeat_due(&state, 834));
+  assert(jot_key_repeat_due(&state, 835));
+  assert(jot_key_repeat_due(&state, 970));
   assert(jot_key_repeat_end(&state));
+  assert(!jot_key_repeat_due(&state, 2000));
   jot_key_repeat_begin(&state, JOT_REPEAT_BACKSPACE, 1000, 10, 100);
   assert(jot_key_repeat_observe(&state, JOT_REPEAT_FORWARD_DELETE,
                                 1100, 40, 110));
   assert(!jot_key_repeat_due(&state, 1649));
   assert(jot_key_repeat_due(&state, 1650));
+  // Forward deletion stays forward deletion even if the finger slides
+  // into the Backspace gesture or off every repeat target.
+  assert(!jot_key_repeat_observe(&state, JOT_REPEAT_BACKSPACE,
+                                 1660, 5, 120));
+  assert(!jot_key_repeat_observe(&state, JOT_REPEAT_NONE,
+                                 1690, 2, 5));
+  assert(state.action == JOT_REPEAT_FORWARD_DELETE);
+  assert(jot_key_repeat_due(&state, 1785));
   assert(jot_key_repeat_end(&state));
   jot_key_repeat_begin(&state, JOT_REPEAT_CURSOR_DOWN, 100, 30, 40);
   assert(jot_key_repeat_observe(&state, JOT_REPEAT_CURSOR_DOWN,
                                 400, 30, 49)); // Actual motion resets hold.
   assert(!jot_key_repeat_due(&state, 949));
   assert(jot_key_repeat_due(&state, 950));
+  assert(!jot_key_repeat_observe(&state, JOT_REPEAT_CURSOR_UP,
+                                 955, 90, 145));
+  assert(state.action == JOT_REPEAT_CURSOR_DOWN);
+  assert(jot_key_repeat_due(&state, 1085));
+  assert(jot_key_repeat_end(&state));
   // Timer arithmetic must survive the natural 32-bit millisecond rollover.
   jot_key_repeat_begin(&state, JOT_REPEAT_CURSOR_UP,
                        UINT32_MAX - 200u, 20, 50);

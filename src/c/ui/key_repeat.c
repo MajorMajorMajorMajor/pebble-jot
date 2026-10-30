@@ -34,7 +34,10 @@ void jot_key_repeat_begin(JotRepeatState *state, JotRepeatAction action,
 
 bool jot_key_repeat_observe(JotRepeatState *state, JotRepeatAction action,
                             uint32_t now_ms, int16_t x, int16_t y) {
-  if (!state || state->blocked) return false;
+  if (!state) return false;
+  // Once a repeat fires, commit to that exact editing command until
+  // liftoff: further sliding cannot stop, reset or change its direction.
+  if (state->fired) return false;
   if (state->action == JOT_REPEAT_NONE && action == JOT_REPEAT_NONE)
     return false;
   const bool moved = prv_abs((int)x - state->anchor_x) >
@@ -42,13 +45,6 @@ bool jot_key_repeat_observe(JotRepeatState *state, JotRepeatAction action,
                      prv_abs((int)y - state->anchor_y) >
                          JOT_REPEAT_DRIFT_PX;
   if (!moved && state->action == action) return false;
-  if (state->fired) {
-    // Once a repeat has altered the note, directional changes only stop
-    // repetition. Reversing a swipe cannot repeat another destructive action.
-    state->action = JOT_REPEAT_NONE;
-    state->blocked = true;
-    return true;
-  }
   state->action = action;
   state->next_ms = now_ms + JOT_REPEAT_DELAY_MS;
   state->anchor_x = x;
@@ -57,7 +53,7 @@ bool jot_key_repeat_observe(JotRepeatState *state, JotRepeatAction action,
 }
 
 bool jot_key_repeat_due(JotRepeatState *state, uint32_t now_ms) {
-  if (!state || state->blocked || state->action == JOT_REPEAT_NONE ||
+  if (!state || state->action == JOT_REPEAT_NONE ||
       (int32_t)(now_ms - state->next_ms) < 0) return false;
   state->fired = true;
   state->next_ms = now_ms + JOT_REPEAT_INTERVAL_MS;

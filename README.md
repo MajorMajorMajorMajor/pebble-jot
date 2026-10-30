@@ -1,3 +1,18 @@
+## Jot 1.13.1 — Repeat stays locked until liftoff (Emery QA pending)
+
+Real-wrist testing revealed that repeat could unexpectedly stop when
+the finger slid after the gesture had activated. Once the first repeat
+fires, the **original editing action now continues until liftoff**,
+even if the finger reverses direction, crosses another key or moves
+away from its starting point. Backspace never switches to forward
+delete, and the cursor continues in its original direction at 135 ms
+intervals. Releasing still prevents any duplicate edit.
+
+Before activation, gestures retain their existing recognition rules
+and 550 ms dwell delay. Storage, keyboard geometry and colors remain
+unchanged. Host regressions cover continued repetition after sliding,
+reversal, moving off the target, timing and release cancellation.
+
 ## Jot 1.13.0 — Hold-to-repeat editing gestures (Emery QA pending)
 
 Holding an **editing gesture** now starts repeating after a deliberate
@@ -11,8 +26,8 @@ cursor command.
 
 Single taps/swipes retain their existing *release* behavior. Only a
 held **stationary editing action** can repeat; movement greater than
-6 px restarts the 550 ms delay, and changing a gesture after repeats
-have started disables repetition for that stroke. A return-to-origin
+6 px restarts the 550 ms delay, and changing finger direction after the first repeat
+does not stop or alter the latched command. A return-to-origin
 stroke cannot become an accidental repeating backspace tap. Once any
 repeat has fired, the corresponding liftoff does **not** execute a
 second action. Cursor Home/End, symbols, letters, Space insertion,

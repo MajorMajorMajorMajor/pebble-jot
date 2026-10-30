@@ -403,7 +403,7 @@ static void prv_repeat_tick(void *context) {
 
   const uint32_t now_ms = prv_now_ms();
   if (!jot_key_repeat_due(&s_repeat, now_ms)) {
-    if (s_repeat.action != JOT_REPEAT_NONE && !s_repeat.blocked) {
+    if (s_repeat.action != JOT_REPEAT_NONE) {
       const int32_t wait = (int32_t)(s_repeat.next_ms - now_ms);
       prv_schedule_repeat(wait > 0 ? (uint32_t)wait : 1);
     }
@@ -465,7 +465,7 @@ static void prv_update_repeat(const TouchEvent *event, uint32_t now_ms) {
   if (!jot_key_repeat_observe(&s_repeat, action, now_ms,
                               event->x, event->y)) return;
   prv_stop_repeat();
-  if (s_repeat.action != JOT_REPEAT_NONE && !s_repeat.blocked)
+  if (s_repeat.action != JOT_REPEAT_NONE)
     prv_schedule_repeat(JOT_REPEAT_DELAY_MS);
 }
 
@@ -514,8 +514,8 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
     case TouchEvent_Liftoff: {
       if (!s_stroke.active) return;
       prv_stop_repeat();
-      // Always cancel the repeat stroke, including release after a change
-      // in gesture direction. A fired repeat must not dispatch once more.
+      // Only liftoff ends an active repeat; no extra action is dispatched
+      // for a swipe that changed direction after repetition began.
       const bool repeated = jot_key_repeat_end(&s_repeat);
       prv_track_position(event->x, event->y);
 

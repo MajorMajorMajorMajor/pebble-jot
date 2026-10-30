@@ -25,8 +25,8 @@ typedef struct {
   JotRepeatAction action;
   uint32_t next_ms;
   int16_t anchor_x, anchor_y;
-  bool fired;     // Sticky: never execute the original gesture on release.
-  bool blocked;   // Movement after repeat must not arm a different command.
+  bool fired; // Locks the original repeat command until liftoff and
+              // suppresses the ordinary gesture on release.
 } JotRepeatState;
 
 // Gesture indices match the existing canonical recognizer:
