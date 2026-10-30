@@ -61,8 +61,10 @@ mode active.
 
 When closed, the familiar right-edge action nub is now a completely
 solid black oval slice with no small speck inside. The nub uses the
-same oval fill primitive as the open-source PebbleOS ActionBar drawing
-code. The native action bar is removed when closed, restoring normal
+same filled-circle silhouette as the open-source PebbleOS ActionBar.
+It uses the public SDK's `graphics_fill_circle` (PebbleOS's internal
+`graphics_fill_oval` is not public). The native action bar is removed
+when closed, restoring normal
 60-pixel button scrolling and preserving gesture scrolling, tap-to-edit,
 and draft Peek.
 

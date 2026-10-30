@@ -109,7 +109,7 @@ static void prv_format_time(time_t when, char *out, size_t cap) {
   if (note->tm_year == today_year && note->tm_yday == today_yday)
     snprintf(out, cap, "%02d:%02d", note->tm_hour, note->tm_min);
   else
-    snprintf(out, cap, "%02d/%02d", note->tm_mon + 1, note->tm_mday);
+    strftime(out, cap, "%m/%d", note); // Fixed-width date, no truncation warning.
 }
 
 // The notes list uses the same paper / yellow / charcoal visual language as

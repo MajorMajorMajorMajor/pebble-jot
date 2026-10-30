@@ -212,7 +212,8 @@ assert.match(reader, /s_review\.armed\s*\?\s*s_icons\[ICON_CHECK\]/);
 assert.match(reader, /s_review\.armed\s*\?\s*s_icons\[ICON_X\]/);
 assert.match(reader, /s_review\.armed\s*\?\s*"Confirm delete\?"\s*:/);
 assert.match(reader, /s_review\.delete_mode\s*\?\s*GColorFromRGB\(202,\s*39,\s*47\)/);
-assert.match(reader, /graphics_fill_oval\(ctx,\s*oval,\s*GOvalScaleModeFitCircle\)/);
+assert.match(reader, /graphics_fill_circle\(ctx,\s*GPoint\(bounds\.size\.w \+ 9, bounds\.size\.h \/ 2\), 20\)/);
+assert.doesNotMatch(reader, /graphics_fill_oval\(/); // Private PebbleOS API, not in public SDK.
 assert.doesNotMatch(reader, /prv_draw_actions|prv_action_panel/);
 assert.match(touchHandler, /if \(blocked\) return/);
 assert.match(touchHandler, /s_reader_touch_can_drag\s*&&/);

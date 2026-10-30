@@ -15,7 +15,8 @@ Jot preserves these native icon graphics unmodified. The Pencil and
 Trash glyph PNGs are custom Jot resources, 18×18 pixels, drawn in the
 same white-on-transparent action-bar style.
 
-PebbleOS's `fw/applib/ui/action_bar_layer.c` uses
-`graphics_fill_oval` for the circular action bar background.
-Jot uses the same primitive to draw the **solid** collapsed nub without
-an interior mark; Pebble SDK provides no standalone action-nub widget.
+PebbleOS's `fw/applib/ui/action_bar_layer.c` uses its internal
+`graphics_fill_oval` implementation for circular action bar backgrounds.
+Jot draws an equivalent **solid** collapsed nub without an interior mark
+using public Pebble SDK `graphics_fill_circle`. The Pebble SDK does not
+expose either `graphics_fill_oval` or a standalone action-nub widget.

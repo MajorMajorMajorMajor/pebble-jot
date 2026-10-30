@@ -42,9 +42,10 @@ bar red.
 **Armed Delete display:** the reader's status/footer displays exactly
 `Confirm delete?`; Up is blank (still cancels if pressed), Select shows
 the checkmark, and Down shows the X. Back also cancels as before.
-The collapsed nub is a plain, fully filled black oval slice with no
-interior gold mark. Its `graphics_fill_oval` primitive is taken from
-the same drawing approach as PebbleOS's round ActionBar background.
+The collapsed nub is a plain, fully filled black circular slice with no
+interior gold mark. It uses public SDK `graphics_fill_circle`; the
+`graphics_fill_oval` implementation used internally by PebbleOS is not
+available to third-party app builds.
 The note viewport itself is not reflowed.
 
 Native `ActionBarLayer` is added to the window when Select opens the

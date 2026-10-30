@@ -177,15 +177,15 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
 }
 
 
-// Solid closed-state nub. The open-source PebbleOS ActionBar uses the
-// same graphics_fill_oval primitive for circular background drawing.
-// There is no standalone collapsed ActionBar widget in the SDK.
+// Solid closed-state nub, clipped at the right edge. PebbleOS draws
+// its ActionBar background with a circle, but graphics_fill_oval is an
+// internal firmware API. The public SDK provides graphics_fill_circle.
+// There is no standalone collapsed ActionBar nub widget in the SDK.
 static void prv_draw_nub(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
-  const GRect oval = GRect(bounds.size.w - 11,
-      bounds.size.h / 2 - 20, 40, 40);
   graphics_context_set_fill_color(ctx, prv_ink());
-  graphics_fill_oval(ctx, oval, GOvalScaleModeFitCircle);
+  graphics_fill_circle(ctx,
+      GPoint(bounds.size.w + 9, bounds.size.h / 2), 20);
 }
 
 bool jot_reader_action_overlay_hit(int16_t x, int16_t y) {
