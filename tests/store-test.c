@@ -414,7 +414,7 @@ int main(void) {
   assert(jot_store_open(long_slot));
   assert(jot_store_cursor() == JOT_NOTE_TEXT_BYTES - 1);
   assert(!jot_store_input("+"));
-  assert(jot_store_input("\\b"));
+  assert(jot_store_input("\b"));
   assert(jot_store_input("X"));
   assert(jot_store_flush());
   jot_store_init();
