@@ -1,3 +1,13 @@
+## Jot 1.15.2 — final alphabet legend optical nudges (Emery QA pending)
+
+Following the second real-watch screenshot, adjust just three ABC
+peripheral glyphs: **l** and **d** move down 1 pixel; **f** moves
+left 1 pixel and down 1 pixel. All other glyphs retain their
+1.15.1 positions. The global compass rows, numeric labels, big central
+letters, gestures, press animation, colours and hitboxes do not move.
+The individual optical offsets are host-tested so future glyph changes
+cannot accidentally disturb the rest of the alphabet.
+
 ## Jot 1.15.1 — Centred ABC legend ink (Emery QA pending)
 
 The first Jot 1.15 wrist screenshot confirmed ample room for all eight

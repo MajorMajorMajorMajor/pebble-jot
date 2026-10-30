@@ -19,3 +19,12 @@ char jot_primary_face_legend(int key, int direction) {
     return 0;
   return s_letters[key][direction];
 }
+
+JotPrimaryLegendOffset jot_primary_face_optical_offset(char symbol) {
+  // Wrist-tested fine tuning: lower 'l' and 'd' one pixel, and nudge
+  // 'f' one pixel down and left. Do not disturb any other primary glyph.
+  return (JotPrimaryLegendOffset){
+    .x = symbol == 'f' ? -1 : 0,
+    .y = (symbol == 'l' || symbol == 'd' || symbol == 'f') ? 1 : 0
+  };
+}

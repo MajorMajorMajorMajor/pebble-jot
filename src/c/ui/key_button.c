@@ -370,8 +370,10 @@ static void prv_draw_primary_legends(GContext *ctx, const Key *key,
     const char symbol = jot_primary_face_legend((int)index, d);
     if (!symbol) continue;
     const char text[2] = {symbol, '\0'};
+    const JotPrimaryLegendOffset optical =
+        jot_primary_face_optical_offset(symbol);
     graphics_draw_text(ctx, text, font,
-        GRect(col[xs[d]], row[ys[d]], 16, 15),
+        GRect(col[xs[d]] + optical.x, row[ys[d]] + optical.y, 16, 15),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
   }
 }
