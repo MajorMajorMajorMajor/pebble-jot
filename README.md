@@ -25,7 +25,7 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 | Editor | I swipe up / S swipe down | Move cursor to previous / next explicit text line |
 | Editor | I up-and-return / S down-and-return | Move cursor to start / end of note |
 | Editor | Up / Down | Open the notes list |
-| Editor | Tap **SAVE** (formerly KB) | Commit and open the saved note directly in its reader |
+| Editor | Tap the **save icon** (upper-left key) | Commit and open the saved note directly in its reader |
 | Editor | Back | Save and show notes list; while editing an existing note, save and return to its reader |
 | Notes list | Up / Down | Move one note at a time; **Up** from newest focuses **+ NEW** |
 | Notes list | Select | Open the highlighted note, or create a note when **+ NEW** is focused |
@@ -43,9 +43,27 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
+## The Pocket Notebook editor (v1.8.0 — watch test pending)
+
+Jot now gives the quick editor the same paper-and-ink character as the list:
+a warm ruled writing strip with a red notebook margin, cream letter keys
+with rounded charcoal outlines and small down-shadows, charcoal control
+keys, and a gold Space key. The upper-left SAVE action, Backspace, Return,
+and Space use drawn vector icons rather than text; the familiar 123 key
+retains its clear label. The original A-N-I / H-O-R / T-E-S keyboard and
+small peripheral letter hints are unchanged.
+
+This is a **visual-only change**: the text strip is still 40px tall, the
+keyboard grid remains exactly four columns and four rows in the same
+positions, and every key keeps its original *full rectangular* hit area.
+No new header, bitmap resource, gesture behavior, save route, cursor
+placement, note storage, or list/reader navigation is introduced. The
+source-level theme test checks these constraints. Emulator/physical Pebble
+Time 2 presentation requires verification before #21 closes.
+
 ## Touch SAVE → read the finished note (v1.7.4 — verified on Emery)
 
-The upper-left keyboard key now reads **SAVE** instead of KB. A stationary
+The upper-left keyboard key was labeled **SAVE** in v1.7.4 and is drawn as a save icon starting in v1.8.0. A stationary
 tap in Jot mode **saves your current text and opens that exact note
 directly in its full-screen reader**, so you can launch Jot, write a note,
 and see the result without pressing a physical button or visiting the list
@@ -73,7 +91,7 @@ and backup flow are unchanged. Host regression checks cover save
 ordering, error handling, the existing button behavior and the new
 SAVE key label. The SAVE-to-reader interaction was subsequently verified on a physical Pebble Time 2; failure paths remain covered by host tests.
 
-## Two-line note card previews (v1.7.5 — watch test pending)
+## Two-line note card previews (v1.7.5 — verified on Emery)
 
 Saved-note previews now preserve explicit newlines instead of cutting off
 everything after the first line. The notes list renders up to two visible
@@ -81,7 +99,7 @@ lines within each existing card, with long text ellipsized. Previews are
 bounded and truncated only at valid UTF-8 boundaries. The card size,
 selection, touch hitboxes, gestures, stored note records, and full reader
 are unchanged. Host tests verify the second line and Unicode truncation.
-Physical Emery testing is the next step.
+Physical Emery testing confirmed readable two-line cards and unchanged tap navigation.
 
 ## Screen navigation (v1.6 — verified on Emery)
 
@@ -210,6 +228,6 @@ See [README-JOT.md](README-JOT.md) for detailed controls and limits, and [TOUCH_
 
 ## Next steps
 
-The editor gestures, hairline caret, notes-list touch scrolling, button navigation, saved-reader tap-to-edit, and v1.7.4 touch SAVE → reader flow have been verified on Emery. Next: verify v1.7.5 two-line list previews on hardware, then prioritize conservative polish, safer/larger storage, and backup/restore before an Emery-only beta. Touch-to-position-caret (#17) is intentionally deferred to preserve the verified editor experience. Keyboard geometry remains unchanged.
+The editor gestures, hairline caret, notes-list touch scrolling, button navigation, saved-reader tap-to-edit, and v1.7.4 touch SAVE → reader flow have been verified on Emery. Next: verify v1.8.0 notebook editor visuals on hardware, then prioritize safer/larger storage and backup/restore before an Emery-only beta. Touch-to-position-caret (#17) is intentionally deferred to preserve the verified editor experience. Keyboard geometry remains unchanged.
 
 Pebble SDK documentation: <https://developer.repebble.com>

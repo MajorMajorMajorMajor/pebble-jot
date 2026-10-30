@@ -12,7 +12,7 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 - **Editor I swipe up / S swipe down:** move between explicit newline-separated text lines, retaining a preferred column.
 - **Editor I up-and-return / S down-and-return:** jump to the beginning / end of the active note.
 - **Editor Up / Down:** show saved notes.
-- **Editor SAVE touch key (formerly KB):** commit the note and open its saved full-screen reader; a blank draft does nothing. The physical Select key still saves new notes to the list.
+- **Editor save icon (top-left key, formerly SAVE/KB):** commit the note and open its saved full-screen reader; a blank draft does nothing. The physical Select key still saves new notes to the list.
 - **Editor Back:** save and show the notes list from quick capture; while editing a saved note, save and return to that note's reader.
 - **Editor long Select (~1.2 s):** open the inherited typing/trace diagnostic menu.
 - **Notes list Up / Down:** browse saved notes. Up from the newest note focuses **+ NEW**, Down from **+ NEW** returns to the newest note.
@@ -29,12 +29,30 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
+## Pocket Notebook editor styling (v1.8.0 — waiting for wrist photos)
+
+Keyboard colors and icons now match the drawn-paper direction chosen for
+the notes list: light cream letter keys, dark charcoal action keys,
+gold Space, soft ruled-paper underlays, 6px key rounding, and raised
+ink-like shadow/outline shapes. The 40px editor strip has subtle paper
+rules, a narrow red left-margin mark, and no app header. SAVE, Backspace,
+Return, and Space receive compact vector glyphs rather than words; 123
+remains text. All labels and key IDs in the underlying keyboard map
+are retained. This avoids changing the keyboard's touch bindings, cell
+dimensions, diagnostic gesture modes, note persistence, or cursor logic.
+
+This is a *Pebble C rendering change*, not an embedded bitmap texture:
+low-resolution hardware draws the ruled paper and simple icons natively.
+The new source checks guard the exact 4x4 input geometry and all four
+visual control glyphs. Real watch testing is required to evaluate balance,
+contrast, ink shadow weight, label placement, and the small caret area.
+#17 (touch-to-position cursor) remains deferred.
+
 ## Touch SAVE → committed reader (v1.7.4 — verified on Emery)
 
-The old **KB** key at keyboard row 1, column 1 now reads **SAVE**. Its
-existing 50px-wide, dark-ink cell and all touch coordinate geometry remain
-unchanged; the smaller 18px bold label font ensures the four-letter
-word fits legibly. The original keyboard gesture mapping remains stored
+The old **KB** key at keyboard row 1, column 1 became **SAVE** in v1.7.4.
+In v1.8.0 its centered label is represented by a small vector save icon.
+The 50px-wide cell and all touch coordinate geometry remain unchanged. The original keyboard gesture mapping remains stored
 in `docs/gesture-map.csv`, including the menu/hand key's other design
 assignments. Only a stationary tap on key index 13 in Jot mode is
 repurposed, and the diagnostic typing/trace binding table is untouched.

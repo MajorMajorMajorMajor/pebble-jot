@@ -35,11 +35,23 @@ static GSize prv_measure(const char *text, GFont font, int width) {
 
 static void prv_background(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
-  graphics_context_set_fill_color(ctx, GColorFromRGB(255, 214, 109));
+  const GColor ink = GColorFromRGB(41, 40, 43);
+  // A small ruled-paper text strip, not an additional header. Keep its
+  // existing 40px frame, text positioning, clipping and caret geometry.
+  graphics_context_set_fill_color(ctx, GColorFromRGB(255, 250, 239));
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
-  graphics_context_set_fill_color(ctx, GColorFromRGB(41, 40, 43));
-  graphics_fill_rect(ctx, GRect(0, bounds.size.h - 1, bounds.size.w, 1),
-                     0, GCornerNone);
+  graphics_context_set_stroke_color(ctx, GColorFromRGB(221, 209, 183));
+  graphics_context_set_stroke_width(ctx, 1);
+  for (int y = 19; y < bounds.size.h - 1; y += 18) {
+    graphics_draw_line(ctx, GPoint(2, y),
+                       GPoint(bounds.size.w - 2, y));
+  }
+  graphics_context_set_stroke_color(ctx, GColorFromRGB(185, 72, 56));
+  graphics_draw_line(ctx, GPoint(1, 2),
+                     GPoint(1, bounds.size.h - 3));
+  graphics_context_set_stroke_color(ctx, ink);
+  graphics_draw_round_rect(ctx,
+                           GRect(0, 0, bounds.size.w, bounds.size.h), 5);
 }
 
 static void prv_draw_caret(Layer *layer, GContext *ctx) {
@@ -149,7 +161,7 @@ static void prv_status(bool dirty, bool save_error, bool full) {
   text_layer_set_background_color(s_statusbox,
       save_error ? GColorFromRGB(132, 38, 39) :
       full ? GColorFromRGB(41, 40, 43) :
-             GColorFromRGB(255, 214, 109));
+             GColorFromRGB(255, 250, 239));
   text_layer_set_text_color(s_statusbox,
       save_error || full ? GColorWhite : GColorFromRGB(41, 40, 43));
   layer_set_hidden(text_layer_get_layer(s_statusbox), false);

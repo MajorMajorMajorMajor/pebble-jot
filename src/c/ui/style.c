@@ -15,15 +15,15 @@ UIStyle get_ui_style(void) {
     .label_center_font = get_ui_font(settings->style.label_center_font_key),
     .label_peripheral_font = get_ui_font(settings->style.label_peripheral_font_key),
 
-    .key_corner_radius = 2,
+    .key_corner_radius = 6,
     
-    .key_outline_color = GColorDarkGray,
-    .key_background_color = GColorFromRGB(249, 241, 219),
+    .key_outline_color = GColorFromRGB(41, 40, 43),
+    .key_background_color = GColorFromRGB(255, 250, 239),
     
     .label_center_color = GColorBlack,
     .label_peripheral_color = GColorDarkGray,
 
-    .label_padding_px = 1,
+    .label_padding_px = 3,
   };
 
   // Make sure the fonts were found and actually loaded

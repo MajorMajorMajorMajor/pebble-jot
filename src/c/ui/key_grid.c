@@ -6,6 +6,20 @@
 
 #include "ui/key_grid.h"
 
+// Warm paper shows through the inset key borders and rounded corners.
+// These are drawing details only: KeyButton frames remain the same.
+static void prv_draw_notebook_grid(Layer *layer, GContext *ctx) {
+  const GRect bounds = layer_get_bounds(layer);
+  graphics_context_set_fill_color(ctx, GColorFromRGB(249, 242, 219));
+  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+  graphics_context_set_stroke_color(ctx, GColorFromRGB(230, 220, 196));
+  graphics_context_set_stroke_width(ctx, 1);
+  for (int y = 18; y < bounds.size.h; y += 24) {
+    graphics_draw_line(ctx, GPoint(0, y),
+                       GPoint(bounds.size.w - 1, y));
+  }
+}
+
 struct KeyGrid {  
   Layer *layer;  
 
@@ -24,6 +38,7 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame, const UIStyle *style
   if(!layer) {
     return NULL;
   }
+  layer_set_update_proc(layer, prv_draw_notebook_grid);
 
   // Create buttons
   button_count = layout->key_count;

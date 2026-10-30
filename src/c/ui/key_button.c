@@ -31,6 +31,47 @@ struct KeyButtonLayer {
 // typedef struct KeyButtonLayer KeyButtonLayer;
 
 
+// Visual-only glyphs: keep the original key labels and gesture mapping.
+// The left column is ink-dark; the wide Space key carries the gold accent.
+static void prv_draw_control_icon(GContext *ctx, const Key *key, GRect bounds) {
+  const int cx = bounds.size.w / 2;
+  const int cy = bounds.size.h / 2 - 1;
+  const GColor cream = GColorFromRGB(255, 250, 239);
+  const GColor charcoal = GColorFromRGB(41, 40, 43);
+  const bool is_space = key == get_key(KEY_ENGLISH_SPACEBAR);
+  graphics_context_set_stroke_color(ctx, is_space ? charcoal : cream);
+  graphics_context_set_stroke_width(ctx, 3);
+
+  if (key == get_key(KEY_ENGLISH_MENU)) {
+    // Save: an 18px floppy-disk silhouette, legible in the 50px key.
+    graphics_draw_round_rect(ctx, GRect(cx - 9, cy - 9, 18, 18), 2);
+    graphics_draw_line(ctx, GPoint(cx - 5, cy - 8),
+                       GPoint(cx + 4, cy - 8));
+    graphics_draw_rect(ctx, GRect(cx - 5, cy + 1, 10, 6));
+    graphics_draw_line(ctx, GPoint(cx + 3, cy - 8),
+                       GPoint(cx + 3, cy - 4));
+  } else if (key == get_key(KEY_ENGLISH_BACKSPACE)) {
+    // Backspace: a strong left arrow, not a tiny textual "<==".
+    graphics_draw_line(ctx, GPoint(cx - 10, cy), GPoint(cx + 9, cy));
+    graphics_draw_line(ctx, GPoint(cx - 10, cy), GPoint(cx - 2, cy - 8));
+    graphics_draw_line(ctx, GPoint(cx - 10, cy), GPoint(cx - 2, cy + 8));
+  } else if (key == get_key(KEY_ENGLISH_RETURN)) {
+    // Return: bent arrow, distinct from backspace.
+    graphics_draw_line(ctx, GPoint(cx + 8, cy - 9),
+                       GPoint(cx + 8, cy + 5));
+    graphics_draw_line(ctx, GPoint(cx + 8, cy + 5),
+                       GPoint(cx - 9, cy + 5));
+    graphics_draw_line(ctx, GPoint(cx - 9, cy + 5),
+                       GPoint(cx - 2, cy - 2));
+    graphics_draw_line(ctx, GPoint(cx - 9, cy + 5),
+                       GPoint(cx - 2, cy + 12));
+  } else if (is_space) {
+    // Space: the simplest possible symbol, deliberately not another word.
+    graphics_draw_line(ctx, GPoint(cx - 16, cy + 2),
+                       GPoint(cx + 16, cy + 2));
+  }
+}
+
 static void prv_draw_key_label(Layer *layer, GContext* ctx) {
   const KeyLabelLayer *label = layer_get_data(layer);
 
@@ -52,6 +93,14 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
   // figure out where the label should go
   GRect bounds = layer_get_bounds(layer);
   GRect box = grect_crop(bounds, 1);
+  if (key_label->slot == KEY_LABEL_CENTER &&
+      (label->key == get_key(KEY_ENGLISH_MENU) ||
+       label->key == get_key(KEY_ENGLISH_BACKSPACE) ||
+       label->key == get_key(KEY_ENGLISH_RETURN) ||
+       label->key == get_key(KEY_ENGLISH_SPACEBAR))) {
+    prv_draw_control_icon(ctx, label->key, bounds);
+    return;
+  }
 
   // draw the label
   switch (key_label->type) {
@@ -208,16 +257,24 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
                        button->key == get_key(KEY_ENGLISH_BACKSPACE) ||
                        button->key == get_key(KEY_ENGLISH_RETURN);
   const bool space = button->key == get_key(KEY_ENGLISH_SPACEBAR);
-  graphics_context_set_fill_color(ctx,
-      special ? GColorDarkGray :
-      space ? GColorFromRGB(255, 209, 88) : style->key_background_color);
-  graphics_context_set_stroke_color(ctx, style->key_outline_color);
+  const GRect bounds = layer_get_bounds(layer);
+  const int w = bounds.size.w;
+  const int h = bounds.size.h;
+  const GColor charcoal = GColorFromRGB(41, 40, 43);
 
-  GRect bounds = layer_get_bounds(layer);
-  uint16_t corner_radius = style->key_corner_radius;
-  GCornerMask corner_mask = GCornersAll;
-  graphics_fill_rect(ctx, bounds, corner_radius, corner_mask);
-  graphics_draw_round_rect(ctx, bounds, style->key_corner_radius);
+  // The face and 3px down-shadow sit *inside* the unchanged cell geometry.
+  // Touch classification still uses the full 4x4 rectangles, with no gaps.
+  const GRect shadow = GRect(2, 4, w - 4, h - 6);
+  const GRect face = GRect(2, 1, w - 4, h - 6);
+  graphics_context_set_fill_color(ctx, charcoal);
+  graphics_fill_rect(ctx, shadow, style->key_corner_radius, GCornersAll);
+  graphics_context_set_fill_color(ctx,
+      special ? charcoal :
+      space ? GColorFromRGB(255, 209, 88) : style->key_background_color);
+  graphics_fill_rect(ctx, face, style->key_corner_radius, GCornersAll);
+  graphics_context_set_stroke_color(ctx, style->key_outline_color);
+  graphics_context_set_stroke_width(ctx, 2);
+  graphics_draw_round_rect(ctx, face, style->key_corner_radius);
 }
 
 KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *style) {
