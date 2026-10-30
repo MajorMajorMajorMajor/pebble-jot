@@ -8,7 +8,8 @@ becomes **0**. Tapping ABC returns to the original keyboard without
 editing the note or moving the caret.
 
 For practical punctuation, a **downward swipe** on each number prints
-the small mark below it: **( ) / / - . : / , ? !** by row.
+the small mark below it: **7→(**, **8→)**, **9→/**, **4→-**,
+**5→.**, **6→:**, **1→,**, **2→?**, **3→!**.
 On the wide zero key, tap prints 0; down or counterclockwise produces
 Space. The original Space left/right cursor gestures remain available.
 Saved-note actions, note storage, reader/list navigation, and every

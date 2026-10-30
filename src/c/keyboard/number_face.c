@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "keyboard/number_face.h"
 
 const char *jot_number_face_binding(int key, int gesture) {

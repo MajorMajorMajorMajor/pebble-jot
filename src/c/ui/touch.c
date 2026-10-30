@@ -508,10 +508,15 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
             keyboard_window_toggle_number_face();
           } else if (s_touch_key == 13 && gesture_index == 0) {
             jot_editor_touch_save();
+          } else if (keyboard_window_number_face_active() &&
+                     s_touch_key >= 0 && s_touch_key < 9) {
+            // Numeric positions own their DOWN swipes, including 3 -> !.
+            // The alphabet's I/S cursor shortcuts are unchanged in ABC.
+            jot_input(jot_number_face_binding(s_touch_key, gesture_index));
           } else if (!prv_jot_cursor_command(s_touch_key, gesture_index) &&
                      !prv_jot_forward_delete_command(s_touch_key, gesture_index)) {
-            // The original alphabet mapping is never modified. The numeric
-            // face uses direct taps for digits and DOWN for visible marks.
+            // Gold zero taps 0; DOWN/CCW inserts a Space. East/West keep
+            // their established cursor movements on both faces.
             const char *numeric = keyboard_window_number_face_active() ?
                 jot_number_face_binding(s_touch_key, gesture_index) : NULL;
             jot_input(numeric ? numeric : binding);

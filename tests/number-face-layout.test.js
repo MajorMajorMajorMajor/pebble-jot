@@ -25,6 +25,11 @@ assert.match(button,/button->key == get_key\(KEY_NUMBER_ZERO\)/);
 assert.match(button,/label->key == get_key\(KEY_NUMBER_ABC\)/);
 assert.match(touch,/s_touch_key == 12 && gesture_index == 0/);
 assert.match(touch,/keyboard_window_toggle_number_face\(\)/);
+const numericBranch = touch.indexOf('keyboard_window_number_face_active() &&');
+const cursorBranch = touch.indexOf('!prv_jot_cursor_command(s_touch_key, gesture_index)', numericBranch);
+assert.ok(numericBranch > 0 && cursorBranch > numericBranch,
+  'number DOWN punctuation must run before ABC cursor shortcuts');
+assert.match(touch,/jot_input\(jot_number_face_binding\(s_touch_key, gesture_index\)\)/);
 assert.match(touch,/jot_number_face_binding\(s_touch_key, gesture_index\)/);
 assert.match(touch,/jot_editor_touch_save\(\)/);
 assert.match(touch,/prv_jot_cursor_command\(s_touch_key, gesture_index\)/);
