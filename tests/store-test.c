@@ -10,6 +10,7 @@
 #define SLOT_CAPACITY 256u
 #define RECORD_KEYS (2u * (JOT_NOTE_TEXT_BYTES / SLOT_CAPACITY + 1u))
 #define LEGACY_KEY_FIRST 4100u
+#define DIRECTORY_KEY 4999u
 
 typedef struct {
   bool exists;
@@ -19,6 +20,10 @@ typedef struct {
 
 static FakeEntry s_entries[JOT_NOTE_CAPACITY * RECORD_KEYS];
 static FakeEntry s_legacy[16];
+static FakeEntry s_directory_entry;
+static int s_read_calls;
+static int s_delete_calls;
+static int s_directory_writes;
 static bool s_fail_next_delete;
 static bool s_fail_next_write;
 static int s_fail_after_writes = -1;
@@ -26,6 +31,7 @@ static size_t s_bytes_used;
 enum { FAKE_STORAGE_LIMIT = 1024 * 1024 };
 
 static FakeEntry *prv_entry(uint32_t key) {
+  if (key == DIRECTORY_KEY) return &s_directory_entry;
   if (key >= LEGACY_KEY_FIRST && key < LEGACY_KEY_FIRST + 16)
     return &s_legacy[key - LEGACY_KEY_FIRST];
   if (key < STORAGE_KEY_FIRST ||
@@ -34,6 +40,7 @@ static FakeEntry *prv_entry(uint32_t key) {
 }
 
 int persist_read_data(uint32_t key, void *buffer, size_t buffer_size) {
+  ++s_read_calls;
   FakeEntry *entry = prv_entry(key);
   if (!entry || !entry->exists) return E_DOES_NOT_EXIST;
   if (buffer_size < entry->size) return E_ERROR;
@@ -57,6 +64,7 @@ int persist_write_data(uint32_t key, const void *data, size_t size) {
   if (!entry || !data || size > SLOT_CAPACITY ||
       s_bytes_used - entry->size + size > FAKE_STORAGE_LIMIT) return E_ERROR;
   s_bytes_used = s_bytes_used - entry->size + size;
+  if (key == DIRECTORY_KEY) ++s_directory_writes;
   memcpy(entry->bytes, data, size);
   entry->size = size;
   entry->exists = true;
@@ -64,6 +72,7 @@ int persist_write_data(uint32_t key, const void *data, size_t size) {
 }
 
 status_t persist_delete(uint32_t key) {
+  ++s_delete_calls;
   FakeEntry *entry = prv_entry(key);
   if (s_fail_next_delete) {
     s_fail_next_delete = false;
@@ -90,6 +99,17 @@ static void expect_note(int slot, const char *expected) {
 
 int main(void) {
   jot_store_init();
+  // First 1.15->fast-start upgrade scans all 256 slots once and writes
+  // the conservative 40-byte directory. Subsequent empty warm boots
+  // should do ONLY one firmware read; no legacy deletes.
+  assert(s_read_calls == 513);
+  assert(s_delete_calls == 16);
+  assert(s_directory_entry.exists && s_directory_entry.size == 40);
+  assert(s_directory_writes == 1);
+  s_read_calls = s_delete_calls = 0;
+  jot_store_init();
+  assert(s_read_calls == 1);
+  assert(s_delete_calls == 0);
   assert(jot_store_count() == 0);
   assert(jot_store_input("first"));
   assert(jot_store_flush());
@@ -103,8 +123,65 @@ int main(void) {
   assert(second >= 0 && second != first);
   assert(jot_store_count() == 2);
 
+  // Two committed slots: only 1 + 2*2 = five reads at warm launch,
+  // independent of the full 256 slot capacity.
+  s_read_calls = s_delete_calls = 0;
+  jot_store_init();
+  assert(s_read_calls == 5 && s_delete_calls == 0);
+  assert(jot_store_count() == 2);
+
+  // Corrupted candidate hints must fail CLOSED and rebuild by scanning
+  // every bank. Never lose a committed note due to cache corruption.
+  s_directory_entry.bytes[10] ^= 0x80;
+  s_read_calls = 0;
+  jot_store_init();
+  assert(s_read_calls == 513);
+  assert(jot_store_count() == 2);
+  s_read_calls = 0;
+  jot_store_init();
+  assert(s_read_calls == 5);
+
+  // Missing directory likewise recovers pre-optimization JOT2 saves.
+  s_bytes_used -= s_directory_entry.size;
+  s_directory_entry.exists = false;
+  s_directory_entry.size = 0;
+  s_read_calls = 0;
+  jot_store_init();
+  assert(s_read_calls == 513);
+  assert(jot_store_count() == 2);
+  expect_note(first, "first");
+  expect_note(second, "second");
+
+  // A first-commit directory write failure must preserve a dirty draft
+  // but MUST NOT write a header that will be skipped at next startup.
+  assert(jot_store_new());
+  assert(jot_store_input("not committed without candidate"));
+  const int pending = jot_store_active_slot();
+  s_fail_next_write = true;
+  assert(!jot_store_flush());
+  assert(jot_store_dirty());
+  assert(!has_slot_header(pending));
+  jot_store_init(); // power loss: no phantom committed note
+  assert(jot_store_count() == 2);
+
+  // Simulate power loss after directory bit is persisted but before
+  // note chunks/header commit. On boot: orphan bit is harmless.
+  assert(jot_store_new());
+  assert(jot_store_input("index committed, header not"));
+  const int orphan = jot_store_active_slot();
+  s_fail_after_writes = 1; // index write succeeds; first chunk fails
+  assert(!jot_store_flush());
+  assert(!has_slot_header(orphan));
+  jot_store_init();
+  assert(jot_store_count() == 2);
+  assert(!has_slot_header(orphan));
+
   // Deleting the active, freshly created note must update RAM and flash.
+  // Even a failed directory-clearing write must not resurrect a note.
+  s_fail_next_write = true; // failure occurs after both bank headers gone
   assert(jot_store_delete(second));
+  jot_store_init();
+  assert(jot_store_count() == 1);
   assert(jot_store_count() == 1);
   assert(jot_store_slot_at(0) == first);
   assert(jot_store_slot_at(1) == -1);

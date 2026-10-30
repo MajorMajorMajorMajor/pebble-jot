@@ -8,6 +8,11 @@
 #define JOT_MAGIC 0x4A4F5432u
 #define JOT_FIRST_KEY 5000u
 #define JOT_LEGACY_FIRST_KEY 4100u
+// Small directory stored outside all JOT1/JOT2 note-key ranges.
+// It is a CONSERVATIVE candidate-slot hint, never authoritative note data.
+#define JOT_DIRECTORY_KEY 4999u
+#define JOT_DIRECTORY_MAGIC 0x4A4F5449u // 'JOTI' v1
+
 enum { JOT_LEGACY_CAPACITY = 16, JOT_PART_BYTES = 256,
        JOT_PART_COUNT = JOT_NOTE_TEXT_BYTES / JOT_PART_BYTES,
        JOT_BANK_KEYS = JOT_PART_COUNT + 1 };
@@ -31,6 +36,19 @@ typedef struct {
   bool used;
 } NoteIndex;
 
+// 40 bytes in one atomic persistence value. Each set bit means that the
+// slot MAY contain a committed bank, not that a note definitely exists.
+// This deliberately admits stale bits after interrupted saves/deletions.
+// A valid but incomplete bitmask would be dangerous; every first commit
+// writes its bit BEFORE publishing the new note header.
+typedef struct {
+  uint32_t magic;
+  uint8_t candidates[JOT_NOTE_CAPACITY / 8];
+  uint32_t checksum;
+} NoteDirectory;
+
+static NoteDirectory s_directory;
+static bool s_directory_valid;
 static NoteIndex s_index[JOT_NOTE_CAPACITY];
 static char *s_read_text; // Allocated lazily for list/open reads.
 static uint32_t s_next_serial;
@@ -157,6 +175,57 @@ static uint16_t prv_checksum(const char *text, size_t length) {
   return value;
 }
 
+static uint32_t prv_directory_checksum(const NoteDirectory *directory) {
+  uint32_t hash = 2166136261u;
+  for (size_t i = 0; i < sizeof directory->candidates; ++i) {
+    hash ^= directory->candidates[i];
+    hash *= 16777619u;
+  }
+  return hash ^ JOT_DIRECTORY_MAGIC;
+}
+
+static bool prv_directory_has(int slot) {
+  return (s_directory.candidates[slot / 8] &
+          (uint8_t)(1u << (slot % 8))) != 0;
+}
+
+static bool prv_directory_load(void) {
+  if (persist_read_data(JOT_DIRECTORY_KEY, &s_directory,
+                        sizeof s_directory) != (int)sizeof s_directory)
+    return false;
+  return s_directory.magic == JOT_DIRECTORY_MAGIC &&
+         s_directory.checksum == prv_directory_checksum(&s_directory);
+}
+
+// Only commit a changed in-memory directory after its flash write succeeds.
+// A failed directory write must never authorize a new note's header.
+static bool prv_directory_save(const NoteDirectory *candidate) {
+  NoteDirectory checked = *candidate;
+  checked.magic = JOT_DIRECTORY_MAGIC;
+  checked.checksum = prv_directory_checksum(&checked);
+  if (persist_write_data(JOT_DIRECTORY_KEY, &checked,
+                         sizeof checked) != (int)sizeof checked)
+    return false;
+  s_directory = checked;
+  s_directory_valid = true;
+  return true;
+}
+
+static bool prv_directory_set(int slot) {
+  if (s_directory_valid && prv_directory_has(slot)) return true;
+  NoteDirectory next = s_directory;
+  next.candidates[slot / 8] |= (uint8_t)(1u << (slot % 8));
+  return prv_directory_save(&next);
+}
+
+static void prv_directory_clear(int slot) {
+  if (!s_directory_valid || !prv_directory_has(slot)) return;
+  NoteDirectory next = s_directory;
+  next.candidates[slot / 8] &= (uint8_t)~(1u << (slot % 8));
+  // Failure is safe: a stale candidate incurs two extra reads at launch.
+  (void)prv_directory_save(&next);
+}
+
 static bool prv_header(int slot, int bank, NoteHeader *header) {
   if (slot < 0 || slot >= JOT_NOTE_CAPACITY || bank < 0 || bank > 1)
     return false;
@@ -211,14 +280,28 @@ void jot_store_init(void) {
   s_keep_vertical_column = false;
   s_text[0] = '\0';
   s_dirty = false;
-  // JOT1 keys are not readable by JOT2. Reclaim them on the QA watch.
-  for (int i = 0; i < JOT_LEGACY_CAPACITY; ++i)
-    persist_delete(JOT_LEGACY_FIRST_KEY + i);
+  // Warm boot: one 40-byte directory read plus two header reads for each
+  // candidate slot, rather than 512 reads + 16 deletes on EVERY launch.
+  // Missing, truncated or corrupt directories trigger a complete legacy
+  // scan and rebuild, including pre-directory 1.9-1.15 installations.
+  memset(&s_directory, 0, sizeof s_directory);
+  s_directory_valid = prv_directory_load();
+  if (!s_directory_valid) {
+    memset(&s_directory, 0, sizeof s_directory);
+    // JOT1 cleanup is only needed during an initial/recovery full scan.
+    for (int i = 0; i < JOT_LEGACY_CAPACITY; ++i)
+      persist_delete(JOT_LEGACY_FIRST_KEY + i);
+  }
+
+  NoteDirectory rebuilt = {0};
   for (int i = 0; i < JOT_NOTE_CAPACITY; ++i) {
+    if (s_directory_valid && !prv_directory_has(i)) continue;
     NoteHeader a, b;
     const bool has_a = prv_header(i, 0, &a);
     const bool has_b = prv_header(i, 1, &b);
     if (!has_a && !has_b) continue;
+    if (!s_directory_valid)
+      rebuilt.candidates[i / 8] |= (uint8_t)(1u << (i % 8));
     const int bank = has_b && (!has_a || b.revision > a.revision) ? 1 : 0;
     const NoteHeader *header = bank ? &b : &a;
     s_index[i] = (NoteIndex) {
@@ -227,6 +310,11 @@ void jot_store_init(void) {
       .length = header->length
     };
     if (header->serial >= s_next_serial) s_next_serial = header->serial + 1;
+  }
+  if (!s_directory_valid) {
+    // A directory write failure retains the full-scan recovery path on
+    // the next launch. Never treat an uncommitted bitmap as trustworthy.
+    (void)prv_directory_save(&rebuilt);
   }
   if (!s_next_serial) s_next_serial = 1;
 }
@@ -306,6 +394,11 @@ bool jot_store_flush(void) {
   NoteIndex *index = &s_index[s_active_slot];
   const int previous_bank = index->bank;
   const int target_bank = previous_bank == 0 ? 1 : 0;
+  // Candidate-slot bit MUST be durable before the first bank header.
+  // On failure, retain the entire dirty draft and do not publish a note.
+  // Existing notes are already represented, so their next bank can
+  // commit without a redundant directory write.
+  if (!prv_directory_set(s_active_slot)) return false;
   if (!prv_clear_bank(s_active_slot, target_bank)) return false;
   const size_t bytes = s_length + 1;
   for (size_t offset = 0, part = 1; offset < bytes; ++part) {
@@ -370,8 +463,11 @@ bool jot_store_delete(int slot) {
   if (bank < 0 || persist_delete(prv_key(slot, bank, 0)) != S_TRUE)
     return false;
   s_index[slot] = (NoteIndex) {0};
-  prv_clear_bank(slot, 1 - bank);
-  prv_clear_bank(slot, bank);
+  const bool cleared_other = prv_clear_bank(slot, 1 - bank);
+  const bool cleared_active = prv_clear_bank(slot, bank);
+  // Only remove the candidate when BOTH banks are certainly gone.
+  // Any cleanup error leaves a conservative bit and thus full recovery.
+  if (cleared_other && cleared_active) prv_directory_clear(slot);
   if (s_active_slot == slot) {
     s_active_slot = -1;
     s_length = 0;

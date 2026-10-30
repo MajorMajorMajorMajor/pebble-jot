@@ -1,3 +1,32 @@
+## Jot 1.15.4 — faster warm launch with a crash-safe note directory (Emery QA pending)
+
+The JOT2 256-slot expansion made each launch scan **512 note bank
+headers** and issue **16 legacy-key deletes**, even for an empty
+notebook. Jot now stores a tiny **40-byte conservative directory**
+marking every slot that *might* hold a committed note. Ordinary
+launches read the directory once and validate both bank headers only
+for candidate slots: **1 read for zero notes, 21 for 10 notes**,
+instead of 512+ deletes. Initial upgrade from 1.15.3 (or a missing or
+damaged directory) performs the original full scan exactly once,
+builds the hint from discovered JOT2 headers and still retains notes.
+
+The directory is not authoritative data: corrupted/missing hints
+trigger full recovery; a newly written note must commit its slot bit
+**before** writing its first bank header, and a failed bit write
+preserves the dirty draft without saving an invisible note. Deletion
+clears a candidate only after both banks have been cleared; failure
+to clear the hint merely costs two reads on subsequent launches.
+The JOT2 on-disk records, two-bank transactional guarantees, 256-slot
+capacity and 4095-byte limit are unchanged.
+
+Host C regressions check warm-boot call counts, upgrade/missing/
+corrupt-directory recovery, failed first-commit directory writes,
+power loss after bitmap-before-note commit, deletion/index failure,
+256-slot use and interrupted multichunk writes. Pebble SDK compilation
+and real wrist measurement are still needed before closing #35.
+The very first launch after upgrading may still be slow while the
+directory is built; subsequent launches should be substantially faster.
+
 ## Jot 1.15.3 — final f alignment on the ABC face (Emery QA pending)
 
 A third wrist screenshot confirms that the small blue **f** on the

@@ -16,6 +16,10 @@ const touch = read('src/c/ui/touch.c');
 
 assert.match(storeHeader, /JOT_NOTE_TEXT_BYTES\s*=\s*4096/);
 assert.match(store, /static char s_text\[JOT_NOTE_TEXT_BYTES\]/);
+assert.match(store, /static NoteDirectory s_directory/);
+assert.match(store, /static bool s_directory_valid/);
+assert.match(store, /if \(s_directory_valid && !prv_directory_has\(i\)\) continue/);
+assert.match(store, /if \(!prv_directory_set\(s_active_slot\)\) return false/);
 assert.doesNotMatch(store, /static char s_read_text\[JOT_NOTE_TEXT_BYTES\]/);
 assert.match(store, /static char \*s_read_text/);
 assert.match(store, /s_read_text\s*=\s*malloc\(JOT_NOTE_TEXT_BYTES\)/);
