@@ -171,7 +171,7 @@ static bool prv_read(int slot, char *out, size_t capacity) {
   NoteHeader header;
   if (!prv_header(slot, index->bank, &header) ||
       header.serial != index->serial || header.revision != index->revision ||
-      header.length + 1 > capacity) return false;
+      (size_t)header.length + 1 > capacity) return false;
   const size_t bytes = (size_t)header.length + 1;
   for (size_t offset = 0, part = 1; offset < bytes; ++part) {
     const size_t remaining = bytes - offset;
