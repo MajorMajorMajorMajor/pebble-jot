@@ -30,6 +30,8 @@ void jot_save_now(void);
 // Switch from a read-only saved-note page back to the keyboard editor.
 // Returns false on storage error; does not leave the reader in that case.
 bool jot_reader_edit(int slot);
+// Keep the list focused on the note reached via action-bar browsing.
+void jot_reader_focus_rank(int rank);
 
 // Invalidate the note browser when backup status changes.
 void jot_backup_ui_changed(void);

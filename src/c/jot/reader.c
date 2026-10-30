@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "jot/reader.h"
 #include "jot/reader_touch.h"
+#include "jot/reader_review.h"
 #include "jot/jot.h"
 #include "jot/store.h"
 
@@ -15,6 +16,7 @@ enum {
 
 static Window *s_window;
 static Layer *s_chrome;
+static Layer *s_actions; // Overlay: no note text reflow or extra text buffer.
 static Layer *s_paper;
 static Layer *s_viewport;
 static TextLayer *s_text_layer;
@@ -26,6 +28,8 @@ static int s_scroll, s_scroll_max;
 static int s_text_height;
 static bool s_open_error;
 static bool s_is_peek;
+static JotReaderReview s_review;
+static const char *s_review_message;
 
 static GColor prv_ink(void) { return GColorFromRGB(41, 40, 43); }
 static GColor prv_yellow(void) { return GColorFromRGB(255, 209, 88); }
@@ -39,11 +43,21 @@ bool jot_reader_is_peek(void) {
   return s_is_peek && jot_reader_is_open();
 }
 
+static void prv_mark_review(void) {
+  if (s_actions) layer_mark_dirty(s_actions);
+  if (s_chrome) layer_mark_dirty(s_chrome);
+}
+
 void jot_reader_back(void) {
-  // Both the on-screen Back affordance and physical Back use this path.
-  // A saved reader returns to the list, a draft peek to its editor.
-  // No save, note allocation or note edit takes place here.
-  if (jot_reader_is_open()) window_stack_pop(true);
+  if (!jot_reader_is_open()) return;
+  // First Back disarms deletion; next Back closes the action bar.
+  // Once the bar is closed, Back returns to the list (or draft editor).
+  if (!s_is_peek && jot_reader_review_back(&s_review)) {
+    s_review_message = NULL;
+    prv_mark_review();
+    return;
+  }
+  window_stack_pop(true);
 }
 
 void jot_reader_dismiss_peek(void) {
@@ -85,7 +99,8 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
   graphics_context_set_text_color(ctx, prv_ink());
   // Context label tells the user where the header Back action goes.
   // A normal saved note returns to NOTES; a temporary draft peek to EDIT.
-  graphics_draw_text(ctx, s_is_peek ? "EDIT" : "NOTES",
+  graphics_draw_text(ctx, s_is_peek ? "EDIT" :
+                             s_review.open ? "CLOSE" : "NOTES",
                      fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
                      GRect(44, 7, width - 44 - 73, 27),
                      GTextOverflowModeTrailingEllipsis,
@@ -111,15 +126,94 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
                      0, GCornerNone);
   graphics_context_set_text_color(ctx, GColorWhite);
   const char *hint = s_open_error ? "COULD NOT OPEN NOTE" :
+                     s_review_message ? s_review_message :
                      s_is_peek ? (s_scroll_max ? "DRAG scroll  TAP return" :
                                                  "TAP to return to typing") :
-                     s_scroll_max ? "DRAG scroll  TAP edit" :
-                                    "TAP text  SEL edit";
+                     s_review.armed ? "SEL confirm  DN cancel" :
+                     s_review.open ? "UP/DN notes  SEL action" :
+                     s_scroll_max ? "DRAG scroll  SEL menu" :
+                                    "TAP text  SEL menu";
   graphics_draw_text(ctx, hint,
                      fonts_get_system_font(FONT_KEY_GOTHIC_14),
                      GRect(5, footer_y + 5, width - 10, READER_FOOTER_H - 8),
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentCenter, NULL);
+}
+
+
+static GRect prv_action_panel(GRect bounds) {
+  return GRect(bounds.size.w - 76,
+               JOT_READER_HEADER_H + JOT_READER_META_H + 7,
+               74, 111);
+}
+
+static void prv_draw_actions(Layer *layer, GContext *ctx) {
+  if (s_is_peek) return;
+  const GRect bounds = layer_get_bounds(layer);
+  const GColor ink = prv_ink();
+  const GColor gold = prv_yellow();
+  if (!s_review.open) {
+    // Discreet semicircular action nub on the right edge. It hints
+    // that the physical Select button can open the review controls.
+    graphics_context_set_fill_color(ctx, ink);
+    graphics_fill_circle(ctx,
+        GPoint(bounds.size.w + 11, bounds.size.h / 2), 21);
+    graphics_context_set_stroke_color(ctx, gold);
+    graphics_context_set_stroke_width(ctx, 1);
+    graphics_draw_line(ctx, GPoint(bounds.size.w - 5,
+                                  bounds.size.h / 2 - 3),
+                       GPoint(bounds.size.w - 5,
+                              bounds.size.h / 2 + 3));
+    return;
+  }
+
+  const GRect panel = prv_action_panel(bounds);
+  graphics_context_set_fill_color(ctx, ink);
+  graphics_fill_rect(ctx, panel, 8, GCornersAll);
+  graphics_context_set_stroke_color(ctx, gold);
+  graphics_context_set_stroke_width(ctx, 1);
+  graphics_draw_round_rect(ctx, panel, 8);
+  const int section_h = panel.size.h / 3;
+  graphics_draw_line(ctx,
+      GPoint(panel.origin.x + 6, panel.origin.y + section_h),
+      GPoint(panel.origin.x + panel.size.w - 7,
+             panel.origin.y + section_h));
+  graphics_draw_line(ctx,
+      GPoint(panel.origin.x + 6, panel.origin.y + 2 * section_h),
+      GPoint(panel.origin.x + panel.size.w - 7,
+             panel.origin.y + 2 * section_h));
+
+  // The middle action changes persistently on long Select. The only
+  // irreversible action requires two separate short Select presses.
+  const char *middle = s_review.armed ? "CONFIRM" :
+                       s_review.delete_mode ? "DELETE" : "EDIT";
+  const char *labels[3] = {"NEWER", middle, "OLDER"};
+  for (int i = 0; i < 3; ++i) {
+    const bool emphasis = i == 1;
+    graphics_context_set_text_color(ctx, emphasis ? gold : GColorWhite);
+    graphics_draw_text(ctx, labels[i],
+        fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+        GRect(panel.origin.x + 4, panel.origin.y + i * section_h + 9,
+              panel.size.w - 8, section_h - 10),
+        GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  }
+}
+
+bool jot_reader_action_overlay_hit(int16_t x, int16_t y) {
+  if (!jot_reader_is_open() || s_is_peek || !s_actions) return false;
+  const GRect bounds = layer_get_bounds(s_actions);
+  if (s_review.open) {
+    const GRect panel = prv_action_panel(bounds);
+    return x >= panel.origin.x &&
+           x < panel.origin.x + panel.size.w &&
+           y >= panel.origin.y &&
+           y < panel.origin.y + panel.size.h;
+  }
+  // Ignore taps on the decorative edge nub so they cannot edit notes.
+  return x >= bounds.size.w - 11 &&
+         x < bounds.size.w &&
+         y >= bounds.size.h / 2 - 21 &&
+         y < bounds.size.h / 2 + 21;
 }
 
 static void prv_draw_paper(Layer *layer, GContext *ctx) {
@@ -170,13 +264,115 @@ static void prv_measure_text(void) {
   prv_update_scroll();
 }
 
+
+static void prv_update_rank(int rank) {
+  // Changing notes is a read-only preview. Load into a temporary buffer
+  // first so an I/O error never destroys the current reader snapshot.
+  if (!jot_reader_is_open() || s_is_peek || rank == s_rank) return;
+  const int count = jot_store_count();
+  const int slot = jot_store_slot_at(rank);
+  if (slot < 0 || rank < 0 || rank >= count) return;
+  char *next = malloc(JOT_NOTE_TEXT_BYTES);
+  time_t created = 0;
+  if (!next) {
+    s_review_message = "NOT ENOUGH MEMORY";
+    prv_mark_review();
+    return;
+  }
+  if (!jot_store_export(slot, next, JOT_NOTE_TEXT_BYTES, &created)) {
+    free(next);
+    s_review_message = "COULD NOT OPEN NOTE";
+    prv_mark_review();
+    return;
+  }
+
+  free(s_note);
+  s_note = next;
+  s_slot = slot;
+  s_rank = rank;
+  s_total = count;
+  s_scroll = 0; // Start each new note at the beginning.
+  s_scroll_max = 0;
+  s_open_error = false;
+  s_review_message = NULL;
+  const struct tm *tm = localtime(&created);
+  if (tm) strftime(s_timestamp, sizeof s_timestamp, "%b %d  %H:%M", tm);
+  else snprintf(s_timestamp, sizeof s_timestamp, "Saved note");
+  prv_measure_text();
+  // When the reader closes, the list already focuses this exact note.
+  jot_reader_focus_rank(rank);
+  prv_mark_review();
+}
+
+static void prv_browse(int direction) {
+  if (jot_reader_review_cancel_armed(&s_review)) {
+    s_review_message = NULL; // Navigation cancels an armed deletion.
+    prv_mark_review();
+    return;
+  }
+  const int rank = jot_reader_review_next_rank(
+      s_rank, jot_store_count(), direction);
+  if (rank < 0 || rank == s_rank) {
+    s_review_message = direction < 0 ? "FIRST NOTE" : "LAST NOTE";
+    prv_mark_review();
+    return;
+  }
+  prv_update_rank(rank);
+}
+
+static void prv_confirm_delete(void) {
+  if (!jot_reader_is_open() || s_is_peek || s_slot < 0) return;
+  const int rank = s_rank;
+  if (!jot_store_delete(s_slot)) {
+    s_review_message = "DELETE FAILED";
+    prv_mark_review();
+    return;
+  }
+  jot_refresh_editor();
+  const int count = jot_store_count();
+  if (!count) {
+    jot_reader_focus_rank(-1); // Empty list: focus + NEW.
+    window_stack_pop(true);
+    return;
+  }
+  const int next_rank = rank < count ? rank : count - 1;
+  // The just-deleted page must never be shown again. If the next note
+  // cannot be loaded, return to the list instead of showing stale text.
+  jot_reader_focus_rank(next_rank);
+  const int next_slot = jot_store_slot_at(next_rank);
+  char *next = malloc(JOT_NOTE_TEXT_BYTES);
+  time_t created = 0;
+  if (!next || next_slot < 0 ||
+      !jot_store_export(next_slot, next, JOT_NOTE_TEXT_BYTES, &created)) {
+    free(next);
+    window_stack_pop(true);
+    return;
+  }
+  free(s_note);
+  s_note = next;
+  s_slot = next_slot;
+  s_rank = next_rank;
+  s_total = count;
+  s_scroll = 0;
+  s_scroll_max = 0;
+  s_open_error = false;
+  s_review_message = NULL;
+  const struct tm *tm = localtime(&created);
+  if (tm) strftime(s_timestamp, sizeof s_timestamp, "%b %d  %H:%M", tm);
+  else snprintf(s_timestamp, sizeof s_timestamp, "Saved note");
+  prv_measure_text();
+  prv_mark_review(); // Keep Delete mode open, ready for next triage action.
+}
+
 static void prv_reader_up(ClickRecognizerRef ref, void *context) {
+  if (s_review.open && !s_is_peek) { prv_browse(-1); return; }
   s_scroll -= READER_SCROLL_STEP;
   if (s_scroll < 0) s_scroll = 0;
   prv_update_scroll();
 }
 
 static void prv_reader_down(ClickRecognizerRef ref, void *context) {
+  if (s_review.open && !s_is_peek) { prv_browse(1); return; }
   s_scroll += READER_SCROLL_STEP;
   if (s_scroll > s_scroll_max) s_scroll = s_scroll_max;
   prv_update_scroll();
@@ -226,7 +422,18 @@ static void prv_reader_select(ClickRecognizerRef ref, void *context) {
     jot_reader_back();
     return;
   }
-  jot_reader_edit_current();
+  const JotReaderReviewAction action = jot_reader_review_select(&s_review);
+  s_review_message = NULL;
+  prv_mark_review();
+  if (action == JOT_REVIEW_EDIT) jot_reader_edit_current();
+  else if (action == JOT_REVIEW_CONFIRM_DELETE) prv_confirm_delete();
+}
+
+static void prv_reader_select_hold(ClickRecognizerRef ref, void *context) {
+  if (s_is_peek) return; // Drafts are never navigable or deletable.
+  jot_reader_review_hold(&s_review);
+  s_review_message = NULL;
+  prv_mark_review();
 }
 
 static void prv_reader_back(ClickRecognizerRef ref, void *context) {
@@ -237,6 +444,8 @@ static void prv_reader_clicks(void *context) {
   window_single_click_subscribe(BUTTON_ID_UP, prv_reader_up);
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_reader_down);
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_reader_select);
+  window_long_click_subscribe(BUTTON_ID_SELECT, 800,
+                              prv_reader_select_hold, NULL);
   window_single_click_subscribe(BUTTON_ID_BACK, prv_reader_back);
 }
 
@@ -277,9 +486,21 @@ static void prv_reader_load(Window *window) {
       prv_measure_text();
     }
   }
+
+  // This full-screen overlay draws only the nub/bar. It sits ABOVE paper
+  // without shifting or resizing the reader's text viewport.
+  s_actions = layer_create(bounds);
+  if (s_actions) {
+    layer_set_update_proc(s_actions, prv_draw_actions);
+    layer_add_child(window_get_root_layer(window), s_actions);
+  }
 }
 
 static void prv_reader_unload(Window *window) {
+  if (s_actions) layer_destroy(s_actions);
+  s_actions = NULL;
+  jot_reader_review_reset(&s_review);
+  s_review_message = NULL;
   if (s_text_layer) text_layer_destroy(s_text_layer);
   s_text_layer = NULL;
   if (s_viewport) layer_destroy(s_viewport);
@@ -331,6 +552,8 @@ bool jot_reader_show(int slot, int rank, int total) {
     snprintf(s_timestamp, sizeof s_timestamp, "Saved note");
   }
   s_is_peek = false;
+  jot_reader_review_reset(&s_review);
+  s_review_message = NULL;
   s_slot = slot;
   s_rank = rank;
   s_total = total;
@@ -364,6 +587,8 @@ bool jot_reader_peek(void) {
   s_scroll_max = 0;
   s_open_error = false;
   s_is_peek = true;
+  jot_reader_review_reset(&s_review);
+  s_review_message = NULL;
   window_stack_push(s_window, true);
   if (!s_chrome || !s_paper || !s_viewport || !s_text_layer) {
     window_stack_pop(false);

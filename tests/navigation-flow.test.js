@@ -69,7 +69,12 @@ assert.match(click, /window_single_click_subscribe\(BUTTON_ID_BACK,\s*prv_back_c
 // The saved reader's physical Select and content tap share exactly one
 // existing-note edit transition, with a preserved reader on failure.
 assert.match(functionBody(reader, 'static void prv_reader_select('),
-             /jot_reader_edit_current\(\)/);
+             /jot_reader_review_select\(&s_review\)/);
+assert.match(functionBody(reader, 'static void prv_reader_select('),
+             /JOT_REVIEW_EDIT\) jot_reader_edit_current\(\)/);
+assert.match(functionBody(reader, 'static void prv_reader_select_hold('),
+             /jot_reader_review_hold\(&s_review\)/);
+assert.match(reader, /window_long_click_subscribe\(BUTTON_ID_SELECT,\s*800,/);
 const sharedEdit = functionBody(reader, 'bool jot_reader_edit_current(void)');
 assert.match(sharedEdit, /!jot_reader_is_open\(\)\s*\|\|\s*s_is_peek\s*\|\|\s*s_slot\s*<\s*0/);
 assert.match(sharedEdit, /if \(!jot_reader_edit\(s_slot\)\)/);
@@ -90,8 +95,23 @@ assert.match(readerDrag, /jot_reader_touch_scroll_after_drag\(/);
 assert.match(readerDrag, /prv_update_scroll\(\)/);
 assert.match(functionBody(reader, 'static void prv_reader_back('),
              /jot_reader_back\(\)/);
+const reviewMove = functionBody(reader, 'static void prv_update_rank(int rank)');
+assert.match(reviewMove, /malloc\(JOT_NOTE_TEXT_BYTES\)/);
+assert.match(reviewMove, /jot_store_export\(/);
+assert.match(reviewMove, /free\(s_note\)/);
+assert.match(reviewMove, /s_scroll\s*=\s*0/);
+assert.match(reviewMove, /jot_reader_focus_rank\(rank\)/);
+const reviewDelete = functionBody(reader, 'static void prv_confirm_delete(void)');
+assert.match(reviewDelete, /jot_store_delete\(s_slot\)/);
+assert.match(reviewDelete, /jot_reader_focus_rank\(next_rank\)/);
+assert.match(reviewDelete, /s_scroll\s*=\s*0/);
+assert.match(reviewDelete, /window_stack_pop\(true\)/);
+assert.match(functionBody(jot, 'void jot_reader_focus_rank(int rank)'),
+             /s_selected_rank\s*=\s*jot_list_focus_initial\(rank, jot_store_count\(\)\)/);
 assert.match(functionBody(reader, 'void jot_reader_back(void)'),
-             /if \(jot_reader_is_open\(\)\) window_stack_pop\(true\)/);
+             /jot_reader_review_back\(&s_review\)/);
+assert.match(functionBody(reader, 'void jot_reader_back(void)'),
+             /window_stack_pop\(true\)/);
 
 
 // The NEW row is focusable directly above the first saved note.
@@ -164,7 +184,7 @@ assert.match(listTap, /prv_list_new_note\(\)/);
 // but the label reflects the actual destination. The reader's physical
 // and touch routes use the same pop helper and never save note bytes.
 const readerChrome = functionBody(reader, 'static void prv_draw_chrome(');
-assert.match(readerChrome, /s_is_peek\s*\?\s*"EDIT"\s*:\s*"NOTES"/);
+assert.match(readerChrome, /s_is_peek\s*\?\s*"EDIT"\s*:\s*s_review\.open\s*\?\s*"CLOSE"\s*:\s*"NOTES"/);
 assert.match(readerChrome, /prv_draw_back\(ctx\)/);
 assert.doesNotMatch(readerChrome, /prv_draw_pencil\(ctx\)/);
 assert.match(functionBody(reader, 'void jot_reader_dismiss_peek(void)'),
@@ -182,6 +202,8 @@ assert.match(touchHandler, /jot_list_is_open\(\)/);
 assert.match(touchHandler, /jot_reader_touch_action\(/);
 assert.match(touchHandler, /s_reader_touch_moved\s*=\s*true/);
 assert.match(touchHandler, /jot_reader_touch_can_drag\(/);
+assert.match(touchHandler, /jot_reader_action_overlay_hit\(/);
+assert.match(touchHandler, /if \(blocked\) return/);
 assert.match(touchHandler, /s_reader_touch_can_drag\s*&&/);
 assert.match(touchHandler, /abs_dy\s*>\s*JOT_READER_TAP_SLOP\s*&&\s*abs_dy\s*>=\s*abs_dx/);
 assert.match(touchHandler, /jot_reader_drag\(\(int16_t\)dy\)/);

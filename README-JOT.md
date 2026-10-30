@@ -30,7 +30,35 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
-## Long-note reader touch scrolling (v1.9.2 — Emery test pending)
+## Persistent action-bar triage (v1.10.0 — Emery wrist test pending)
+
+Issue #10 uses a slim black-and-gold overlay on saved reader pages, with
+a small black semicircle protruding from the right edge as a cue.
+A single physical Select opens the panel; the next Select opens Edit.
+While the panel is visible, Up/Down browse newer/older notes (by newest-
+first rank), stopping at both ends with FIRST/LAST feedback. Pages open
+at the beginning; the panel persists and Back from it closes the panel
+instead of leaving the reader. A second Back returns to the list at
+the currently displayed note, with the list focus/scroll synchronized.
+
+Holding physical Select (800ms) toggles to a persistent DELETE panel.
+First short Select arms confirmation. Second short Select deletes the
+current saved note. Up, Down or Back cancels an armed delete without
+navigating. On success, the next available saved note is shown at the
+top; Delete mode remains visible. Removing the final note returns to
+the empty list. Failed delete keeps the current note visible and reports
+an error; a failed browse keeps the previous snapshot unchanged.
+The overlay is not a text tap target and cannot trigger accidental
+editing. Touch-drag scrolling is unchanged and remains possible in
+the visible text body, alongside physical Up/Down in ordinary mode.
+
+Draft Peek never shows the action bar and can neither browse nor delete.
+The #10 action panel does not change the JOT2 persistence format, the
+44px keyboard/editor boundary, or gesture mapping. Host tests exercise
+mode transitions, double Select safety, cancel/back, rank edges,
+buffer-safe browsing and list focus wiring. Hardware validation pending.
+
+## Long-note reader touch scrolling (v1.9.2 — verified on Emery)
 
 Issue #11 adds a pixel-by-pixel vertical drag to both the saved-note
 reader and the temporary unsaved-draft Peek. The finger may start anywhere

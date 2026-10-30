@@ -528,6 +528,14 @@ static void prv_push_list_at(int rank) {
   window_stack_push(s_list_window, true);
 }
 
+void jot_reader_focus_rank(int rank) {
+  if (!s_list_window) return;
+  s_selected_rank = jot_list_focus_initial(rank, jot_store_count());
+  s_list_focus_valid = true;
+  s_confirm_delete = false;
+  prv_follow_list_focus();
+}
+
 void jot_show_list(void) {
   if (jot_reader_is_open()) return;
   if (s_list_window && window_stack_get_top_window() == s_list_window) return;

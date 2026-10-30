@@ -43,7 +43,32 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
-## Smooth touch-scrolling for long notes (v1.9.2 — Emery QA pending)
+## Persistent reader action bar (v1.10.0 — awaiting Emery wrist test)
+
+Issue #10 adds a saved-note review mode for rapidly triaging up to 256 notes.
+Select once opens the dark action panel (NEWER / EDIT / OLDER); subsequent
+Up/Down buttons flip through saved notes without returning to the list.
+Select again edits the displayed note. The small black semicircular nub
+at the page's right edge signals the available review actions.
+
+Hold Select (800 ms) to enter persistent DELETE mode. A short Select
+**arms** deletion and a second separate press confirms. A long hold
+never deletes. Up/Down or Back cancel an armed deletion; otherwise Up/Down
+continue browsing, and Back closes the action bar before returning to the
+list. Confirmed deletion immediately displays the next existing note and
+leaves Delete mode active. Deleting the last note returns to the empty
+notes list. Browsing preserves note bytes and keeps the list focused on
+the displayed note. Both ends stop rather than wrap.
+
+Touch drag still scrolls long note text; tapping text still opens edit
+directly. Touching the overlay never triggers hidden edit actions.
+Draft Peek retains its previous controls and cannot browse/delete notes.
+Reader Up/Down without the bar still scroll 60 pixels. Note storage,
+keyboard gestures and Pocket Notebook theme remain untouched.
+Host state-machine and navigation tests passed; wrist testing remains
+necessary before closing #10.
+
+## Smooth touch-scrolling for long notes (v1.9.2 — verified on Emery)
 
 Reader and unsaved-draft Peek now support **direct vertical finger scrolling**
 in the clipped body of the page. Dragging up moves down the note, tracking

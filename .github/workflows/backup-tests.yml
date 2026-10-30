@@ -32,6 +32,11 @@ jobs:
         run: node tests/navigation-flow.test.js
       - name: Verify touch SAVE routing and safe reader transitions
         run: node tests/touch-save.test.js
+      - name: Test persistent reader review action-bar state machine
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/reader-review-test.c src/c/jot/reader_review.c -o /tmp/jot-reader-review-test
+          /tmp/jot-reader-review-test
       - name: Test contextual reader Back touch controls
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \

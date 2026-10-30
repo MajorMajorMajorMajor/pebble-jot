@@ -20,6 +20,8 @@ JotReaderTouchLayout jot_reader_touch_layout(void);
 // Direct finger scrolling inside the clipped text viewport. This never
 // edits a saved note or dismisses a draft Peek.
 void jot_reader_drag(int16_t finger_delta_y);
+// Prevent a tap or drag behind the visible action bar / decorative nub.
+bool jot_reader_action_overlay_hit(int16_t x, int16_t y);
 
 // Preview the unsaved current editor buffer without changing storage.
 // Back, Select, or a touchscreen tap returns to the same editor.

@@ -102,6 +102,7 @@ static uint32_t s_list_touch_ms;
 // accidentally activate Back on release.
 static bool s_reader_touch_active;
 static bool s_reader_touch_moved;
+static bool s_reader_touch_blocked;
 static bool s_reader_touch_dragging;
 static bool s_reader_touch_can_drag;
 static int16_t s_reader_touch_x, s_reader_touch_y, s_reader_touch_last_y;
@@ -546,11 +547,13 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
       s_reader_touch_moved = false;
       s_reader_touch_x = event->x;
       s_reader_touch_y = event->y;
+      s_reader_touch_blocked = jot_reader_action_overlay_hit(
+          event->x, event->y);
       s_reader_touch_last_y = event->y;
       s_reader_touch_dragging = false;
       const JotReaderTouchLayout layout = jot_reader_touch_layout();
-      s_reader_touch_can_drag = jot_reader_touch_can_drag(
-          event->x, event->y, &layout);
+      s_reader_touch_can_drag = !s_reader_touch_blocked &&
+          jot_reader_touch_can_drag(event->x, event->y, &layout);
       s_reader_touch_ms = now_ms;
     } else if ((event->type == TouchEvent_PositionUpdate ||
                 event->type == TouchEvent_Liftoff) && s_reader_touch_active) {
@@ -578,9 +581,13 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
             jot_reader_is_peek(), s_reader_touch_x, s_reader_touch_y,
             event->x, event->y, s_reader_touch_moved,
             now_ms - s_reader_touch_ms, &layout);
+        const bool blocked = s_reader_touch_blocked ||
+            jot_reader_action_overlay_hit(event->x, event->y);
         s_reader_touch_active = false;
         s_reader_touch_dragging = false;
         s_reader_touch_can_drag = false;
+        s_reader_touch_blocked = false;
+        if (blocked) return; // No edit/peek through action controls.
         if (action == JOT_READER_TOUCH_BACK ||
             action == JOT_READER_TOUCH_DISMISS_PEEK) {
           jot_reader_back();
@@ -593,6 +600,7 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
     return;
   }
   s_reader_touch_active = false;
+  s_reader_touch_blocked = false;
   s_reader_touch_dragging = false;
   s_reader_touch_can_drag = false;
 
