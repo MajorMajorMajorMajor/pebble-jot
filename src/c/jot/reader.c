@@ -19,6 +19,7 @@ static Layer *s_chrome;
 static ActionBarLayer *s_action_bar; // Native PebbleOS control.
 static bool s_action_bar_attached;
 static Layer *s_nub; // Solid collapsed-side affordance.
+static Layer *s_danger_badge; // Red *only* behind the centre danger icon.
 enum { ICON_UP, ICON_DOWN, ICON_PENCIL, ICON_TRASH, ICON_CHECK, ICON_X, ICON_COUNT };
 static GBitmap *s_icons[ICON_COUNT];
 static const uint32_t s_icon_ids[ICON_COUNT] = {
@@ -45,6 +46,11 @@ static GColor prv_ink(void) { return GColorFromRGB(41, 40, 43); }
 static GColor prv_yellow(void) { return GColorFromRGB(255, 209, 88); }
 static GColor prv_paper(void) { return GColorFromRGB(249, 242, 219); }
 
+// Keep opaque black for the baseline review pass. The alpha experiment is
+// isolated in a follow-up commit so it can be reverted without losing
+// icon, boundary or safety refinements.
+static GColor prv_action_bar_background(void) { return prv_ink(); }
+
 bool jot_reader_is_open(void) {
   return s_window && window_stack_get_top_window() == s_window;
 }
@@ -58,17 +64,28 @@ static void prv_mark_review(void) {
   if (s_action_bar) {
     if (s_review.open) {
       // SDK handles alignment, button highlighting and window geometry.
-      action_bar_layer_set_background_color(s_action_bar,
-          s_review.delete_mode ? GColorFromRGB(202, 39, 47) : prv_ink());
-      if (s_review.armed)
+      action_bar_layer_set_background_color(
+          s_action_bar, prv_action_bar_background());
+      // The arrows communicate available actions, not errors in the
+      // status bar. At either end, the unavailable direction is blank.
+      // When armed, top is blank but physical Up still cancels.
+      if (s_review.armed || s_rank <= 0)
         action_bar_layer_clear_icon(s_action_bar, BUTTON_ID_UP);
       else
         action_bar_layer_set_icon(s_action_bar, BUTTON_ID_UP, s_icons[ICON_UP]);
-      action_bar_layer_set_icon(s_action_bar, BUTTON_ID_SELECT,
-          s_review.armed ? s_icons[ICON_CHECK] :
-          s_review.delete_mode ? s_icons[ICON_TRASH] : s_icons[ICON_PENCIL]);
-      action_bar_layer_set_icon(s_action_bar, BUTTON_ID_DOWN,
-          s_review.armed ? s_icons[ICON_X] : s_icons[ICON_DOWN]);
+      // The middle danger icon lives in a tiny red badge drawn *on top*
+      // of the native ActionBar. All remaining bar pixels stay black.
+      if (s_review.delete_mode)
+        action_bar_layer_clear_icon(s_action_bar, BUTTON_ID_SELECT);
+      else
+        action_bar_layer_set_icon(s_action_bar, BUTTON_ID_SELECT,
+                                  s_icons[ICON_PENCIL]);
+      if (s_review.armed)
+        action_bar_layer_set_icon(s_action_bar, BUTTON_ID_DOWN, s_icons[ICON_X]);
+      else if (s_rank >= jot_store_count() - 1)
+        action_bar_layer_clear_icon(s_action_bar, BUTTON_ID_DOWN);
+      else
+        action_bar_layer_set_icon(s_action_bar, BUTTON_ID_DOWN, s_icons[ICON_DOWN]);
       if (!s_action_bar_attached) {
         action_bar_layer_add_to_window(s_action_bar, s_window);
         s_action_bar_attached = true;
@@ -80,6 +97,7 @@ static void prv_mark_review(void) {
       window_set_click_config_provider(s_window, prv_reader_clicks);
     }
   }
+  if (s_danger_badge) layer_mark_dirty(s_danger_badge);
   if (s_chrome) layer_mark_dirty(s_chrome);
 }
 
@@ -184,8 +202,32 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
 static void prv_draw_nub(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
   graphics_context_set_fill_color(ctx, prv_ink());
+  // The PebbleOS weather affordance is a hint, not a handle.
+  // Only ~6px of this 40px filled circle is visible.
   graphics_fill_circle(ctx,
-      GPoint(bounds.size.w + 9, bounds.size.h / 2), 20);
+      GPoint(bounds.size.w + 14, bounds.size.h / 2), 20);
+}
+
+// A localized red focus mark drawn above the standard ActionBar content.
+// The SDK accepts only one global background color per ActionBar, so an
+// overlay on its own Layer is needed for a per-action danger treatment.
+static void prv_draw_danger_badge(Layer *layer, GContext *ctx) {
+  if (!s_review.open || !s_review.delete_mode) return;
+  const GRect bounds = layer_get_bounds(layer);
+  const GBitmap *icon = s_review.armed ? s_icons[ICON_CHECK] : s_icons[ICON_TRASH];
+  const GRect focus = GRect((bounds.size.w - 26) / 2,
+                             bounds.size.h / 2 - 13, 26, 26);
+  graphics_context_set_fill_color(ctx, GColorFromRGB(204, 42, 46));
+  graphics_fill_rect(ctx, focus, 6, GCornersAll);
+  if (!icon) return;
+  const GRect bitmap = gbitmap_get_bounds(icon);
+  const GRect dest = GRect((bounds.size.w - bitmap.size.w) / 2,
+                            (bounds.size.h - bitmap.size.h) / 2,
+                            bitmap.size.w, bitmap.size.h);
+  graphics_context_set_compositing_mode(ctx,
+      gbitmap_get_format(icon) == GBitmapFormat1Bit ?
+      GCompOpAssign : GCompOpSet);
+  graphics_draw_bitmap_in_rect(ctx, (GBitmap *)icon, dest);
 }
 
 bool jot_reader_action_overlay_hit(int16_t x, int16_t y) {
@@ -197,7 +239,7 @@ bool jot_reader_action_overlay_hit(int16_t x, int16_t y) {
   }
   if (!s_nub) return false;
   const GRect bounds = layer_get_bounds(s_nub);
-  return x >= bounds.size.w - 11 && x < bounds.size.w &&
+  return x >= bounds.size.w - 6 && x < bounds.size.w &&
          y >= bounds.size.h / 2 - 20 && y < bounds.size.h / 2 + 20;
 }
 
@@ -298,7 +340,8 @@ static void prv_browse(int direction) {
   const int rank = jot_reader_review_next_rank(
       s_rank, jot_store_count(), direction);
   if (rank < 0 || rank == s_rank) {
-    s_review_message = direction < 0 ? "FIRST NOTE" : "LAST NOTE";
+    // Boundary icon is hidden; no redundant FIRST/LAST status message.
+    s_review_message = NULL;
     prv_mark_review();
     return;
   }
@@ -483,13 +526,28 @@ static void prv_reader_load(Window *window) {
     for (int i = 0; i < ICON_COUNT; ++i)
       s_icons[i] = gbitmap_create_with_resource(s_icon_ids[i]);
     s_action_bar = action_bar_layer_create();
-    if (s_action_bar)
+    if (s_action_bar) {
       action_bar_layer_set_click_config_provider(s_action_bar,
-                                                  prv_reader_clicks);
+                                                prv_reader_clicks);
+      // Child coordinates are relative to the native ActionBarLayer.
+      // It follows the bar when the SDK attaches it to the window.
+      s_danger_badge = layer_create(
+          GRect(0, 0, ACTION_BAR_WIDTH, bounds.size.h));
+      if (s_danger_badge) {
+        layer_set_update_proc(s_danger_badge, prv_draw_danger_badge);
+        layer_add_child(action_bar_layer_get_layer(s_action_bar),
+                        s_danger_badge);
+      }
+    }
   }
 }
 
 static void prv_reader_unload(Window *window) {
+  if (s_danger_badge) {
+    layer_remove_from_parent(s_danger_badge);
+    layer_destroy(s_danger_badge);
+  }
+  s_danger_badge = NULL;
   if (s_action_bar_attached && s_action_bar)
     action_bar_layer_remove_from_window(s_action_bar);
   s_action_bar_attached = false;

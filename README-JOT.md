@@ -30,6 +30,23 @@ Jot is an early on-watch note-taking app for Pebble Time 2, built on the MessagE
 
 The keyboard supports taps, directional swipes, directional drag-and-returns, and CW/CCW circles; clockwise circles on the letter keys enter digits 1–9, with 0 on the Space key.
 
+## Triage action polish (v1.10.3 baseline)
+
+- No content reflow: the native bar still overlays the full-width note
+- At note boundaries, hidden Up/Down arrow replaces status messages
+- Standard Pebble developer Pencil/Trash images replace Jot-created assets
+- Native ActionBar background remains black in all modes
+- Only the central destructive action is highlighted red, by a small
+  child overlay drawing the red tile and the standard icon
+- A slimmer, entirely solid right-edge nub hints at review mode
+- The two-press delete state machine, Up/Down cancellation, Back and
+  draft Peek controls are unchanged
+
+An isolated follow-up commit will try `GColorFromRGBA` on
+`action_bar_layer_set_background_color`; if the real watch shows no
+useful transparency, revert that one experiment and consider
+reader reflow separately.
+
 ## Native Pebble action bar refinement (v1.10.1 — Emery QA pending)
 
 Native Pebble SDK `ActionBarLayer` now replaces the custom dark drawn

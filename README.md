@@ -43,6 +43,27 @@ Launch Jot from your watch or an assigned quick-launch button. It opens straight
 
 The editor uses a small `*` in its upper-right corner to indicate unsaved edits. Jot automatically saves after about **1.8 seconds** without typing and at several navigation boundaries. `SAVE ERROR` means the storage write did not succeed; `FULL` means the attempted character did not fit.
 
+## Action bar refinement — baseline without reader reflow (v1.10.3)
+
+This pass deliberately keeps the full-width reader and native SDK
+`ActionBarLayer`, leaving text reflow deferred. Both unavailable
+navigation arrows are hidden at the newest and oldest notes, rather
+than displaying FIRST NOTE / LAST NOTE in the footer. Physical buttons
+still stop at either end. The black bar stays black in Delete mode:
+a small red rounded tile is drawn only behind the trash/checkmark
+action at Select, and the familiar two-press delete confirmation
+remains. The collapsed nub is slimmer (~6px visible).
+
+The pencil and trash use the **official Pebble developer example action
+icons** rather than Jot-created glyphs. Up/Down/Check/X remain upstream
+PebbleOS icon art. Pebble only exposes a single background color for
+the entire native bar; per-action red emphasis therefore lives in a
+small overlay child Layer on the native ActionBar.
+
+The forthcoming alpha experiment is intentionally separate from these
+baseline improvements, so the transparency change can be reverted
+without giving up the new controls.
+
 ## Native ActionBarLayer and safe delete confirmation (v1.10.1 — Emery QA pending)
 
 Jot's hand-drawn reader action panel has been replaced with Pebble's

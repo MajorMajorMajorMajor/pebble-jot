@@ -210,9 +210,24 @@ assert.match(reader, /action_bar_layer_set_click_config_provider\(s_action_bar,/
 assert.match(reader, /action_bar_layer_clear_icon\(s_action_bar,\s*BUTTON_ID_UP\)/);
 assert.match(reader, /s_review\.armed\s*\?\s*s_icons\[ICON_CHECK\]/);
 assert.match(reader, /s_review\.armed\s*\?\s*s_icons\[ICON_X\]/);
+const updateIcons = functionBody(reader, 'static void prv_mark_review(void)');
+assert.match(updateIcons, /s_rank\s*<=\s*0/);
+assert.match(updateIcons, /s_rank\s*>=\s*jot_store_count\(\)\s*-\s*1/);
+assert.match(updateIcons, /action_bar_layer_clear_icon\(s_action_bar, BUTTON_ID_UP\)/);
+assert.match(updateIcons, /action_bar_layer_clear_icon\(s_action_bar, BUTTON_ID_DOWN\)/);
+assert.match(updateIcons, /action_bar_layer_clear_icon\(s_action_bar, BUTTON_ID_SELECT\)/);
+assert.match(updateIcons, /layer_mark_dirty\(s_danger_badge\)/);
+const badge = functionBody(reader, 'static void prv_draw_danger_badge(');
+assert.match(badge, /!s_review\.open\s*\|\|\s*!s_review\.delete_mode/);
+assert.match(badge, /GColorFromRGB\(204,\s*42,\s*46\)/);
+assert.match(badge, /graphics_draw_bitmap_in_rect\(ctx,/);
+assert.match(functionBody(reader, 'static void prv_browse('), /s_review_message\s*=\s*NULL;/);
+assert.doesNotMatch(reader, /"FIRST NOTE"|"LAST NOTE"/);
+assert.match(reader, /GPoint\(bounds\.size\.w \+ 14, bounds\.size\.h \/ 2\), 20/);
 assert.match(reader, /s_review\.armed\s*\?\s*"Confirm delete\?"\s*:/);
-assert.match(reader, /s_review\.delete_mode\s*\?\s*GColorFromRGB\(202,\s*39,\s*47\)/);
-assert.match(reader, /graphics_fill_circle\(ctx,\s*GPoint\(bounds\.size\.w \+ 9, bounds\.size\.h \/ 2\), 20\)/);
+assert.match(reader, /action_bar_layer_set_background_color\(\s*s_action_bar, prv_action_bar_background\(\)\)/);
+assert.doesNotMatch(reader, /action_bar_layer_set_background_color\(s_action_bar,\s*s_review\.delete_mode/);
+assert.match(reader, /graphics_fill_circle\(ctx,\s*GPoint\(bounds\.size\.w \+ 14, bounds\.size\.h \/ 2\), 20\)/);
 assert.doesNotMatch(reader, /graphics_fill_oval\(/); // Private PebbleOS API, not in public SDK.
 assert.doesNotMatch(reader, /prv_draw_actions|prv_action_panel/);
 assert.match(touchHandler, /if \(blocked\) return/);

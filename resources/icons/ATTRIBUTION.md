@@ -11,9 +11,14 @@ The four PNG assets `action_up.png`, `action_down.png`,
 
 The upstream PebbleOS project is licensed under
 [Apache-2.0](https://github.com/coredevices/pebbleos/blob/main/LICENSE).
-Jot preserves these native icon graphics unmodified. The Pencil and
-Trash glyph PNGs are custom Jot resources, 18×18 pixels, drawn in the
-same white-on-transparent action-bar style.
+Jot preserves these four native icon graphics unmodified. The new Pencil
+and Trash images are copied unmodified from the official Pebble
+developer App Assets example icons (14×14 pixels):
+https://developer.rebble.io/guides/app-resources/app-assets/
+Their original paths in `pebble-dev/developer.rebble.io` are
+`source/assets/images/guides/design-and-interaction/icons/action_bar_icon_edit.png`
+and `action_bar_icon_delete.png`. The red destructive focus tile is
+drawn programmatically behind these assets, not baked into new icons.
 
 PebbleOS's `fw/applib/ui/action_bar_layer.c` uses its internal
 `graphics_fill_oval` implementation for circular action bar backgrounds.
