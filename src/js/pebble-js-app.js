@@ -1,19 +1,17 @@
-/* Jot phone companion — no cloud service and no automatic uploads.
- * Watch -> AppMessage -> complete snapshot -> PebbleKit JS localStorage.
- * The configuration page receives a copy in the URL fragment, which is
- * processed locally by the static export page, not sent in HTTP requests.
+/* Jot phone companion — explicit, offline-only snapshot backup.
+ * Notes arrive in UTF-8-safe chunks, acknowledged with note + part indices.
  */
 var STORAGE_KEY = 'jot.backup.v1';
 var pending = null;
 
-function reply(session, index, ok) {
+function reply(session, index, part, ok) {
   Pebble.sendAppMessage({
     BackupSession: session,
     BackupAck: index,
+    BackupPart: part,
     BackupStatus: ok ? 1 : 0
   }, function () {}, function (error) {
     console.log('Jot receipt not delivered: ' + JSON.stringify(error));
-    // The watch retransmits the packet when it does not receive a receipt.
   });
 }
 
@@ -29,58 +27,84 @@ Pebble.addEventListener('appmessage', function (event) {
   var kind = Number(p.BackupKind);
   var session = Number(p.BackupSession);
   var index = Number(p.BackupIndex);
-  if (!isFinite(session) || !isFinite(index)) return;
+  var part = Number(typeof p.BackupPart === 'undefined' ? 0 : p.BackupPart);
+  if (!isFinite(session) || !isFinite(index) || !isFinite(part) ||
+      part < 0 || part !== Math.floor(part)) return;
 
   if (kind === 1) {
     var total = Number(p.BackupTotal);
-    if (!isFinite(total) || total < 0 || total > 16 || index !== -1) {
-      reply(session, index, false);
+    if (!isFinite(total) || total < 0 || total > 256 ||
+        total !== Math.floor(total) || index !== -1 || part !== 0) {
+      reply(session, index, part, false);
       return;
     }
     if (!pending || pending.session !== session) {
       pending = {session: session, total: total, notes: new Array(total)};
     }
-    reply(session, index, true);
+    reply(session, index, part, true);
   } else if (kind === 2) {
+    var finalPart = Number(typeof p.BackupFinal === 'undefined'
+      ? 1 : p.BackupFinal);
     if (!pending || pending.session !== session ||
-        index < 0 || index >= pending.total ||
+        index < 0 || index >= pending.total || index !== Math.floor(index) ||
         typeof p.BackupText !== 'string' ||
-        typeof p.BackupTimestamp === 'undefined') {
-      reply(session, index, false);
+        typeof p.BackupTimestamp === 'undefined' ||
+        (finalPart !== 0 && finalPart !== 1)) {
+      reply(session, index, part, false);
       return;
     }
-    pending.notes[index] = {
-      created: Number(p.BackupTimestamp),
-      text: p.BackupText
-    };
-    reply(session, index, true);
+    var note = pending.notes[index];
+    if (!note && part === 0) {
+      note = {created: Number(p.BackupTimestamp), text: '',
+              nextPart: 0, complete: false};
+      pending.notes[index] = note;
+    }
+    if (!note) { reply(session, index, part, false); return; }
+    if (part === note.nextPart - 1) {
+      // Lost acknowledgment: do not duplicate a chunk.
+      reply(session, index, part, true);
+      return;
+    }
+    if (note.complete || part !== note.nextPart ||
+        Number(p.BackupTimestamp) !== note.created) {
+      reply(session, index, part, false);
+      return;
+    }
+    note.text += p.BackupText;
+    note.nextPart++;
+    if (finalPart === 1) note.complete = true;
+    reply(session, index, part, true);
   } else if (kind === 3) {
     if (!pending || pending.session !== session ||
-        index !== pending.total) {
-      // If the completion receipt was lost, the watch may repeat END.
+        index !== pending.total || part !== 0) {
       try {
         var old = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-        reply(session, index, !!old && old.session === session);
-      } catch (e) { reply(session, index, false); }
+        reply(session, index, part, !!old && old.session === session);
+      } catch (e) { reply(session, index, part, false); }
       return;
     }
     for (var i = 0; i < pending.total; i++) {
-      if (!pending.notes[i]) { reply(session, index, false); return; }
+      if (!pending.notes[i] || !pending.notes[i].complete) {
+        reply(session, index, part, false);
+        return;
+      }
     }
     try {
       var snapshot = {
         format: 'jot-backup-v1',
         session: session,
         savedAt: new Date().toISOString(),
-        notes: pending.notes
+        notes: pending.notes.map(function (n) {
+          return {created: n.created, text: n.text};
+        })
       };
-      // Only replace the previous backup after every note has arrived.
+      // An interrupted or failed transfer never replaces the old snapshot.
       localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
       pending = null;
-      reply(session, index, true);
+      reply(session, index, part, true);
     } catch (e) {
       console.log('Jot local backup write failed: ' + e);
-      reply(session, index, false);
+      reply(session, index, part, false);
     }
   }
 });

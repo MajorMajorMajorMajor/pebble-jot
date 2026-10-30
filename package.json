@@ -1,7 +1,7 @@
 {
   "name": "pebble-jot",
   "author": "MakeAwesomeHappen",
-  "version": "1.8.4",
+  "version": "1.9.0",
   "keywords": [
     "pebble-app"
   ],
@@ -27,7 +27,9 @@
       "BackupTimestamp",
       "BackupText",
       "BackupAck",
-      "BackupStatus"
+      "BackupStatus",
+      "BackupPart",
+      "BackupFinal"
     ],
     "resources": {
       "media": []

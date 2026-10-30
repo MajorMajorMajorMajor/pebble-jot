@@ -158,7 +158,7 @@ static void prv_measure_text(void) {
   const GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
   const char *text = *s_note ? s_note : "(empty note)";
   const GSize size = graphics_text_layout_get_content_size(
-      text, font, GRect(0, 0, width, 2000),
+      text, font, GRect(0, 0, width, 16384),
       GTextOverflowModeWordWrap, GTextAlignmentLeft);
   s_text_height = size.h + 8;
   if (s_text_height < 34) s_text_height = 34;
