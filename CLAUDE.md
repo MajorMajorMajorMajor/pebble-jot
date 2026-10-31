@@ -1,136 +1,103 @@
----
-alwaysApply: true
----
+# Jot — development guidance
 
-## Project Overview
+Jot is an offline-first **Pebble Time 2 (Emery)** notes **watchapp**, not a
+watchface. It has a gesture keyboard, editor, notes list, reader, local
+transactional storage, and a manual phone-export feature.
 
-This is a Pebble smartwatch application written in C using the Pebble SDK.
+## Target and source of truth
 
-## Supported Platforms
+- `package.json` is authoritative for build configuration: Pebble SDK 3,
+  `targetPlatforms: ["emery"]`, `watchface: false`. Do not add other watch
+  families or watchface-specific behavior without an explicit requirement.
+- `README-JOT.md` documents current controls, data handling, testing, and
+  architecture. `README.md` is the shorter user-facing overview.
+- `docs/gesture-map.md` / `docs/gesture-map.csv` include *planned* gestures:
+  verify a mapping in the runtime code before claiming it exists.
+- `CHANGELOG.md` is release history; `docs/history/` is historical, not a
+  description of the current application.
 
-The app targets multiple Pebble watch models:
-- aplite (Pebble classic)
-- basalt (Pebble Time)
-- chalk (Pebble Time Round)
-- diorite (Pebble 2)
-- emery (Pebble Time 2)
-- flint (Pebble 2 Duo)
+## Actual source layout
 
-## Commands
+- `src/c/main.c`: Pebble entry point and keyboard-window/event-loop setup.
+- `src/c/jot/jot.c`: editor, notes list, save/navigation flows.
+- `src/c/jot/store.c`: JOT2 persistence, indexing, recovery and deletion.
+- `src/c/jot/reader.c`: saved-note reader, draft Peek, action-bar triage.
+- `src/c/keyboard/`: keyboard layout, mappings and faces.
+- `src/c/ui/`: window/layer drawing, touch gestures, scrolling, feedback,
+  caret layout and controls. `legend_geometry.c` owns shared ABC/123
+  peripheral-legend geometry and optical offsets.
+- `src/js/pebble-js-app.js`: companion-side PebbleKit JS for backup/config.
+- `resources/icons/`: bundled action-bar bitmaps (declared in `package.json`).
+- `docs/export.html`: optional static companion export viewer.
+- `tests/behavior/` and `tests/fake/`: focused host-side behavior tests and
+  simulated Pebble persistence/SDK fixtures.
 
-```bash
-# Build the app for all platforms
+Jot is **not** a generic one-window TextLayer sample. Check existing ownership,
+navigation, callbacks and layer lifetimes before changing a screen.
+
+## Build and verification
+
+Install the Pebble SDK or use the pinned Nix environment in
+`flake.nix`/`flake.lock`:
+
+```sh
 pebble build
+# Or, without separately installing the SDK:
+nix develop --command pebble build
 
-# Clean build artifacts
-pebble clean
-
-# Install the app on specific emulator
-pebble install --emulator basalt
-
-# Screenshot the running emulator
-pebble screenshot --scale 6 --no-open screenshot.png
+# With a configured Emery emulator or connected watch:
+pebble install --emulator emery
+pebble install --cloudpebble
 ```
 
-If you need more information on the `pebble` command or a sub-command, append `--help`.
+For emulator commands on headless Linux, use the SDK's `--vnc` option when
+needed. Do not substitute Basalt or another platform for Emery.
 
-### Headless Environments
+Run the focused host behavior checks locally:
 
-If you're running in an environment without a window server (e.g., headless Linux, Docker, CI), you must add `--vnc` to **all commands that interact with the emulator**. This includes app installs, screenshots, button presses, and any `emu-*` commands:
-
-```bash
-pebble install --emulator basalt --vnc
-pebble screenshot --vnc --scale 6 --no-open screenshot.png
-pebble emu-button --emulator basalt --vnc click select
+```sh
+cc -std=c11 -Wall -Wextra -Werror -I tests/fake -I src/c \
+  tests/behavior/notes.c src/c/jot/store.c -o /tmp/jot-notes
+/tmp/jot-notes
+cc -std=c11 -Wall -Wextra -Werror -I src/c \
+  tests/behavior/reading.c src/c/jot/reader_review.c \
+  src/c/jot/reader_touch.c -o /tmp/jot-reading
+/tmp/jot-reading
+cc -std=c11 -Wall -Wextra -Werror -I src/c \
+  tests/behavior/writing.c src/c/ui/caret_layout.c \
+  src/c/ui/key_repeat.c -o /tmp/jot-writing
+/tmp/jot-writing
+node tests/behavior/backup.js
 ```
 
-The `--vnc` flag enables a VNC-based display backend that doesn't require X11.
+`.github/workflows/behavior-tests.yml` runs these fast host suites **and** a
+separate full Emery SDK build that compiles, links and validates the packaged
+`.pbw`. Passing host tests alone does not prove SDK compatibility; a
+successful build does not prove on-watch ergonomics or firmware behavior.
 
-## Project Structure
+## Hardware and performance constraints
 
-```
-src/c/           - C source files for the watchapp
-src/pkjs/        - PebbleKitJS files (currently empty)
-worker_src/c/    - Worker source files (optional, not present)
-resources/       - Images, fonts, and other resources (not present)
-```
-## Configuration
+- JOT2 supports **256 note slots**, at most **4,095 UTF-8 bytes per note**,
+  individual Pebble persistence values of at most **256 bytes**, and an
+  **up-to-1 MiB per-app persistence budget**. The shared budget cannot hold
+  256 maximum-size notes simultaneously.
+- Storage uses two banks per slot, chunked text, header-last commits and
+  startup recovery. The directory is a conservative acceleration hint, not
+  authoritative note data. Preserve write-failure safety, restart recovery,
+  deletion semantics and slot reuse when touching persistence.
+- CPU and RAM are limited. Avoid repeated full-table scans, flash reads or
+  allocations in drawing, touch-move and scrolling hot paths. Newest-first
+  note-rank lookups are cached in RAM rather than re-sorting on each redraw.
+- Preserve UTF-8 cursor boundaries and existing touch/gesture ergonomics.
+  For peripheral legends, keep shared geometry centralized and use
+  `docs/legend-tuning.md` for per-symbol optical calibration; changing 123
+  legends must not unintentionally shift approved ABC positions.
+- Phone backup is a **manual export**, not continuous synchronization. Do not
+  describe an accepted companion snapshot as an independently durable backup.
 
-By default, this project is initialized as a watchface. To make it an app, replace "watchface": true with "watchface": false in package.json.
-
-## Architecture
-
-The application follows the standard Pebble app architecture:
-
-1. **Main Entry Point**: `src/c` - The `main()` function initializes the app and starts the event loop
-2. **Window Management**: Single window app with text layer for displaying button press feedback
-3. **Event Handling**: Button click handlers registered via `prv_click_config_provider` for UP, DOWN, and SELECT buttons
-
-## SDK Documentation
-
-The full Pebble SDK documentation is available at https://developer.repebble.com.
-
-An index of every page is at https://developer.repebble.com/llms.txt. Use it to discover what's available. Every page also has a Markdown version: append `.md` to any documentation URL to fetch plain Markdown instead of HTML (e.g. `https://developer.repebble.com/guides/events-and-services/buttons.md`). Prefer the `.md` form when reading docs.
-
-Main Categories:
-- Tutorials - Step-by-step learning (C watchface tutorial in 5 parts, advanced topics)
-- Developer Guides - Comprehensive reference organized by topic
-
-Key Sections:
-- App Resources - Images, fonts, vector graphics, 256 resource limit
-- User Interfaces - Layer hierarchy, TextLayer, MenuLayer, round vs rectangular displays
-- Events & Services - Buttons, accelerometer, compass, health data, background workers
-- Communication - Bluetooth AppMessage, PebbleKit JS/Android/iOS integration
-- Graphics & Animations - Drawing APIs, property animations, vector graphics
-- Debugging - App logs, GDB, common errors and solutions
-- Best Practices - Multi-platform support, battery conservation, modular architecture
-- Design & Interaction - Glance-first design, one-click actions, platform guidelines
-- App Store Publishing - Submission requirements, assets, analytics
-
-Key Entry Points:
-- https://developer.repebble.com/tutorials/watchface-tutorial/part1 - C development start
-- https://developer.repebble.com/guides/events-and-services/buttons - Button handling
-- https://developer.repebble.com/guides/user-interfaces/layers - UI foundations
-
-## Development Best Practices
-
-- Whenever making changes, run `pebble screenshot --scale 6` and view the screenshot to make sure it's what the user requested. If not, make more changes until it does what it's supposed to.
-
-## Emulator Button Control
-
-Control emulator buttons programmatically with `pebble emu-button`:
-
-```bash
-# Click a button (press and release)
-pebble emu-button click select
-
-# Long press (e.g., 2 seconds to exit app)
-pebble emu-button click back --duration 2000
-
-# Repeat clicks (e.g., scroll down 5 times)
-pebble emu-button click down --repeat 5
-
-# Faster repeat interval
-pebble emu-button click up --repeat 3 --interval 100
-```
-
-**Actions:**
-- `click` - Press then release (use `--duration` for long press)
-- `push` - Hold button down (use `release` to let go)
-- `release` - Release all buttons
-
-**Buttons:** `back`, `up`, `select`, `down`
-
-**Best Practices:**
-- Use `click` for normal navigation and selection
-- Use `click --duration 2000` for long press (e.g., back button to exit)
-- Use `--repeat` to scroll through menus instead of multiple commands
-- After making UI changes, take a screenshot to verify the result
-
-## AI Interaction Guidelines
-
-- When given an image of a watchface to replicate, describe the target watchface in precise detail. Note every visual element present, as well as size, alignment, font weight, spacing, and location.
-
-## AI Code Review Guidelines
-
-- Once you think you've fulfilled the user's request, ask yourself if you see any issues with the current screenshot, and if there are any differences between the screenshot and the reference image or the user's description. If so, fix them.
+Use hardware or Emery-emulator checks for changes to screen layout, touch
+hitboxes, scrolling, animation or window lifetimes. Prefer real-watch QA for
+pixel alignment, wrist ergonomics, RAM pressure and persistence behavior.
+Do not require screenshots for unrelated documentation or pure logic changes.
+Keep new tests focused on distinct user-visible or durability behaviors rather
+than accumulating redundant low-level assertions.
