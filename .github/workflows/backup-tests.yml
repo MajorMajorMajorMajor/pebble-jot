@@ -20,6 +20,8 @@ jobs:
           node-version: '22'
       - name: Validate all Pebble PNG bitmap resources
         run: python3 tests/verify-png-assets.py
+      - name: Keep Jot documentation current and release history archived
+        run: node tests/documentation.test.js
       - name: Test phone backup protocol
         run: node tests/backup-js.test.js
       - name: Check canonical gesture mapping
