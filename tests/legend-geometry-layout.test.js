@@ -1,0 +1,10 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const paint = fs.readFileSync('src/c/ui/key_button.c','utf8');
+const layout = fs.readFileSync('src/c/ui/legend_geometry.c','utf8');
+assert.equal((paint.match(/jot_legend_position\(/g)||[]).length, 2);
+assert.doesNotMatch(paint, /const int col\[3\]/);
+assert.doesNotMatch(paint, /const int row\[3\]/);
+assert.match(layout, /NUMBER_FACE_VERTICAL_ADJUST_Y = 4/);
+assert.match(layout, /s_number_optical\[9\]\[8\]/);
+console.log('Shared legend geometry guard passed');
