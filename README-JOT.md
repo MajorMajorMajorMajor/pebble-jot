@@ -102,16 +102,37 @@ pebble install --emulator emery
 pebble install --cloudpebble
 ```
 
-The deliberately small CI suite runs **six safety-focused test programs**: transactional note storage and failure recovery (seven independent scenarios), phone backup, key-repeat release safety, reader review/delete state, reader touch safety, and wrap-aware caret geometry. The storage scenarios use simulated Pebble persistence failures, not real flash. Visual feedback, numeric/alphabet labels, handedness orientation, list gestures, and scrolling momentum are deliberately covered by on-watch QA rather than routine host tests. For example:
+The CI suite is organized by **four user behaviors**, not by internal
+implementation helper: **keeping notes** (seven recovery scenarios),
+**reading notes** (navigation, deliberate deletion, tap/drag),
+**writing notes** (wrapping, caret, editing hold/repeat), and **backing
+up notes** (atomic transfers, retries, export). Each file has a few
+named behavior scenarios; individual assertions are checkpoints inside
+them, not independent test cases.
+
+The four entry points live under `tests/behavior/` and are run by
+`.github/workflows/behavior-tests.yml`. To run them locally:
 
 ```sh
-node tests/backup-js.test.js
+node tests/behavior/backup.js
+cc -std=c11 -Wall -Wextra -Werror -I tests/fake -I src/c \
+  tests/behavior/notes.c src/c/jot/store.c -o /tmp/jot-notes
+/tmp/jot-notes
 cc -std=c11 -Wall -Wextra -Werror -I src/c \
-  tests/caret-layout-test.c src/c/ui/caret_layout.c -o /tmp/jot-caret-layout-test
-/tmp/jot-caret-layout-test
+  tests/behavior/reading.c src/c/jot/reader_review.c \
+  src/c/jot/reader_touch.c -o /tmp/jot-reading
+/tmp/jot-reading
+cc -std=c11 -Wall -Wextra -Werror -I src/c \
+  tests/behavior/writing.c src/c/ui/caret_layout.c \
+  src/c/ui/key_repeat.c -o /tmp/jot-writing
+/tmp/jot-writing
 ```
 
-Source-text assertion suites and the pre-calibration numeric legend pixel-parity test were retired. These host tests do not validate every Pebble SDK interaction, visual styling choice, or compiled RAM footprint.
+The tests deliberately retain focused failure-mode coverage rather
+than exhaustively enumerating every adjacent pixel or state transition.
+The storage suite uses simulated Pebble flash, not real hardware.
+Visual feedback, optical alignment, handedness, list gestures, and
+kinetic animations are left to on-watch QA.
 
 Run **on-watch QA** for changes to touch recognition, layer lifetimes, optical alignment, firmware RAM, storage, or animation. Host tests cannot prove real wrist ergonomics or a successful SDK metadata-injection build.
 
