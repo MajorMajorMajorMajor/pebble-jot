@@ -42,9 +42,8 @@ for(let k=0;k<9;k++) for(let d=0;d<8;d++) {
 }
 assert.match(paint,/prv_draw_primary_legends\(ctx, button->key, bounds\)/);
 assert.match(paint,/jot_primary_face_legend\(\(int\)index, d\)/);
-assert.match(paint,/jot_primary_face_optical_offset\(symbol\)/);
-assert.match(paint,/col\[xs\[d\]\] \+ optical\.x/);
-assert.match(paint,/row\[ys\[d\]\] \+ optical\.y/);
+assert.match(paint, /jot_legend_position/);
+assert.match(paint, /JOT_LEGEND_ABC/);
 assert.match(paint,/FONT_KEY_GOTHIC_14_BOLD/);
 assert.match(paint,/GColorFromRGB\(0, 85, 170\)/);
 assert.match(paint,/static const int8_t xs\[8\]/);
