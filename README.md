@@ -1,3 +1,18 @@
+## Jot 1.16.2 — Unified keyboard legend geometry
+
+Numeric and alphabetic peripheral legend renderers now share a single
+compass layout in `src/c/ui/legend_geometry.c`, with all optical
+adjustments in that same file. The approved ABC layout, including the
+`l`, `d` and `f` nudges, is unchanged. The numeric face also
+renders at its previous positions until manually tuned; its current
+`NUMBER_FACE_VERTICAL_ADJUST_Y = 4` deliberately offsets the
+alphabetic font correction. The editable `s_number_optical` table
+makes per-symbol numeric nudges independent from ABC.
+
+See [Numeric legend tuning](docs/legend-tuning.md). C pixel-parity
+tests assert that this refactor changes none of the 144 key/direction
+positions. No gestures, hitboxes, input mappings or storage changed.
+
 ## Jot 1.16.1 — Hyphenated words keep the cursor with the text (#37)
 
 On Emery, typing `"Alice through the looking-glass"` in the
