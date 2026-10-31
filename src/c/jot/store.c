@@ -302,14 +302,21 @@ void jot_store_init(void) {
     if (!has_a && !has_b) continue;
     if (!s_directory_valid)
       rebuilt.candidates[i / 8] |= (uint8_t)(1u << (i % 8));
-    const int bank = has_b && (!has_a || b.revision > a.revision) ? 1 : 0;
+    // A slot can contain two *different* notes after interrupted cleanup.
+    // Serial identifies the note generation; revision only orders its edits.
+    const int bank = has_b &&
+        (!has_a || b.serial > a.serial ||
+         (b.serial == a.serial && b.revision > a.revision)) ? 1 : 0;
     const NoteHeader *header = bank ? &b : &a;
     s_index[i] = (NoteIndex) {
       .used = true, .bank = (int8_t)bank, .serial = header->serial,
       .timestamp = header->timestamp, .revision = header->revision,
       .length = header->length
     };
-    if (header->serial >= s_next_serial) s_next_serial = header->serial + 1;
+    // Include both generations so a still-present stale header cannot be
+    // mistaken for a newer note after slot reuse.
+    if (has_a && a.serial >= s_next_serial) s_next_serial = a.serial + 1;
+    if (has_b && b.serial >= s_next_serial) s_next_serial = b.serial + 1;
   }
   if (!s_directory_valid) {
     // A directory write failure retains the full-scan recovery path on
@@ -457,13 +464,21 @@ bool jot_store_open(int slot) {
 bool jot_store_delete(int slot) {
   if (slot < 0 || slot >= JOT_NOTE_CAPACITY || !s_index[slot].used) return false;
   if (!jot_store_flush()) return false;
-  // Commit logical deletion by removing the active header first. A
-  // failed delete never changes the index; chunk GC is best-effort.
+  // The inactive bank may still contain an older committed revision if
+  // best-effort GC failed during a previous save. Invalidate that header
+  // FIRST; only removing the active header can then commit the deletion.
+  // This gives recovery the same guarantee as a tombstone without another
+  // persistent record: a successfully deleted slot has no valid headers.
   const int bank = s_index[slot].bank;
-  if (bank < 0 || persist_delete(prv_key(slot, bank, 0)) != S_TRUE)
+  if (bank < 0) return false;
+  const int other_bank = 1 - bank;
+  const status_t stale_status = persist_delete(prv_key(slot, other_bank, 0));
+  if (stale_status != S_TRUE && stale_status != E_DOES_NOT_EXIST)
+    return false;
+  if (persist_delete(prv_key(slot, bank, 0)) != S_TRUE)
     return false;
   s_index[slot] = (NoteIndex) {0};
-  const bool cleared_other = prv_clear_bank(slot, 1 - bank);
+  const bool cleared_other = prv_clear_bank(slot, other_bank);
   const bool cleared_active = prv_clear_bank(slot, bank);
   // Only remove the candidate when BOTH banks are certainly gone.
   // Any cleanup error leaves a conservative bit and thus full recovery.
