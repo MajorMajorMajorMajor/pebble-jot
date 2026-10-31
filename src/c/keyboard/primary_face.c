@@ -20,12 +20,3 @@ char jot_primary_face_legend(int key, int direction) {
   return s_letters[key][direction];
 }
 
-JotPrimaryLegendOffset jot_primary_face_optical_offset(char symbol) {
-  // After two Emery screenshots: 'l' and 'd' stay 1px lower; 'f'
-  // needs 2px left/down in total. All other glyphs remain unchanged.
-  return (JotPrimaryLegendOffset){
-    .x = symbol == 'f' ? -2 : 0,
-    .y = symbol == 'f' ? 2 :
-         (symbol == 'l' || symbol == 'd') ? 1 : 0
-  };
-}
