@@ -5,8 +5,7 @@
 enum {
   LEGEND_BASE_FONT_OFFSET_Y = 4,
   // Numeric labels have not received the ABC optical calibration yet.
-// Change this to 0 to try the same corrected baseline on 123.
-  NUMBER_FACE_VERTICAL_ADJUST_Y = 4
+// Change this to 0 to try the same corrected baseline on 123  
 };
 
 // Optical corrections live HERE for both faces (key, then direction).
@@ -23,7 +22,44 @@ static const JotLegendPosition s_abc_optical[9][8] = {
 // Example (uncomment to try): [1][1] = {0, 1},  // 8's ^ down 1
 // Positive X = right, positive Y = down.
 static const JotLegendPosition s_number_optical[9][8] = {
-  [0][0] = {0, 0} // All offsets zero until the numeric calibration pass
+  // "7" key
+  [0][3] = {+2, 0},  // E
+   
+  // "8" key
+  [1][0] = {0, 3},   // NW
+  [1][1] = {1, 3},   // N
+  [1][2] = {0, 3},   // NE
+  [1][4] = {2, 0},   // NE
+
+  // "9" key
+  [2][5] = {0, 2},   // S
+  
+
+  // "4" key
+  [3][0] = {-2, 2},  // NW
+  [3][2] = {+1, 1},  // NE
+  [3][7] = {-2, 2},  // W
+  [3][6] = {-2, 2},  // SW
+  
+
+  // "6" key
+  [5][0] = {-2, 2},  // NW
+  [5][2] = {+2, 2},  // NE
+  [5][3] = {+2, 2},  // E
+  [5][4] = {+2, 2},  // SE
+  [5][6] = {+0, 2},  // SW
+
+  // "1" key
+  [6][0] = {0, 5},   // NW
+  [6][3] = {1, 2},    // E
+
+  // "2" key
+  [7][0] = {-1, 3}, // NW
+  [7][2] = {+2, 3}, // NE
+
+  // "3" key
+  [8][3] = {+2, -1}, // E
+
 };
 
 JotLegendPosition jot_legend_position(
@@ -44,7 +80,6 @@ JotLegendPosition jot_legend_position(
       s_abc_optical[key][direction] : s_number_optical[key][direction];
   return (JotLegendPosition){
     .x = col[compass_x[direction]] + offset.x,
-    .y = row[compass_y[direction]] + offset.y +
-         (face == JOT_LEGEND_NUMBER ? NUMBER_FACE_VERTICAL_ADJUST_Y : 0)
+    .y = row[compass_y[direction]] + offset.y
   };
 }
