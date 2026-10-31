@@ -1,3 +1,20 @@
+## Jot 1.16.1 — Hyphenated words keep the cursor with the text (#37)
+
+On Emery, typing `"Alice through the looking-glass"` in the
+44px editor could place the caret far to the right of the visible
+`-glass` on the next line. Pebble's TextLayer can wrap immediately
+before the hyphen, but Jot's independent caret layout treated the
+entire `looking-glass` compound as one inseparable word.
+
+The caret algorithm now recognizes a soft break before ASCII `-`
+when deciding how a complete word fits, matching the observed
+TextLayer behavior. It never changes the stored note or its cursor
+byte index. Host regression cases cover the exact reported sentence,
+the equivalent with a space, cursor offsets on either side of the
+hyphen, no-wrap compounds, consecutive hyphens, UTF-8, long words
+and hard line breaks. No editor flip, input gesture, storage, or
+startup-path changes. Emery alignment still needs a real-wrist check.
+
 ## Jot 1.16.0 — Thumb-friendly four-way keyboard flip (#36, Emery QA pending)
 
 Draw a **circle on SAVE** while editing. Clockwise cycles:

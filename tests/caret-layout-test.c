@@ -36,6 +36,32 @@ int main(void) {
   expect("abc de", 2, 30, 0, 12, 0);
   expect("abc de", 4, 30, 1, 0, 4); // Whole next word wraps ahead of cursor.
   expect("abc de", 6, 30, 1, 12, 4);
+  // Pebble's renderer permits a break BEFORE a literal hyphen. If a
+  // compound is modelled as one unbreakable word, the text is painted
+  // on different rows from the caret (the real "looking-glass" bug).
+  const char *compound = "one looking-glass";
+  const size_t dash = (size_t)(strchr(compound, '-') - compound);
+  expect(compound, dash, 80, 1, 0, dash);
+  expect(compound, dash + 1, 80, 1, 6, dash);
+  expect(compound, strlen(compound), 80, 1, 36, dash);
+  expect("one looking glass", strlen("one looking glass"),
+         80, 1, 30, strlen("one looking "));
+  // A compound that fits must remain on one row, including its hyphen.
+  expect("one looking-glass", strlen("one looking-glass"), 110,
+         0, 99, 0);
+  // Exact reported sentence, including its quotation marks.
+  const char *alice = "\"Alice through the looking-glass\"";
+  const size_t alice_dash = (size_t)(strchr(alice, '-') - alice);
+  expect(alice, alice_dash, 160, 1, 0, alice_dash);
+  expect(alice, strlen(alice), 160, 1, 42, alice_dash);
+  // Hyphen-only, repeated hyphens and UTF-8 text must never stall.
+  expect("-", 1, 30, 0, 6, 0);
+  expect("--", 2, 30, 0, 12, 0);
+  const char *cafe = "a caf\xC3\xA9-\xC3\xA9t\xC3\xA9";
+  const JotCaretLayout compound_utf8 = jot_caret_layout(
+      cafe, strlen(cafe), 40, measure, NULL);
+  assert(compound_utf8.row >= 1);
+  assert(compound_utf8.x >= 0 && compound_utf8.x <= 40);
   expect("abc de\nf", 6, 30, 1, 12, 4); // BEFORE LF, stay on earlier row.
   expect("abc de\nf", 7, 30, 2, 0, 7);  // AFTER LF, start fresh row.
   expect("abcdef", 5, 30, 1, 0, 5);

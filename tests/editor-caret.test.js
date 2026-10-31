@@ -30,6 +30,8 @@ assert.match(alert, /const int width\s*=\s*bounds\.size\.w\s*-\s*EDITOR_PADDING_
 assert.doesNotMatch(alert, /prv_visual_line_start/);
 assert.match(layout, /const size_t word_start\s*=\s*at/);
 assert.match(layout, /const size_t word_end\s*=\s*at/);
+assert.match(layout, /text\[at\] == '-' && at > word_start/); // Pebble hyphen break.
+assert.match(layout, /at = prv_next\(text, at, length\)/); // Always advance.
 assert.match(layout, /prv_break_at\(&result, cursor, word_start\)/);
 assert.match(layout, /prv_break_at\(&result, cursor, pos\)/);
 assert.match(layout, /prv_break_at\(&result, cursor, line_start\)/);

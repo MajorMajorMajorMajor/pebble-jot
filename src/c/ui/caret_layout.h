@@ -12,11 +12,12 @@ typedef struct {
   size_t line_start;   // Byte offset where the displayed row begins.
 } JotCaretLayout;
 
-// Calculate caret position using whole-word wrapping. Unlike measuring a
-// backwards suffix, this lays out every completed word from the beginning,
-// including the rest of the word to the right of a mid-word cursor. The
-// callback uses the same font as the actual watch TextLayer. No note data is
-// modified. The result excludes the caller's horizontal padding.
+// Calculate caret position using whole-word wrapping (including a possible
+// break BEFORE each literal hyphen, as observed on Emery). Unlike measuring
+// a backwards suffix, this lays out every complete word segment from the
+// beginning, including the rest of the word to the right of a mid-word
+// cursor. The callback uses the same font as the actual watch TextLayer.
+// No note data is modified. The result excludes horizontal padding.
 JotCaretLayout jot_caret_layout(const char *text, size_t cursor,
                                 int width, JotCaretMeasureWidth measure,
                                 void *context);

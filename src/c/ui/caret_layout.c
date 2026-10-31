@@ -48,11 +48,16 @@ JotCaretLayout jot_caret_layout(const char *text, size_t cursor,
       continue;
     }
 
-    // Group complete words before deciding whether they fit. Otherwise the
-    // current character might appear to fit on a preceding line, although
-    // Pebble wraps the *whole word* ahead of that insertion position.
+    // Group complete words before deciding whether they fit. Pebble's
+    // TextLayer also offers a wrap opportunity BEFORE a literal hyphen:
+    // "looking" can remain on this row while "-glass" starts the next.
+    // Treat each subsequent hyphen as the start of a new word segment,
+    // but consume a leading hyphen so this loop always makes progress.
+    // Without this, the caret moves to the wrong x position even though
+    // the TextLayer wraps the visible text correctly.
     const size_t word_start = at;
-    while (at < length && text[at] != '\n' && !prv_space(text[at]))
+    while (at < length && text[at] != '\n' && !prv_space(text[at]) &&
+           !(text[at] == '-' && at > word_start))
       at = prv_next(text, at, length);
     const size_t word_end = at;
 
