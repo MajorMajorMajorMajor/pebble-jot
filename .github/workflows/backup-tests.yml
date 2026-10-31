@@ -36,6 +36,12 @@ jobs:
             tests/primary-face-test.c src/c/keyboard/primary_face.c -o /tmp/jot-primary-face-test
           /tmp/jot-primary-face-test
           node tests/primary-face-layout.test.js
+      - name: Verify shared ABC and 123 legend geometry
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/legend-geometry-test.c src/c/ui/legend_geometry.c -o /tmp/jot-legend-geometry-test
+          /tmp/jot-legend-geometry-test
+          node tests/legend-geometry-layout.test.js
       - name: Test 123 numeric face bindings
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
