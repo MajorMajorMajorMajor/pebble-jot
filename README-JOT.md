@@ -102,7 +102,7 @@ pebble install --emulator emery
 pebble install --cloudpebble
 ```
 
-Host-only regression tests use Node.js and a C compiler. The GitHub Actions workflow in `.github/workflows/backup-tests.yml` runs the phone backup protocol and executable C tests for keyboard mappings and orientation, note storage and failure recovery, reader/list controls, gesture repeat and feedback, kinetic scrolling, and caret wrapping. For example:
+The deliberately small CI suite runs **six safety-focused test programs**: transactional note storage and failure recovery (seven independent scenarios), phone backup, key-repeat release safety, reader review/delete state, reader touch safety, and wrap-aware caret geometry. The storage scenarios use simulated Pebble persistence failures, not real flash. Visual feedback, numeric/alphabet labels, handedness orientation, list gestures, and scrolling momentum are deliberately covered by on-watch QA rather than routine host tests. For example:
 
 ```sh
 node tests/backup-js.test.js

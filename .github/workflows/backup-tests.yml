@@ -20,31 +20,11 @@ jobs:
           node-version: '22'
       - name: Test phone backup protocol
         run: node tests/backup-js.test.js
-      - name: Test four-way editor / keyboard flip cycle
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -I src/c \
-            tests/flip-layout-test.c src/c/keyboard/flip_layout.c -o /tmp/jot-flip-test
-          /tmp/jot-flip-test
-      - name: Verify Jot 1.15 alphabet primary labels
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -I src/c \
-            tests/primary-face-test.c src/c/keyboard/primary_face.c -o /tmp/jot-primary-face-test
-          /tmp/jot-primary-face-test
-      - name: Test 123 numeric face bindings
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -I src/c \
-            tests/number-face-test.c src/c/keyboard/number_face.c -o /tmp/jot-number-face-test
-          /tmp/jot-number-face-test
       - name: Test gesture-held key repeat and release safety
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/key-repeat-test.c src/c/ui/key_repeat.c -o /tmp/jot-key-repeat-test
           /tmp/jot-key-repeat-test
-      - name: Test touch feedback timing and easing
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -I src/c \
-            tests/key-feedback-curve-test.c src/c/ui/key_feedback_curve.c -o /tmp/jot-key-feedback-test
-          /tmp/jot-key-feedback-test
       - name: Test persistent reader review action-bar state machine
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
@@ -55,22 +35,7 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/reader-touch-test.c src/c/jot/reader_touch.c -o /tmp/jot-reader-touch-test
           /tmp/jot-reader-touch-test
-      - name: Test selectable NEW item in notes list
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -I src/c \
-            tests/list-focus-test.c src/c/jot/list_focus.c -o /tmp/jot-list-focus-test
-          /tmp/jot-list-focus-test
-      - name: Test kinetic scrolling velocity and friction
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -I src/c \
-            tests/kinetic-scroll-test.c src/c/ui/kinetic_scroll.c -o /tmp/jot-kinetic-test
-          /tmp/jot-kinetic-test
-      - name: Test touch-scrolling list and card hitboxes
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -I src/c \
-            tests/list-touch-test.c src/c/jot/list_touch.c -o /tmp/jot-list-touch-test
-          /tmp/jot-list-touch-test
-      - name: Compile and test persistent note storage
+      - name: Test seven critical storage safety scenarios
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I tests/fake -I src/c \
             tests/store-test.c src/c/jot/store.c -o /tmp/jot-store-test

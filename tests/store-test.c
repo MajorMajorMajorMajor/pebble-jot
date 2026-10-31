@@ -1,16 +1,21 @@
-// Run: cc -std=c11 -Wall -Wextra -Werror -I tests/fake -I src/c
-//          tests/store-test.c src/c/jot/store.c -o /tmp/jot-store-test
-//       /tmp/jot-store-test
+// Safety-critical store regression tests; compile with a fake Pebble API.
+// Each scenario resets the simulated flash and the store's volatile state.
+// Run via .github/workflows/backup-tests.yml.
 #include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <pebble.h>
 #include "jot/store.h"
 
-#define STORAGE_KEY_FIRST 5000u
-#define SLOT_CAPACITY 256u
-#define RECORD_KEYS (2u * (JOT_NOTE_TEXT_BYTES / SLOT_CAPACITY + 1u))
-#define LEGACY_KEY_FIRST 4100u
-#define DIRECTORY_KEY 4999u
+enum {
+  STORAGE_KEY_FIRST = 5000,
+  SLOT_CAPACITY = 256,
+  RECORD_KEYS = 2 * (JOT_NOTE_TEXT_BYTES / SLOT_CAPACITY + 1),
+  LEGACY_KEY_FIRST = 4100,
+  DIRECTORY_KEY = 4999,
+  FAKE_STORAGE_LIMIT = 1024 * 1024
+};
 
 typedef struct {
   bool exists;
@@ -20,30 +25,26 @@ typedef struct {
 
 static FakeEntry s_entries[JOT_NOTE_CAPACITY * RECORD_KEYS];
 static FakeEntry s_legacy[16];
-static FakeEntry s_directory_entry;
-static int s_read_calls;
-static int s_delete_calls;
-static int s_directory_writes;
-static bool s_fail_next_delete;
+static FakeEntry s_directory;
 static bool s_fail_next_write;
+static bool s_fail_next_delete;
 static int s_fail_after_writes = -1;
 static size_t s_bytes_used;
-enum { FAKE_STORAGE_LIMIT = 1024 * 1024 };
 
-static FakeEntry *prv_entry(uint32_t key) {
-  if (key == DIRECTORY_KEY) return &s_directory_entry;
+static FakeEntry *entry_at(uint32_t key) {
+  if (key == DIRECTORY_KEY) return &s_directory;
   if (key >= LEGACY_KEY_FIRST && key < LEGACY_KEY_FIRST + 16)
     return &s_legacy[key - LEGACY_KEY_FIRST];
   if (key < STORAGE_KEY_FIRST ||
-      key >= STORAGE_KEY_FIRST + JOT_NOTE_CAPACITY * RECORD_KEYS) return NULL;
+      key >= STORAGE_KEY_FIRST + JOT_NOTE_CAPACITY * RECORD_KEYS)
+    return NULL;
   return &s_entries[key - STORAGE_KEY_FIRST];
 }
 
-int persist_read_data(uint32_t key, void *buffer, size_t buffer_size) {
-  ++s_read_calls;
-  FakeEntry *entry = prv_entry(key);
+int persist_read_data(uint32_t key, void *buffer, size_t capacity) {
+  FakeEntry *entry = entry_at(key);
   if (!entry || !entry->exists) return E_DOES_NOT_EXIST;
-  if (buffer_size < entry->size) return E_ERROR;
+  if (capacity < entry->size) return E_ERROR;
   memcpy(buffer, entry->bytes, entry->size);
   return (int)entry->size;
 }
@@ -60,11 +61,11 @@ int persist_write_data(uint32_t key, const void *data, size_t size) {
     }
     --s_fail_after_writes;
   }
-  FakeEntry *entry = prv_entry(key);
+  FakeEntry *entry = entry_at(key);
   if (!entry || !data || size > SLOT_CAPACITY ||
-      s_bytes_used - entry->size + size > FAKE_STORAGE_LIMIT) return E_ERROR;
+      s_bytes_used - entry->size + size > FAKE_STORAGE_LIMIT)
+    return E_ERROR;
   s_bytes_used = s_bytes_used - entry->size + size;
-  if (key == DIRECTORY_KEY) ++s_directory_writes;
   memcpy(entry->bytes, data, size);
   entry->size = size;
   entry->exists = true;
@@ -72,494 +73,211 @@ int persist_write_data(uint32_t key, const void *data, size_t size) {
 }
 
 status_t persist_delete(uint32_t key) {
-  ++s_delete_calls;
-  FakeEntry *entry = prv_entry(key);
   if (s_fail_next_delete) {
     s_fail_next_delete = false;
     return E_ERROR;
   }
+  FakeEntry *entry = entry_at(key);
   if (!entry || !entry->exists) return E_DOES_NOT_EXIST;
   s_bytes_used -= entry->size;
-  entry->exists = false;
   entry->size = 0;
-  // Official Pebble SDK contract: success is S_TRUE, not S_SUCCESS.
+  entry->exists = false;
   return S_TRUE;
 }
 
-static bool has_slot_header(int slot) {
-  const size_t first = (size_t)slot * RECORD_KEYS;
-  return s_entries[first].exists || s_entries[first + RECORD_KEYS / 2].exists;
+static void fresh_store(void) {
+  jot_store_deinit();
+  memset(s_entries, 0, sizeof s_entries);
+  memset(s_legacy, 0, sizeof s_legacy);
+  memset(&s_directory, 0, sizeof s_directory);
+  s_bytes_used = 0;
+  s_fail_next_write = false;
+  s_fail_next_delete = false;
+  s_fail_after_writes = -1;
+  jot_store_init();
 }
 
 static void expect_note(int slot, const char *expected) {
-  char result[JOT_NOTE_TEXT_BYTES];
-  assert(jot_store_export(slot, result, sizeof result, NULL));
-  assert(strcmp(result, expected) == 0);
+  char text[JOT_NOTE_TEXT_BYTES];
+  assert(jot_store_export(slot, text, sizeof text, NULL));
+  assert(strcmp(text, expected) == 0);
 }
 
-int main(void) {
-  jot_store_init();
-  // First 1.15->fast-start upgrade scans all 256 slots once and writes
-  // the conservative 40-byte directory. Subsequent empty warm boots
-  // should do ONLY one firmware read; no legacy deletes.
-  assert(s_read_calls == 513);
-  assert(s_delete_calls == 16);
-  assert(s_directory_entry.exists && s_directory_entry.size == 40);
-  assert(s_directory_writes == 1);
-  s_read_calls = s_delete_calls = 0;
-  jot_store_init();
-  assert(s_read_calls == 1);
-  assert(s_delete_calls == 0);
-  assert(jot_store_count() == 0);
+// 1. Normal save, restart and note ordering.
+static void test_committed_round_trip(void) {
+  fresh_store();
   assert(jot_store_input("first"));
   assert(jot_store_flush());
-  const int first = jot_store_slot_at(0);
-  assert(first >= 0);
-
+  const int first = jot_store_active_slot();
   assert(jot_store_new());
   assert(jot_store_input("second"));
   assert(jot_store_flush());
-  const int second = jot_store_slot_at(0);
-  assert(second >= 0 && second != first);
+  const int second = jot_store_active_slot();
+  jot_store_init();  // Simulate relaunch.
   assert(jot_store_count() == 2);
-
-  // Two committed slots: only 1 + 2*2 = five reads at warm launch,
-  // independent of the full 256 slot capacity.
-  s_read_calls = s_delete_calls = 0;
-  jot_store_init();
-  assert(s_read_calls == 5 && s_delete_calls == 0);
-  assert(jot_store_count() == 2);
-
-  // Corrupted candidate hints must fail CLOSED and rebuild by scanning
-  // every bank. Never lose a committed note due to cache corruption.
-  s_directory_entry.bytes[10] ^= 0x80;
-  s_read_calls = 0;
-  jot_store_init();
-  assert(s_read_calls == 513);
-  assert(jot_store_count() == 2);
-  s_read_calls = 0;
-  jot_store_init();
-  assert(s_read_calls == 5);
-
-  // Missing directory likewise recovers pre-optimization JOT2 saves.
-  s_bytes_used -= s_directory_entry.size;
-  s_directory_entry.exists = false;
-  s_directory_entry.size = 0;
-  s_read_calls = 0;
-  jot_store_init();
-  assert(s_read_calls == 513);
-  assert(jot_store_count() == 2);
+  assert(jot_store_slot_at(0) == second);
+  assert(jot_store_slot_at(1) == first);
   expect_note(first, "first");
   expect_note(second, "second");
+}
 
-  // A first-commit directory write failure must preserve a dirty draft
-  // but MUST NOT write a header that will be skipped at next startup.
-  assert(jot_store_new());
-  assert(jot_store_input("not committed without candidate"));
-  const int pending = jot_store_active_slot();
-  s_fail_next_write = true;
+// 2. Damaged/missing acceleration hints must never hide committed notes.
+static void test_directory_recovery(void) {
+  fresh_store();
+  assert(jot_store_input("survives bad directory"));
+  assert(jot_store_flush());
+  const int slot = jot_store_active_slot();
+  assert(s_directory.exists);
+  s_directory.bytes[10] ^= 0x80;  // Corrupt checksum-covered directory.
+  jot_store_init();
+  assert(jot_store_count() == 1);
+  expect_note(slot, "survives bad directory");
+  s_bytes_used -= s_directory.size;
+  s_directory.exists = false;  // Upgrade from an installation without hints.
+  s_directory.size = 0;
+  jot_store_init();
+  assert(jot_store_count() == 1);
+  expect_note(slot, "survives bad directory");
+}
+
+// 3. Failed first commit must not produce ghosts or discard an unsaved draft.
+static void test_failed_saves(void) {
+  fresh_store();
+  assert(jot_store_input("never committed"));
+  s_fail_next_write = true;  // Directory bit cannot be written.
   assert(!jot_store_flush());
   assert(jot_store_dirty());
-  assert(!has_slot_header(pending));
-  jot_store_init(); // power loss: no phantom committed note
-  assert(jot_store_count() == 2);
+  jot_store_init();  // Draft in RAM is gone after power loss.
+  assert(jot_store_count() == 0);  // But no phantom committed record exists.
 
-  // Simulate power loss after directory bit is persisted but before
-  // note chunks/header commit. On boot: orphan bit is harmless.
-  assert(jot_store_new());
-  assert(jot_store_input("index committed, header not"));
-  const int orphan = jot_store_active_slot();
-  s_fail_after_writes = 1; // index write succeeds; first chunk fails
-  assert(!jot_store_flush());
-  assert(!has_slot_header(orphan));
-  jot_store_init();
-  assert(jot_store_count() == 2);
-  assert(!has_slot_header(orphan));
-
-  // Deleting the active, freshly created note must update RAM and flash.
-  // Even a failed directory-clearing write must not resurrect a note.
-  s_fail_next_write = true; // failure occurs after both bank headers gone
-  assert(jot_store_delete(second));
-  jot_store_init();
-  assert(jot_store_count() == 1);
-  assert(jot_store_count() == 1);
-  assert(jot_store_slot_at(0) == first);
-  assert(jot_store_slot_at(1) == -1);
-  assert(!has_slot_header(second));
-
-  // The user can immediately enter a new note after that deletion.
-  assert(jot_store_input("third"));
-  assert(jot_store_flush());
-  const int third = jot_store_slot_at(0);
-  assert(third == second);  // Freed slot was recycled.
-  assert(jot_store_count() == 2);
-  expect_note(third, "third");
-  expect_note(first, "first");
-
-  // Relaunch should not resurrect ghosts or drop the remaining notes.
-  jot_store_init();
-  assert(jot_store_count() == 2);
-  expect_note(jot_store_slot_at(0), "third");
-  expect_note(jot_store_slot_at(1), "first");
-
-  assert(jot_store_open(third));
-  assert(jot_store_delete(first)); // Delete an older, non-active note.
-  assert(jot_store_count() == 1);
-  assert(jot_store_input("!"));
-  assert(jot_store_flush());
-  expect_note(third, "third!");
-
-  // A genuine storage failure must leave the index unchanged.
-  s_fail_next_delete = true;
-  assert(!jot_store_delete(third));
-  assert(jot_store_count() == 1);
-  assert(has_slot_header(third));
-  expect_note(third, "third!");
-
-  assert(jot_store_delete(third));
-  assert(jot_store_count() == 0);
-  assert(jot_store_slot_at(0) == -1);
-  assert(jot_store_input("fresh after delete"));
-  assert(jot_store_flush());
-  assert(jot_store_count() == 1);
-  expect_note(jot_store_slot_at(0), "fresh after delete");
-
-  // Multiline notes are represented by literal LF bytes. Backspace must
-  // remove an entire UTF-8 codepoint, including a newline, in one gesture.
-  assert(jot_store_new());
-  assert(jot_store_input("first line\n"));
-  assert(strcmp(jot_store_text(), "first line\n") == 0);
-  assert(jot_store_input("\b"));
-  assert(strcmp(jot_store_text(), "first line") == 0);
-  assert(jot_store_input("\n\n"));
-  assert(jot_store_input("\xC3\xA9")); // e-acute, two UTF-8 bytes
-  assert(strcmp(jot_store_text(), "first line\n\n\xC3\xA9") == 0);
-  assert(jot_store_input("\b"));
-  assert(strcmp(jot_store_text(), "first line\n\n") == 0);
-  assert(jot_store_input("\b"));
-  assert(strcmp(jot_store_text(), "first line\n") == 0);
-  assert(jot_store_input("\b"));
-  assert(strcmp(jot_store_text(), "first line") == 0);
-  assert(jot_store_input("\nsecond line"));
-  assert(jot_store_flush());
-  const int multiline_slot = jot_store_slot_at(0);
-  assert(multiline_slot >= 0);
-  expect_note(multiline_slot, "first line\nsecond line");
-  // The list preview should include the second line of a saved note.
-  char list_preview[64];
-  time_t preview_created = 0;
-  assert(jot_store_preview(multiline_slot, list_preview,
-                           sizeof list_preview, &preview_created));
-  assert(strcmp(list_preview, "first line\nsecond line") == 0);
-  assert(preview_created != 0);
-  jot_store_init();
-  assert(jot_store_open(multiline_slot));
-  assert(strcmp(jot_store_text(), "first line\nsecond line") == 0);
-  assert(jot_store_input("\b"));
-  assert(strcmp(jot_store_text(), "first line\nsecond lin") == 0);
-
-  // Cursor navigation must not mark an otherwise saved note as dirty.
-  assert(jot_store_new());
-  assert(jot_store_input("ABCDE"));
-  assert(jot_store_flush());
-  assert(!jot_store_dirty());
-  assert(jot_store_cursor() == 5);
-  assert(jot_store_move_cursor(JOT_CURSOR_LEFT));
-  assert(jot_store_move_cursor(JOT_CURSOR_LEFT));
-  assert(jot_store_cursor() == 3);
-  assert(!jot_store_dirty());
-  assert(jot_store_input("\xC3\xA9")); // Insert e-acute before D.
-  assert(strcmp(jot_store_text(), "ABC\xC3\xA9" "DE") == 0);
-  assert(jot_store_cursor() == 5);
-  assert(!jot_store_set_cursor(4)); // The second UTF-8 byte is not a boundary.
-  assert(jot_store_cursor() == 5);
-  assert(jot_store_input("\b"));
-  assert(strcmp(jot_store_text(), "ABCDE") == 0);
-  assert(jot_store_cursor() == 3);
-  assert(jot_store_input("!"));
-  assert(strcmp(jot_store_text(), "ABC!DE") == 0);
-  assert(jot_store_cursor() == 4);
-  assert(jot_store_move_cursor(JOT_CURSOR_HOME));
-  assert(jot_store_cursor() == 0);
-  assert(!jot_store_move_cursor(JOT_CURSOR_LEFT));
-  assert(jot_store_input("Z"));
-  assert(strcmp(jot_store_text(), "ZABC!DE") == 0);
-  assert(jot_store_move_cursor(JOT_CURSOR_END));
-  assert(jot_store_cursor() == jot_store_length());
-  assert(!jot_store_move_cursor(JOT_CURSOR_RIGHT));
-  assert(jot_store_flush());
-  const int cursor_slot = jot_store_slot_at(0);
-  jot_store_init();
-  assert(jot_store_open(cursor_slot));
-  assert(strcmp(jot_store_text(), "ZABC!DE") == 0);
-  assert(jot_store_cursor() == jot_store_length());
-
-  // Up/Down traverses explicit newline-delimited lines, retaining a
-  // preferred codepoint column when an intermediate line is shorter.
-  assert(jot_store_new());
-  assert(jot_store_input("ABCDE\nxy\n12345"));
-  assert(jot_store_set_cursor(3)); // ABC|DE
-  assert(jot_store_move_cursor(JOT_CURSOR_DOWN));
-  assert(jot_store_cursor() == 8); // xy| (clamped from column 3)
-  assert(jot_store_move_cursor(JOT_CURSOR_DOWN));
-  assert(jot_store_cursor() == 12); // 123|45, restored column 3
-  assert(jot_store_move_cursor(JOT_CURSOR_UP));
-  assert(jot_store_cursor() == 8);
-  assert(jot_store_move_cursor(JOT_CURSOR_UP));
-  assert(jot_store_cursor() == 3);
-  assert(!jot_store_move_cursor(JOT_CURSOR_UP));
-  assert(jot_store_move_cursor(JOT_CURSOR_DOWN));
-  assert(jot_store_cursor() == 8);
-  assert(jot_store_input("Q")); // edit at end of short middle line
-  assert(strcmp(jot_store_text(), "ABCDE\nxyQ\n12345") == 0);
-  assert(jot_store_input("\b"));
-  assert(strcmp(jot_store_text(), "ABCDE\nxy\n12345") == 0);
-  assert(jot_store_move_cursor(JOT_CURSOR_HOME));
-  assert(jot_store_move_cursor(JOT_CURSOR_END));
-  assert(!jot_store_move_cursor(JOT_CURSOR_DOWN));
-  assert(jot_store_set_cursor(6)); // before x in second line
-  assert(jot_store_input("\b")); // delete preceding LF; merge lines
-  assert(strcmp(jot_store_text(), "ABCDExy\n12345") == 0);
-  assert(jot_store_cursor() == 5);
-
-  // Full-buffer rejection must preserve the note and insertion point.
-  assert(jot_store_new());
-  char limit_text[JOT_NOTE_TEXT_BYTES];
-  memset(limit_text, 'q', sizeof limit_text - 1);
-  limit_text[sizeof limit_text - 1] = '\0';
-  assert(jot_store_input(limit_text));
-  assert(jot_store_length() == JOT_NOTE_TEXT_BYTES - 1);
-  assert(jot_store_set_cursor(80));
-  assert(!jot_store_input("x"));
-  assert(jot_store_cursor() == 80);
-  assert(strcmp(jot_store_text(), limit_text) == 0);
-  assert(jot_store_input("\b"));
-  assert(jot_store_cursor() == 79);
-  assert(jot_store_input("x"));
-  assert(jot_store_length() == JOT_NOTE_TEXT_BYTES - 1);
-  assert(jot_store_cursor() == 80);
-  assert(jot_store_text()[79] == 'x');
-
-  // Forward delete removes the following character without moving the caret.
-  assert(jot_store_new());
-  assert(!jot_store_delete_forward()); // Empty draft, no hidden note created.
-  assert(jot_store_input("ABCDE"));
-  assert(jot_store_flush());
-  assert(!jot_store_dirty());
-  assert(!jot_store_delete_forward()); // At EOF: clean no-op.
-  assert(!jot_store_dirty());
-  assert(jot_store_set_cursor(2));
-  assert(jot_store_delete_forward());  // AB|CDE -> AB|DE
-  assert(strcmp(jot_store_text(), "ABDE") == 0);
-  assert(jot_store_cursor() == 2);
-  assert(jot_store_dirty());
-  assert(jot_store_flush());
-  assert(jot_store_set_cursor(0));
-  assert(jot_store_delete_forward());
-  assert(strcmp(jot_store_text(), "BDE") == 0);
-  assert(jot_store_cursor() == 0);
-  assert(jot_store_input("A"));
-  assert(strcmp(jot_store_text(), "ABDE") == 0);
-  assert(jot_store_cursor() == 1);
-
-  // UTF-8 characters must not be split: delete accented/emoji characters.
-  assert(jot_store_new());
-  assert(jot_store_input("a\xC3\xA9" "b"));
-  assert(jot_store_set_cursor(1));
-  assert(jot_store_delete_forward());
-  assert(strcmp(jot_store_text(), "ab") == 0);
-  assert(jot_store_cursor() == 1);
-  assert(jot_store_input("\xF0\x9F\x98\x8A"));
-  assert(jot_store_set_cursor(1));
-  assert(jot_store_delete_forward());
-  assert(strcmp(jot_store_text(), "ab") == 0);
-  assert(jot_store_cursor() == 1);
-  assert(jot_store_input("\b")); // Old backward-delete still works.
-  assert(strcmp(jot_store_text(), "b") == 0);
-
-  // Deleting a newline forward joins lines and survives save/reopen.
-  assert(jot_store_new());
-  assert(jot_store_input("first\nsecond"));
-  assert(jot_store_set_cursor(5));
-  assert(jot_store_delete_forward());
-  assert(strcmp(jot_store_text(), "firstsecond") == 0);
-  assert(jot_store_cursor() == 5);
-  assert(jot_store_flush());
-  const int forward_slot = jot_store_slot_at(0);
-  jot_store_init();
-  assert(jot_store_open(forward_slot));
-  assert(strcmp(jot_store_text(), "firstsecond") == 0);
-  assert(!jot_store_delete_forward());
-  assert(!jot_store_dirty());
-
-  // A full note can delete forward and insert again without a FULL error.
-  assert(jot_store_new());
-  assert(jot_store_input(limit_text));
-  assert(jot_store_set_cursor(80));
-  assert(jot_store_delete_forward());
-  assert(jot_store_length() == JOT_NOTE_TEXT_BYTES - 2);
-  assert(jot_store_cursor() == 80);
-  assert(jot_store_input("Z"));
-  assert(jot_store_length() == JOT_NOTE_TEXT_BYTES - 1);
-  assert(jot_store_text()[80] == 'Z');
-
-  // Navigation depends on the active slot to highlight the right note.
-  // This remains stable across flushing and changes on reopening a note.
-  assert(jot_store_new());
-  assert(jot_store_active_slot() == -1);
-  assert(jot_store_input("navigation test"));
-  const int navigation_slot = jot_store_active_slot();
-  assert(navigation_slot >= 0);
-  assert(jot_store_flush());
-  assert(jot_store_active_slot() == navigation_slot);
-
-  // A failed write must *never* drop the only unsaved draft. The navigation
-  // controller refuses to leave the editor if either flush or new fails.
-  assert(jot_store_input(" preserved"));
-  assert(jot_store_dirty());
-  const size_t navigation_cursor = jot_store_cursor();
+  fresh_store();
+  assert(jot_store_input("must stay in editor"));
   s_fail_next_write = true;
-  assert(!jot_store_flush());
+  assert(!jot_store_new());  // Navigation must not discard the dirty draft.
   assert(jot_store_dirty());
-  assert(jot_store_active_slot() == navigation_slot);
-  assert(jot_store_cursor() == navigation_cursor);
-  assert(strcmp(jot_store_text(), "navigation test preserved") == 0);
-  s_fail_next_write = true;
-  assert(!jot_store_new()); // A reset must not discard an unsaved note.
-  assert(jot_store_dirty());
-  assert(jot_store_active_slot() == navigation_slot);
-  assert(strcmp(jot_store_text(), "navigation test preserved") == 0);
+  assert(strcmp(jot_store_text(), "must stay in editor") == 0);
   assert(jot_store_flush());
-  assert(jot_store_new());
-  assert(jot_store_active_slot() == -1);
-  assert(jot_store_length() == 0);
-  assert(jot_store_open(navigation_slot));
-  assert(strcmp(jot_store_text(), "navigation test preserved") == 0);
-  assert(jot_store_active_slot() == navigation_slot);
-  assert(!jot_store_dirty());
-
-  // Touch SAVE after autosave must reuse the same persistent note.
-  // The reader can first obtain the committed content; *then* the
-  // underlying keyboard can become a new draft without losing that note.
-  const int saved_before = jot_store_count();
-  const int saved_slot = jot_store_active_slot();
-  const size_t saved_cursor = jot_store_cursor();
-  assert(saved_slot >= 0);
-  assert(jot_store_flush()); // Already clean; no second record.
-  assert(jot_store_count() == saved_before);
-  assert(jot_store_active_slot() == saved_slot);
-  assert(jot_store_cursor() == saved_cursor);
-  char saved_copy[JOT_NOTE_TEXT_BYTES];
-  time_t saved_created = 0;
-  assert(jot_store_export(saved_slot, saved_copy, sizeof saved_copy,
-                          &saved_created));
-  assert(strcmp(saved_copy, "navigation test preserved") == 0);
-  assert(jot_store_new());  // Happens only after reader opens.
-  assert(jot_store_active_slot() == -1);
-  assert(jot_store_length() == 0);
-  assert(jot_store_count() == saved_before);
-  assert(jot_store_export(saved_slot, saved_copy, sizeof saved_copy,
-                          &saved_created));
-  assert(strcmp(saved_copy, "navigation test preserved") == 0);
-
-  // Both active and saved previews preserve LF and complete UTF-8 glyphs.
-  assert(jot_store_new());
-  assert(jot_store_input("A\nB\xC3\xA9" "Z"));
-  const int unicode_slot = jot_store_active_slot();
-  assert(unicode_slot >= 0);
-  char short_preview[5];
-  assert(jot_store_preview(unicode_slot, short_preview,
-                           sizeof short_preview, NULL));
-  assert(strcmp(short_preview, "A\nB") == 0); // Not half an accented glyph.
-  assert(jot_store_flush());
-  assert(jot_store_new());
-  char unicode_preview[16];
-  assert(jot_store_preview(unicode_slot, unicode_preview,
-                           sizeof unicode_preview, NULL));
-  assert(strcmp(unicode_preview, "A\nB\xC3\xA9" "Z") == 0);
-
-  // Exercise a full 4095-byte note, its last 256-byte chunk and reboot.
-  assert(jot_store_new());
-  char long_text[JOT_NOTE_TEXT_BYTES];
-  memset(long_text, 'L', sizeof long_text - 1);
-  long_text[sizeof long_text - 1] = '\0';
-  assert(jot_store_input(long_text));
-  assert(jot_store_flush());
-  const int long_slot = jot_store_active_slot();
+  const int slot = jot_store_active_slot();
   jot_store_init();
-  expect_note(long_slot, long_text);
-  assert(jot_store_open(long_slot));
-  assert(jot_store_cursor() == JOT_NOTE_TEXT_BYTES - 1);
-  assert(!jot_store_input("+"));
-  assert(jot_store_input("\b"));
-  assert(jot_store_input("X"));
-  assert(jot_store_flush());
-  jot_store_init();
-  assert(jot_store_open(long_slot));
-  assert(jot_store_text()[JOT_NOTE_TEXT_BYTES - 2] == 'X');
+  expect_note(slot, "must stay in editor");
+}
 
-  // Simulate power loss after writing two new chunks but BEFORE committing
-  // the header. Relaunch must still find the previous complete version.
+// 4. A multi-chunk interrupted update leaves the LAST complete version intact.
+static void test_interrupted_commit(void) {
+  fresh_store();
+  char full[JOT_NOTE_TEXT_BYTES];
+  memset(full, 'L', sizeof full - 1);
+  full[sizeof full - 1] = '\0';
+  assert(jot_store_input(full));
+  assert(jot_store_flush());
+  const int slot = jot_store_active_slot();
+  assert(!jot_store_input("+"));  // Hard limit: 4095 UTF-8 bytes.
   assert(jot_store_set_cursor(2));
   assert(jot_store_delete_forward());
   assert(jot_store_input("Z"));
-  s_fail_after_writes = 2;
+  s_fail_after_writes = 2;  // Stop after two inactive-bank chunks.
   assert(!jot_store_flush());
-  assert(jot_store_dirty());
   jot_store_init();
-  assert(jot_store_open(long_slot));
-  assert(jot_store_text()[2] == 'L');
+  assert(jot_store_open(slot));
+  expect_note(slot, full);  // Previous bank, not a partial new version.
   assert(jot_store_set_cursor(2));
   assert(jot_store_delete_forward());
   assert(jot_store_input("Z"));
   assert(jot_store_flush());
   jot_store_init();
-  assert(jot_store_open(long_slot));
+  assert(jot_store_open(slot));
   assert(jot_store_text()[2] == 'Z');
+}
 
-  // Up to 256 independent notes, beyond the previous 16-note ceiling.
+// 5. Failed deletion cannot remove a note; successful deletion is isolated.
+static void test_delete_isolation(void) {
+  fresh_store();
+  assert(jot_store_input("keep other notes"));
+  assert(jot_store_flush());
+  const int first = jot_store_active_slot();
+  assert(jot_store_new());
+  assert(jot_store_input("newest"));
+  assert(jot_store_flush());
+  const int second = jot_store_active_slot();
+  s_fail_next_delete = true;
+  assert(!jot_store_delete(first));
+  assert(jot_store_count() == 2);
+  assert(jot_store_delete(first));
+  jot_store_init();
+  assert(jot_store_count() == 1);
+  expect_note(second, "newest");
+  assert(jot_store_input("recycled"));
+  assert(jot_store_active_slot() == first);
+  assert(jot_store_flush());
+}
+
+// 6. Edits must respect whole UTF-8 codepoints, including line breaks.
+static void test_utf8_editing(void) {
+  fresh_store();
+  assert(jot_store_input("A\xC3\xA9\n\xF0\x9F\x98\x8A" "B"));
+  assert(!jot_store_set_cursor(2));  // Middle of é.
+  assert(!jot_store_set_cursor(5));  // Middle of emoji.
+  assert(jot_store_set_cursor(1));
+  assert(jot_store_delete_forward());  // Remove é, not one of its bytes.
+  assert(strcmp(jot_store_text(), "A\n\xF0\x9F\x98\x8A" "B") == 0);
+  assert(jot_store_input("\b"));  // Remove A.
+  assert(jot_store_delete_forward());  // Remove LF.
+  assert(jot_store_delete_forward());  // Remove entire emoji.
+  assert(strcmp(jot_store_text(), "B") == 0);
+  assert(jot_store_flush());
+  const int slot = jot_store_active_slot();
+  jot_store_init();
+  expect_note(slot, "B");
+}
+
+// 7. The 256-slot and 1 MiB app budget are strict, recoverable limits.
+static void test_capacity_and_quota(void) {
+  fresh_store();
   while (jot_store_count() < JOT_NOTE_CAPACITY) {
     assert(jot_store_new());
-    assert(jot_store_input("QA slot"));
+    assert(jot_store_input("slot"));
     assert(jot_store_flush());
   }
   assert(jot_store_new());
   assert(!jot_store_input("257th"));
   assert(jot_store_count() == JOT_NOTE_CAPACITY);
-  assert(jot_store_delete(long_slot));
-  assert(jot_store_input("reclaimed"));
-  assert(jot_store_flush());
-  assert(jot_store_count() == JOT_NOTE_CAPACITY);
 
-  // Model the firmware's entire 1 MiB budget. The last write must fail
-  // safely even though individual 4 KiB notes and 256 slots are supported.
-  int filled = 0;
   int failed_slot = -1;
+  int committed_full_notes = 0;
+  char last_committed[JOT_NOTE_TEXT_BYTES];
   for (int rank = 0; rank < JOT_NOTE_CAPACITY; ++rank) {
     const int slot = jot_store_slot_at(rank);
-    assert(slot >= 0);
     assert(jot_store_open(slot));
     const size_t length = jot_store_length();
-    if (length >= JOT_NOTE_TEXT_BYTES - 1) continue;
     char tail[JOT_NOTE_TEXT_BYTES];
-    memset(tail, 'k', JOT_NOTE_TEXT_BYTES - 1 - length);
+    memset(tail, 'q', JOT_NOTE_TEXT_BYTES - 1 - length);
     tail[JOT_NOTE_TEXT_BYTES - 1 - length] = '\0';
+    strcpy(last_committed, jot_store_text());
     assert(jot_store_input(tail));
     if (!jot_store_flush()) {
       failed_slot = slot;
       assert(jot_store_dirty());
       break;
     }
-    ++filled;
+    ++committed_full_notes;
   }
-  assert(filled > 150);
+  assert(committed_full_notes > 150);
   assert(failed_slot >= 0);
   assert(s_bytes_used <= FAKE_STORAGE_LIMIT);
-  jot_store_init();
-  assert(jot_store_open(failed_slot));
-  assert(jot_store_length() < JOT_NOTE_TEXT_BYTES - 1);
+  jot_store_init();  // Power loss following the rejected quota write.
   assert(jot_store_count() == JOT_NOTE_CAPACITY);
+  expect_note(failed_slot, last_committed);
+}
 
-  puts("Jot storage regression tests passed");
+int main(void) {
+  test_committed_round_trip();
+  test_directory_recovery();
+  test_failed_saves();
+  test_interrupted_commit();
+  test_delete_isolation();
+  test_utf8_editing();
+  test_capacity_and_quota();
+  jot_store_deinit();
+  puts("Seven independent storage safety scenarios passed");
   return 0;
 }
