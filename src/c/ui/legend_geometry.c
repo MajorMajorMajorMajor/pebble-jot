@@ -22,7 +22,9 @@ static const JotLegendPosition s_abc_optical[9][8] = {
 // Directions: 0=NW, 1=N, 2=NE, 3=E, 4=SE, 5=S, 6=SW, 7=W
 // Example (uncomment to try): [1][1] = {0, 1},  // 8's ^ down 1
 // Positive X = right, positive Y = down.
-static const JotLegendPosition s_number_optical[9][8] = {{0}};
+static const JotLegendPosition s_number_optical[9][8] = {
+  [0][0] = {0, 0} // All offsets zero until the numeric calibration pass
+};
 
 JotLegendPosition jot_legend_position(
     JotLegendFace face, int key, int direction, int width, int height) {
