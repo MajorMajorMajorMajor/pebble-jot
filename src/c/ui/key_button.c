@@ -110,10 +110,15 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
   if (key_label->slot == KEY_LABEL_CENTER &&
       label->key == get_key(KEY_NUMBER_ZERO)) {
     // The whole 2-column key is ZERO; no nested virtual Space target.
+    // Use the same geometry module as every other text label.
+    const JotLabelFrame frame = jot_key_text_frame(
+        JOT_TEXT_ZERO, JOT_LEGEND_NUMBER, 9, (JotLabelMetrics){
+          .bounds_w = bounds.size.w, .bounds_h = bounds.size.h
+        });
     graphics_context_set_text_color(ctx, GColorFromRGB(41, 40, 43));
     graphics_draw_text(ctx, "0",
         fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD),
-        GRect(0, bounds.size.h / 2 - 22, bounds.size.w, 36),
+        GRect(frame.x, frame.y, frame.w, frame.h),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
     return;
   }
@@ -148,74 +153,50 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
 
 
       const char *text = key_label->text;
+      const UIFont *ui_font;
+      JotTextPlacement placement;
 
       switch (key_label->slot) {
-        case KEY_LABEL_CENTER: {
-          const UIFont *ui_font;
-          // The save key now draws an icon; ordinary central glyphs
-          // keep the large familiar face and their original touch cell.
+        case KEY_LABEL_CENTER:
+          // Font selection and colour are still renderer concerns.
           ui_font = label->key == get_key(KEY_ENGLISH_MENU) ||
                     label->key == get_key(KEY_NUMBER_ABC) ?
-                    style->label_peripheral_font :
-                    style->label_center_font;
-          text_font = ui_font->gfont;
+                    style->label_peripheral_font : style->label_center_font;
           text_color = special ? GColorWhite : style->label_center_color;
-
-          GSize text_size = graphics_text_layout_get_content_size(
-            text, ui_font->gfont, box, text_overflow_mode, text_alignment);
-
-          // center the label horizontally and vertically
-          int w = text_size.w;
-          int h = ui_font->height_px;
-
-          int x = (box.origin.x) + (box.size.w / 2) - (w / 2);
-          int y = (box.origin.y) + (box.size.h / 2) - (h / 2) - 2;
-
-          text_frame = GRect(x, y, w, h);
+          placement = JOT_TEXT_CENTER;
           break;
-        }
-        case KEY_LABEL_RIGHT: {
-          const UIFont *ui_font;
+        case KEY_LABEL_RIGHT:
           ui_font = style->label_peripheral_font;
-          text_font = ui_font->gfont;
           text_color = special ? GColorWhite : style->label_peripheral_color;
-
-          GSize text_size = graphics_text_layout_get_content_size(
-            text, ui_font->gfont, box, text_overflow_mode, text_alignment);
-
-          // center the label vertically and position it on the right side
-          int text_w = text_size.w;
-          int text_h = ui_font->height_px;
-
-          int text_x = (box.origin.x) + (box.size.w) - (text_w) - (style->label_padding_px);
-          int text_y = (box.origin.y) + (box.size.h / 2) - (text_h / 2);
-
-          text_frame = GRect(text_x, text_y, text_w, text_h);
+          placement = JOT_TEXT_RIGHT;
           break;
-        }
-        case KEY_LABEL_BOTTOM: {
-          const UIFont *ui_font;
+        case KEY_LABEL_BOTTOM:
           ui_font = style->label_peripheral_font;
-          text_font = ui_font->gfont;
           text_color = special ? GColorWhite : style->label_peripheral_color;
-
-          GSize text_size = graphics_text_layout_get_content_size(
-            text, ui_font->gfont, box, text_overflow_mode, text_alignment);
-
-          // center the label horizontally and position it on the bottom side
-          int w = text_size.w;
-          int h = ui_font->height_px;
-
-          int x = (box.origin.x) + (box.size.w / 2) - (w / 2);
-          int y = (box.origin.y) + (box.size.h) - (h * 0.75) - (style->label_padding_px);
-
-          text_frame = GRect(x, y, w, h);
+          placement = JOT_TEXT_BOTTOM;
           break;
-        }
-        default: {
+        default:
           PEBBLE_ASSERT(0);
-        }
+          return;
       }
+      text_font = ui_font->gfont;
+      const GSize text_size = graphics_text_layout_get_content_size(
+          text, ui_font->gfont, box, text_overflow_mode, text_alignment);
+      const ptrdiff_t numeric_index = label->key - get_key(KEY_NUMBER_7);
+      const bool numeric = numeric_index >= 0 &&
+                           numeric_index < KEY_COUNT - KEY_NUMBER_7;
+      const JotLegendFace face = numeric ? JOT_LEGEND_NUMBER : JOT_LEGEND_ABC;
+      const int key_index = numeric ? (int)numeric_index :
+                           (int)(label->key - get_key(KEY_ENGLISH_A));
+      const JotLabelFrame frame = jot_key_text_frame(
+          placement, face, key_index, (JotLabelMetrics){
+            .box_x = box.origin.x, .box_y = box.origin.y,
+            .box_w = box.size.w, .box_h = box.size.h,
+            .text_w = text_size.w, .font_h = ui_font->height_px,
+            .padding = style->label_padding_px,
+            .bounds_w = bounds.size.w, .bounds_h = bounds.size.h
+          });
+      text_frame = GRect(frame.x, frame.y, frame.w, frame.h);
       graphics_context_set_text_color(ctx, text_color);
       graphics_draw_text(ctx, key_label->text, text_font, text_frame,
                          text_overflow_mode, text_alignment, NULL);

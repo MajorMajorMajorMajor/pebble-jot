@@ -33,6 +33,12 @@ jobs:
             tests/behavior/writing.c src/c/ui/caret_layout.c \
             src/c/ui/key_repeat.c -o /tmp/jot-writing
           /tmp/jot-writing
+      - name: Text-label geometry (shared layout, no pixel freeze)
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/behavior/label_geometry.c src/c/ui/legend_geometry.c \
+            -o /tmp/jot-label-geometry
+          /tmp/jot-label-geometry
       - name: Back up notes (atomicity, retransmission and export)
         run: node tests/behavior/backup.js
 
