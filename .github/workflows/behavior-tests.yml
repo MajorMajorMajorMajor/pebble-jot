@@ -1,0 +1,37 @@
+name: Jot behavior tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Keep notes (transactional persistence and recovery)
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I tests/fake -I src/c \
+            tests/behavior/notes.c src/c/jot/store.c -o /tmp/jot-notes
+          /tmp/jot-notes
+      - name: Read notes (navigation, safe delete, touch and drag)
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/behavior/reading.c src/c/jot/reader_review.c \
+            src/c/jot/reader_touch.c -o /tmp/jot-reading
+          /tmp/jot-reading
+      - name: Write notes (caret wrapping and held editing)
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/behavior/writing.c src/c/ui/caret_layout.c \
+            src/c/ui/key_repeat.c -o /tmp/jot-writing
+          /tmp/jot-writing
+      - name: Back up notes (atomicity, retransmission and export)
+        run: node tests/behavior/backup.js
