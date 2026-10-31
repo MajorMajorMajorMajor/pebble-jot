@@ -50,6 +50,10 @@ typedef struct {
 static NoteDirectory s_directory;
 static bool s_directory_valid;
 static NoteIndex s_index[JOT_NOTE_CAPACITY];
+// Newest-first RAM-only slot order. Slot IDs are 0..255, so each costs 1 byte.
+// It is rebuilt from the recovered index at launch and never written to flash.
+static uint8_t s_ranked_slots[JOT_NOTE_CAPACITY];
+static int s_ranked_count;
 static char *s_read_text; // Allocated lazily for list/open reads.
 static uint32_t s_next_serial;
 static int s_active_slot;
@@ -271,8 +275,31 @@ static bool prv_clear_bank(int slot, int bank) {
   return true;
 }
 
+// Rare mutations do linear work; every draw/navigation rank lookup is O(1).
+static void prv_ranked_insert(int slot) {
+  const uint32_t serial = s_index[slot].serial;
+  int at = 0;
+  while (at < s_ranked_count &&
+         s_index[s_ranked_slots[at]].serial > serial) ++at;
+  memmove(&s_ranked_slots[at + 1], &s_ranked_slots[at],
+          (size_t)(s_ranked_count - at));
+  s_ranked_slots[at] = (uint8_t)slot;
+  ++s_ranked_count;
+}
+
+static void prv_ranked_remove(int slot) {
+  for (int at = 0; at < s_ranked_count; ++at) {
+    if (s_ranked_slots[at] != slot) continue;
+    --s_ranked_count;
+    memmove(&s_ranked_slots[at], &s_ranked_slots[at + 1],
+            (size_t)(s_ranked_count - at));
+    return;
+  }
+}
+
 void jot_store_init(void) {
   memset(s_index, 0, sizeof s_index);
+  s_ranked_count = 0;
   s_next_serial = 1;
   s_active_slot = -1;
   s_length = 0;
@@ -313,6 +340,7 @@ void jot_store_init(void) {
       .timestamp = header->timestamp, .revision = header->revision,
       .length = header->length
     };
+    prv_ranked_insert(i);
     // Include both generations so a still-present stale header cannot be
     // mistaken for a newer note after slot reuse.
     if (has_a && a.serial >= s_next_serial) s_next_serial = a.serial + 1;
@@ -337,11 +365,7 @@ bool jot_store_dirty(void) { return s_dirty; }
 
 int jot_store_active_slot(void) { return s_active_slot; }
 
-int jot_store_count(void) {
-  int n = 0;
-  for (int i = 0; i < JOT_NOTE_CAPACITY; ++i) if (s_index[i].used) ++n;
-  return n;
-}
+int jot_store_count(void) { return s_ranked_count; }
 
 static int prv_free_slot(void) {
   for (int i = 0; i < JOT_NOTE_CAPACITY; ++i)
@@ -378,6 +402,7 @@ bool jot_store_input(const char *binding) {
       .used = true, .bank = -1, .serial = s_next_serial++, .timestamp = (uint32_t)time(NULL)
     };
     s_active_time = (time_t)s_index[s_active_slot].timestamp;
+    prv_ranked_insert(s_active_slot);
   }
   if (s_active_slot >= 0) s_dirty = true;
   return true;
@@ -477,6 +502,7 @@ bool jot_store_delete(int slot) {
     return false;
   if (persist_delete(prv_key(slot, bank, 0)) != S_TRUE)
     return false;
+  prv_ranked_remove(slot);
   s_index[slot] = (NoteIndex) {0};
   const bool cleared_other = prv_clear_bank(slot, other_bank);
   const bool cleared_active = prv_clear_bank(slot, bank);
@@ -495,23 +521,7 @@ bool jot_store_delete(int slot) {
 }
 
 int jot_store_slot_at(int rank) {
-  if (rank < 0 || rank >= jot_store_count()) return -1;
-  uint32_t cutoff = UINT32_MAX;
-  for (int step = 0; step <= rank; ++step) {
-    int best = -1;
-    uint32_t highest = 0;
-    for (int i = 0; i < JOT_NOTE_CAPACITY; ++i) {
-      uint32_t serial = s_index[i].serial;
-      if (s_index[i].used && serial < cutoff && serial >= highest) {
-        highest = serial;
-        best = i;
-      }
-    }
-    if (best < 0) return -1;
-    if (step == rank) return best;
-    cutoff = highest;
-  }
-  return -1;
+  return rank < 0 || rank >= s_ranked_count ? -1 : s_ranked_slots[rank];
 }
 
 bool jot_store_preview(int slot, char *out, size_t capacity, time_t *created) {

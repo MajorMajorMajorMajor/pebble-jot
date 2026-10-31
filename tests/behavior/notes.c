@@ -1,4 +1,4 @@
-// Keeping notes: nine independent persistence and corruption-recovery behaviors.
+// Keeping notes: ten independent persistence and corruption-recovery behaviors.
 // Simulated Pebble flash failures; tests do not require the watch or SDK.
 #include <assert.h>
 #include <stdint.h>
@@ -129,7 +129,70 @@ static void test_committed_round_trip(void) {
   expect_note(second, "second");
 }
 
-// 2. Damaged/missing acceleration hints must never hide committed notes.
+// 2. Ranked lookup stays stable across drafts, edits, deletion, reuse and
+// restart. A lower-numbered reused slot must sort by serial, not slot ID.
+static void test_ranked_slot_lifecycle(void) {
+  fresh_store();
+  assert(jot_store_count() == 0);
+  assert(jot_store_slot_at(-1) == -1);
+  assert(jot_store_slot_at(0) == -1);
+
+  assert(jot_store_input("first"));
+  const int first = jot_store_active_slot();
+  assert(jot_store_count() == 1);  // Draft already appears in the list.
+  assert(jot_store_slot_at(0) == first);
+  assert(jot_store_flush());
+  assert(jot_store_new());
+  assert(jot_store_input("second"));
+  const int second = jot_store_active_slot();
+  assert(jot_store_flush());
+  assert(jot_store_new());
+  assert(jot_store_input("third"));
+  const int third = jot_store_active_slot();
+  assert(jot_store_flush());
+
+  assert(jot_store_count() == 3);
+  assert(jot_store_slot_at(0) == third);
+  assert(jot_store_slot_at(1) == second);
+  assert(jot_store_slot_at(2) == first);
+  assert(jot_store_slot_at(3) == -1);
+
+  // Editing an old note must preserve creation order.
+  assert(jot_store_open(first));
+  assert(jot_store_input(" edit"));
+  assert(jot_store_flush());
+  assert(jot_store_slot_at(2) == first);
+
+  // Failure to delete must not change ranks.
+  s_fail_next_delete = true;
+  assert(!jot_store_delete(second));
+  assert(jot_store_count() == 3);
+  assert(jot_store_slot_at(1) == second);
+  assert(jot_store_delete(second));
+  assert(jot_store_count() == 2);
+  assert(jot_store_slot_at(0) == third);
+  assert(jot_store_slot_at(1) == first);
+  assert(jot_store_slot_at(2) == -1);
+
+  assert(jot_store_new());
+  assert(jot_store_input("reused"));
+  assert(jot_store_active_slot() == second);
+  assert(jot_store_flush());
+  assert(jot_store_slot_at(0) == second);
+  assert(jot_store_slot_at(1) == third);
+  assert(jot_store_slot_at(2) == first);
+
+  jot_store_init();
+  assert(jot_store_count() == 3);
+  assert(jot_store_slot_at(0) == second);
+  assert(jot_store_slot_at(1) == third);
+  assert(jot_store_slot_at(2) == first);
+  expect_note(second, "reused");
+  expect_note(first, "first edit");
+  expect_note(third, "third");
+}
+
+// 3. Damaged/missing acceleration hints must never hide committed notes.
 static void test_directory_recovery(void) {
   fresh_store();
   assert(jot_store_input("survives bad directory"));
@@ -148,7 +211,7 @@ static void test_directory_recovery(void) {
   expect_note(slot, "survives bad directory");
 }
 
-// 3. Failed first commit must not produce ghosts or discard an unsaved draft.
+// 4. Failed first commit must not produce ghosts or discard an unsaved draft.
 static void test_failed_saves(void) {
   fresh_store();
   assert(jot_store_input("never committed"));
@@ -170,7 +233,7 @@ static void test_failed_saves(void) {
   expect_note(slot, "must stay in editor");
 }
 
-// 4. A multi-chunk interrupted update leaves the LAST complete version intact.
+// 5. A multi-chunk interrupted update leaves the LAST complete version intact.
 static void test_interrupted_commit(void) {
   fresh_store();
   char full[JOT_NOTE_TEXT_BYTES];
@@ -197,7 +260,7 @@ static void test_interrupted_commit(void) {
   assert(jot_store_text()[2] == 'Z');
 }
 
-// 5. Failed deletion cannot remove a note; successful deletion is isolated.
+// 6. Failed deletion cannot remove a note; successful deletion is isolated.
 static void test_delete_isolation(void) {
   fresh_store();
   assert(jot_store_input("keep other notes"));
@@ -219,7 +282,7 @@ static void test_delete_isolation(void) {
   assert(jot_store_flush());
 }
 
-// 6. A stale committed bank must not turn a failed deletion into a ghost.
+// 7. A stale committed bank must not turn a failed deletion into a ghost.
 // Cleanup failure after a successful deletion may leave *chunks*, not headers.
 static void test_stale_bank_deletion(void) {
   fresh_store();
@@ -260,7 +323,7 @@ static void test_stale_bank_deletion(void) {
   expect_note(slot, "replacement");
 }
 
-// 7. Recover a mixed-generation slot made by older buggy releases: a stale
+// 8. Recover a mixed-generation slot made by older buggy releases: a stale
 // higher revision must never hide a newer serial's first revision.
 static void test_mixed_generation_recovery(void) {
   fresh_store();
@@ -290,7 +353,7 @@ static void test_mixed_generation_recovery(void) {
   expect_note(slot, "new");
 }
 
-// 8. Edits must respect whole UTF-8 codepoints, including line breaks.
+// 9. Edits must respect whole UTF-8 codepoints, including line breaks.
 static void test_utf8_editing(void) {
   fresh_store();
   assert(jot_store_input("A\xC3\xA9\n\xF0\x9F\x98\x8A" "B"));
@@ -309,7 +372,7 @@ static void test_utf8_editing(void) {
   expect_note(slot, "B");
 }
 
-// 9. The 256-slot and 1 MiB app budget are strict, recoverable limits.
+// 10. The 256-slot and 1 MiB app budget are strict, recoverable limits.
 static void test_capacity_and_quota(void) {
   fresh_store();
   while (jot_store_count() < JOT_NOTE_CAPACITY) {
@@ -320,6 +383,9 @@ static void test_capacity_and_quota(void) {
   assert(jot_store_new());
   assert(!jot_store_input("257th"));
   assert(jot_store_count() == JOT_NOTE_CAPACITY);
+  for (int rank = 0; rank < JOT_NOTE_CAPACITY; ++rank)
+    assert(jot_store_slot_at(rank) == JOT_NOTE_CAPACITY - rank - 1);
+  assert(jot_store_slot_at(JOT_NOTE_CAPACITY) == -1);
 
   int failed_slot = -1;
   int committed_full_notes = 0;
@@ -350,6 +416,7 @@ static void test_capacity_and_quota(void) {
 
 int main(void) {
   test_committed_round_trip();
+  test_ranked_slot_lifecycle();
   test_directory_recovery();
   test_failed_saves();
   test_interrupted_commit();
@@ -359,6 +426,6 @@ int main(void) {
   test_utf8_editing();
   test_capacity_and_quota();
   jot_store_deinit();
-  puts("Nine independent storage safety scenarios passed");
+  puts("Ten independent storage safety scenarios passed");
   return 0;
 }
