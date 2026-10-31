@@ -24,6 +24,12 @@ jobs:
         run: node tests/backup-js.test.js
       - name: Check canonical gesture mapping
         run: node tests/gesture-map.test.js
+      - name: Test four-way editor / keyboard flip cycle
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/flip-layout-test.c src/c/keyboard/flip_layout.c -o /tmp/jot-flip-test
+          /tmp/jot-flip-test
+          node tests/flip-layout-routing.test.js
       - name: Verify Jot 1.15 alphabet primary labels
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \

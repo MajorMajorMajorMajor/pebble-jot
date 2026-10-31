@@ -4,6 +4,7 @@
 
 #include "keyboard/layout.h"
 #include "keyboard/state.h"
+#include "keyboard/flip_layout.h"
 
 #include "ui/style.h"
 #include "ui/key_grid.h"
@@ -15,6 +16,9 @@
 // we can factor out the common code into UIWindow and include a UIWindow here 
 // instead of a Window.
 static KeyboardWindow *s_loaded_keyboard;
+// Outside JOT2 note bank keys (5000..13703), and deliberately distinct
+// from all saved-note data. One 4-byte setting read at launch.
+enum { JOT_FLIP_PERSIST_KEY = 22000 };
 
 struct KeyboardWindow {
   // abstract data
@@ -25,6 +29,7 @@ struct KeyboardWindow {
   Window *window;
   KeyGrid *grid;
   Layer *content_layer;
+  JotFlipLayout flip_mode;
 };
 
 // Future logic for showing different key grids
@@ -50,14 +55,16 @@ UIDimensions compute_ui_dimensions(const KeyboardWindow *self) {
 
   const unsigned int content_height = self->style->content_height_px;
   
-  // content frame uses the whole width and goes at the top of the frame
   GRect content_frame = bounds;
   content_frame.size.h = content_height;
-
-  // key button grid uses the whole width and goes below the content
   GRect grid_frame = bounds;
-  grid_frame.origin.y += content_height; // align the top of the grid to the bottom of the content
-  grid_frame.size.h -= content_height;   // use the remaining space for the grid
+  grid_frame.size.h -= content_height;
+  if (jot_flip_bottom(self->flip_mode)) {
+    // Expose the notebook below the typing thumb/finger.
+    content_frame.origin.y = bounds.size.h - content_height;
+  } else {
+    grid_frame.origin.y = content_height;
+  }
 
   return (struct UIDimensions) {
     .content_frame = content_frame,
@@ -80,7 +87,8 @@ static void prv_window_load(Window *window) {
 
   // create grid layer
   const Layout *layout = get_layout(keyboard_state->active_layout_id);    
-  self->grid = key_grid_create(layout, dimensions.grid_frame, self->style);
+  self->grid = key_grid_create(layout, dimensions.grid_frame, self->style,
+                               jot_flip_right(self->flip_mode));
   PEBBLE_ASSERT(self->grid);
       
   // add grid layer to the window
@@ -131,6 +139,7 @@ KeyboardWindow *keyboard_window_create(KeyboardState *state, const UIStyle *styl
     .window = window,
     .state = state,
     .style = style,
+    .flip_mode = jot_flip_validated(persist_read_int(JOT_FLIP_PERSIST_KEY)),
 
     // populated on load
     .grid = NULL,
@@ -235,7 +244,8 @@ bool keyboard_window_toggle_number_face(void) {
   // Allocate before removing the current face. Failed allocations leave
   // existing keys fully usable, with no half-switched state.
   KeyGrid *next = key_grid_create(get_layout(next_id),
-                                 frames.grid_frame, self->style);
+                                 frames.grid_frame, self->style,
+                                 jot_flip_right(self->flip_mode));
   if (!next) return false;
   KeyGrid *old = self->grid;
   layer_add_child(window_get_root_layer(self->window),
@@ -244,5 +254,26 @@ bool keyboard_window_toggle_number_face(void) {
   self->state->active_layout_id = next_id;
   prv_attach_content_layer(self);
   key_grid_destroy(old); // Also cancels any outstanding key pulse.
+  return true;
+}
+
+JotFlipLayout keyboard_window_flip_mode(void) {
+  return s_loaded_keyboard ? s_loaded_keyboard->flip_mode :
+                             JOT_FLIP_LH_TOP;
+}
+
+bool keyboard_window_cycle_flip(int direction) {
+  KeyboardWindow *self = s_loaded_keyboard;
+  if (!self || !self->grid || !direction) return false;
+  const JotFlipLayout next = jot_flip_next(self->flip_mode, direction);
+  if (next == self->flip_mode) return false;
+  // No replacement grid, no editor reconstruction, no saved-note writes.
+  // The same KeyIds and the active 123/ABC face survive every orientation.
+  self->flip_mode = next;
+  key_grid_set_right_hand(self->grid, jot_flip_right(next));
+  const UIDimensions frames = compute_ui_dimensions(self);
+  layer_set_frame(key_grid_get_layer(self->grid), frames.grid_frame);
+  prv_attach_content_layer(self);
+  persist_write_int(JOT_FLIP_PERSIST_KEY, (int)next);
   return true;
 }

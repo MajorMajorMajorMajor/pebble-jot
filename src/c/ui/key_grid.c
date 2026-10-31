@@ -1,6 +1,7 @@
 #include <pebble.h>
 
 #include "keyboard/layout.h"
+#include "keyboard/flip_layout.h"
 
 #include "ui/key_button.h"
 
@@ -27,6 +28,7 @@ struct KeyGrid {
   size_t button_count; // one button per key
   KeyButtonLayer **buttons;
   const Layout *layout;
+  bool right_hand;
   int pressed_button; // -1 = no touch in progress.
   int touch_index;
   uint8_t level, release_level;
@@ -98,7 +100,8 @@ static void prv_pulse_tick(void *context) {
 }
 
 // create a key grid
-KeyGrid *key_grid_create(const Layout *layout, GRect frame, const UIStyle *style) {
+KeyGrid *key_grid_create(const Layout *layout, GRect frame,
+                         const UIStyle *style, bool right_hand) {
   Layer *layer;
   size_t button_count;
   KeyButtonLayer **buttons;  
@@ -123,8 +126,10 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame, const UIStyle *style
     const LayoutKeyPosition *pos = &layout->keys[i];
 
     // divide the frame size evenly into grid cells
-    int x1 = frame.size.w * pos->col / layout->cols;
-    int x2 = frame.size.w * (pos->col + pos->col_span) / layout->cols;
+    const int physical_col =
+        jot_flip_visual_column(right_hand, (int)pos->col);
+    int x1 = frame.size.w * physical_col / layout->cols;
+    int x2 = frame.size.w * (physical_col + pos->col_span) / layout->cols;
 
     int y1 = frame.size.h * pos->row / layout->rows;
     int y2 = frame.size.h * (pos->row + pos->row_span) / layout->rows;
@@ -169,11 +174,30 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame, const UIStyle *style
     .button_count = button_count,
     .buttons = buttons,
     .layout = layout,
+    .right_hand = right_hand,
     .pressed_button = -1,
     .touch_index = -1
   };  
   
   return grid;
+}
+
+
+void key_grid_set_right_hand(KeyGrid *grid, bool right_hand) {
+  if (!grid || grid->right_hand == right_hand) return;
+  grid->right_hand = right_hand;
+  const GRect frame = layer_get_bounds(grid->layer);
+  for (size_t i = 0; i < grid->button_count; ++i) {
+    const LayoutKeyPosition *pos = &grid->layout->keys[i];
+    const int col = jot_flip_visual_column(right_hand, (int)pos->col);
+    const int x1 = frame.size.w * col / grid->layout->cols;
+    const int x2 = frame.size.w * (col + pos->col_span) / grid->layout->cols;
+    const int y1 = frame.size.h * pos->row / grid->layout->rows;
+    const int y2 = frame.size.h * (pos->row + pos->row_span) /
+                   grid->layout->rows;
+    layer_set_frame(key_button_get_layer(grid->buttons[i]),
+                    GRect(x1, y1, x2 - x1, y2 - y1));
+  }
 }
 
 void key_grid_destroy(KeyGrid *grid) {

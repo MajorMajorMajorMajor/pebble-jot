@@ -1,3 +1,29 @@
+## Jot 1.16.0 — Thumb-friendly four-way keyboard flip (#36, Emery QA pending)
+
+Draw a **circle on SAVE** while editing. Clockwise cycles:
+**LH / notebook top → RH / notebook top → RH / notebook bottom →
+LH / notebook bottom → LH / notebook top**. Counterclockwise cycles
+backward. A plain Save tap is unchanged, and circles on all other
+keys retain their original character/gesture bindings. Works on both
+ABC and 123 faces without changing text, active note, cursor position,
+gesture directions, or the persistent JOT2 note archive.
+
+RH moves only the control column from the left to the right; it
+**does not mirror the alphabet** or numeric columns. Bottom mode moves
+the complete 44px ruled editor strip below the keyboard so an index
+finger can type without hiding the text. The editor's touch-to-Peek
+area and the physical key hitboxes follow the displayed frames.
+The selected orientation is saved as one small independent persistent
+setting; invalid/absent settings default to LH/top. A flip reframes
+the existing Grid and editor layers, avoiding expensive rebuilds or
+a new keyboard allocation. Regular typing, repeat-on-hold, note
+browsing, saving, and on-watch startup speed must remain unaffected.
+
+Host tests cover all four layouts, CW/CCW wraparound, left/right hitbox
+inversion, preservation of ABC/123 mappings, Save tap vs circle, and
+top/bottom editor targeting. **SDK build and actual ergonomic feel on
+Emery still require hardware testing before closing #36.**
+
 ## Jot 1.15.4 — faster warm launch with a crash-safe note directory (Emery QA pending)
 
 The JOT2 256-slot expansion made each launch scan **512 note bank

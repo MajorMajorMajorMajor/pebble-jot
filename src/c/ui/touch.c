@@ -6,6 +6,7 @@
 #include "ui/window.h"
 #include "ui/touch.h"
 #include "ui/key_repeat.h"
+#include "keyboard/flip_layout.h"
 #include "ui/kinetic_scroll.h"
 #include "jot/jot.h"
 #include "jot/store.h"
@@ -285,12 +286,14 @@ static const char *prv_direction(int dx, int dy, int key_index) {
   // At the physical edge, the outward component is compressed by the screen.
   // Keep central-key diagonals strict to avoid classifying drift as a diagonal.
   int diagonal_ratio = 4;
-  if (dx > 0 && (key_index == 2 || key_index == 5 || key_index == 8)) {
-    // I/R/S start at the right edge: outward x motion is often compressed.
-    diagonal_ratio = 10;
-  } else if (dx < 0 && (key_index == 10 || key_index == 11 ||
-                       key_index == 12 || key_index == 13)) {
-    diagonal_ratio = 8;
+  // Edge compression depends on the *physical* starting column, which
+  // changes with #36's handedness. Preserve strict central diagonals.
+  const GRect screen = layer_get_bounds(window_get_root_layer(
+      window_stack_get_top_window()));
+  const bool at_right = s_stroke.start_x >= screen.size.w * 3 / 4;
+  const bool at_left = s_stroke.start_x < screen.size.w / 4;
+  if ((dx > 0 && at_right) || (dx < 0 && at_left)) {
+    diagonal_ratio = key_index < 9 ? 10 : 8;
   }
   if (ax && ay && (ax < ay ? ax * diagonal_ratio >= ay :
                              ay * diagonal_ratio >= ax)) {
@@ -336,10 +339,17 @@ static void prv_track_position(int16_t x, int16_t y) {
 
 static int prv_key_at(int x, int y) {
   GRect bounds = layer_get_bounds(window_get_root_layer(window_stack_get_top_window()));
-  const int top = JOT_EDITOR_CONTENT_HEIGHT; // Matches UIStyle.content_height_px.
-  if (x < 0 || x >= bounds.size.w || y < top || y >= bounds.size.h) return -1;
-  const int col = x * 4 / bounds.size.w;
-  const int row = (y - top) * 4 / (bounds.size.h - top);
+  const JotFlipLayout mode = s_mode == MODE_JOT ?
+      keyboard_window_flip_mode() : JOT_FLIP_LH_TOP;
+  const int top = jot_flip_bottom(mode) ? 0 :
+                  JOT_EDITOR_CONTENT_HEIGHT;
+  const int grid_height = bounds.size.h - JOT_EDITOR_CONTENT_HEIGHT;
+  if (x < 0 || x >= bounds.size.w ||
+      y < top || y >= top + grid_height) return -1;
+  const int physical_col = x * 4 / bounds.size.w;
+  const int col = jot_flip_logical_column(jot_flip_right(mode),
+                                           physical_col);
+  const int row = (y - top) * 4 / grid_height;
   static const int8_t keys[4][4] = {
     {13, 0, 1, 2}, {12, 3, 4, 5}, {10, 6, 7, 8}, {11, 9, 9, 9}
   };
@@ -617,7 +627,12 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
           if (repeated) break; // Timer already committed editing commands.
           // The physical 123/ABC cell switches faces on tap only.
           // The saved draft and its caret remain in the same editor.
-          if (s_touch_key == 12 && gesture_index == 0) {
+          if (s_touch_key == 13 &&
+              (gesture_index == 17 || gesture_index == 18)) {
+            // SAVE-circle: clockwise advances through all four #36
+            // layouts, counterclockwise reverses. Never saves/prints.
+            keyboard_window_cycle_flip(gesture_index == 17 ? 1 : -1);
+          } else if (s_touch_key == 12 && gesture_index == 0) {
             keyboard_window_toggle_number_face();
           } else if (s_touch_key == 13 && gesture_index == 0) {
             jot_editor_touch_save();
@@ -876,8 +891,13 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
 
   if (s_mode == MODE_JOT) {
     if (event->type == TouchEvent_Touchdown) {
-      s_header_touch_active = event->y >= 0 &&
-                               event->y < JOT_EDITOR_CONTENT_HEIGHT;
+      const JotFlipLayout flip = keyboard_window_flip_mode();
+      const int screen_height = layer_get_bounds(window_get_root_layer(
+          window_stack_get_top_window())).size.h;
+      const int editor_top = jot_flip_bottom(flip) ?
+          screen_height - JOT_EDITOR_CONTENT_HEIGHT : 0;
+      s_header_touch_active = event->y >= editor_top &&
+          event->y < editor_top + JOT_EDITOR_CONTENT_HEIGHT;
       if (s_header_touch_active) {
         s_header_touch_x = event->x;
         s_header_touch_y = event->y;
@@ -890,8 +910,13 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
       if (event->type == TouchEvent_Liftoff) {
         const int dx = event->x - s_header_touch_x;
         const int dy = event->y - s_header_touch_y;
-        const bool tap = event->y >= 0 &&
-                         event->y < JOT_EDITOR_CONTENT_HEIGHT &&
+        const JotFlipLayout flip = keyboard_window_flip_mode();
+        const int screen_height = layer_get_bounds(window_get_root_layer(
+            window_stack_get_top_window())).size.h;
+        const int editor_top = jot_flip_bottom(flip) ?
+            screen_height - JOT_EDITOR_CONTENT_HEIGHT : 0;
+        const bool tap = event->y >= editor_top &&
+                         event->y < editor_top + JOT_EDITOR_CONTENT_HEIGHT &&
                          dx >= -12 && dx <= 12 &&
                          dy >= -12 && dy <= 12 &&
                          now_ms - s_header_touch_ms < 700;

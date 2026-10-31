@@ -4,6 +4,7 @@
 
 #include "ui/style.h"
 #include "keyboard/state.h"
+#include "keyboard/flip_layout.h"
 
 typedef struct KeyboardWindow KeyboardWindow; // defined in window.c
 
@@ -29,3 +30,6 @@ void keyboard_window_release_touch_key(void);
 // Returns false if the alternate grid could not be allocated.
 bool keyboard_window_toggle_number_face(void);
 bool keyboard_window_number_face_active(void);
+// Four orientations: LH/top, RH/top, RH/bottom, LH/bottom.
+JotFlipLayout keyboard_window_flip_mode(void);
+bool keyboard_window_cycle_flip(int direction);
