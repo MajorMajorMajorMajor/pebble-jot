@@ -12,6 +12,7 @@ assert.match(touch,/s_touch_key == 13 &&\s*\(gesture_index == 17 \|\| gesture_in
 assert.match(touch,/keyboard_window_cycle_flip\(gesture_index == 17 \? 1 : -1\)/);
 assert.match(touch,/s_touch_key == 13 && gesture_index == 0/);
 assert.match(touch,/jot_editor_touch_save\(\)/);
+assert.match(touch,/const JotFlipLayout mode = keyboard_window_flip_mode\(\)/);
 assert.match(touch,/const int col = jot_flip_logical_column\(jot_flip_right\(mode\)/);
 assert.match(touch,/jot_flip_bottom\(mode\) \? 0/);
 assert.match(touch,/jot_flip_bottom\(flip\)/);

@@ -339,8 +339,9 @@ static void prv_track_position(int16_t x, int16_t y) {
 
 static int prv_key_at(int x, int y) {
   GRect bounds = layer_get_bounds(window_get_root_layer(window_stack_get_top_window()));
-  const JotFlipLayout mode = s_mode == MODE_JOT ?
-      keyboard_window_flip_mode() : JOT_FLIP_LH_TOP;
+  // Physical hit testing must match the displayed geometry even when the
+  // optional typing/trace harness is running over an oriented keyboard.
+  const JotFlipLayout mode = keyboard_window_flip_mode();
   const int top = jot_flip_bottom(mode) ? 0 :
                   JOT_EDITOR_CONTENT_HEIGHT;
   const int grid_height = bounds.size.h - JOT_EDITOR_CONTENT_HEIGHT;
