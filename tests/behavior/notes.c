@@ -1,6 +1,5 @@
-// Safety-critical store regression tests; compile with a fake Pebble API.
-// Each scenario resets the simulated flash and the store's volatile state.
-// Run via .github/workflows/backup-tests.yml.
+// Keeping notes: seven independent persistence and corruption-recovery behaviors.
+// Simulated Pebble flash failures; tests do not require the watch or SDK.
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
