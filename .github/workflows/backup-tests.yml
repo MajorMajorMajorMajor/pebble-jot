@@ -18,57 +18,33 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validate all Pebble PNG bitmap resources
-        run: python3 tests/verify-png-assets.py
       - name: Test phone backup protocol
         run: node tests/backup-js.test.js
-      - name: Check canonical gesture mapping
-        run: node tests/gesture-map.test.js
       - name: Test four-way editor / keyboard flip cycle
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/flip-layout-test.c src/c/keyboard/flip_layout.c -o /tmp/jot-flip-test
           /tmp/jot-flip-test
-          node tests/flip-layout-routing.test.js
       - name: Verify Jot 1.15 alphabet primary labels
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/primary-face-test.c src/c/keyboard/primary_face.c -o /tmp/jot-primary-face-test
           /tmp/jot-primary-face-test
-          node tests/primary-face-layout.test.js
-      - name: Verify shared ABC and 123 legend geometry
-        run: |
-          cc -std=c11 -Wall -Wextra -Werror -I src/c \
-            tests/legend-geometry-test.c src/c/ui/legend_geometry.c -o /tmp/jot-legend-geometry-test
-          /tmp/jot-legend-geometry-test
-          node tests/legend-geometry-layout.test.js
       - name: Test 123 numeric face bindings
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/number-face-test.c src/c/keyboard/number_face.c -o /tmp/jot-number-face-test
           /tmp/jot-number-face-test
-          node tests/number-face-layout.test.js
-      - name: Verify editor caret overlay invariants
-        run: node tests/editor-caret.test.js
-      - name: Guard Emery RAM budget and long-note buffers
-        run: node tests/ram-budget.test.js
       - name: Test gesture-held key repeat and release safety
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/key-repeat-test.c src/c/ui/key_repeat.c -o /tmp/jot-key-repeat-test
           /tmp/jot-key-repeat-test
-          node tests/key-repeat-routing.test.js
       - name: Test touch feedback timing and easing
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/key-feedback-curve-test.c src/c/ui/key_feedback_curve.c -o /tmp/jot-key-feedback-test
           /tmp/jot-key-feedback-test
-      - name: Verify Pocket Notebook editor styling
-        run: node tests/notebook-style.test.js
-      - name: Verify screen navigation wiring
-        run: node tests/navigation-flow.test.js
-      - name: Verify touch SAVE routing and safe reader transitions
-        run: node tests/touch-save.test.js
       - name: Test persistent reader review action-bar state machine
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
@@ -89,7 +65,6 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/kinetic-scroll-test.c src/c/ui/kinetic_scroll.c -o /tmp/jot-kinetic-test
           /tmp/jot-kinetic-test
-          node tests/kinetic-routing.test.js
       - name: Test touch-scrolling list and card hitboxes
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \

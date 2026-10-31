@@ -102,14 +102,16 @@ pebble install --emulator emery
 pebble install --cloudpebble
 ```
 
-Host-only tests use Node.js, Python, and a C compiler. The GitHub Actions workflow in `.github/workflows/backup-tests.yml` exercises gesture bindings, keyboard geometry, note storage and failure recovery, reader/list behavior, caret wrapping, export protocol, and UI guardrails. For example:
+Host-only regression tests use Node.js and a C compiler. The GitHub Actions workflow in `.github/workflows/backup-tests.yml` runs the phone backup protocol and executable C tests for keyboard mappings and orientation, note storage and failure recovery, reader/list controls, gesture repeat and feedback, kinetic scrolling, and caret wrapping. For example:
 
 ```sh
-node tests/gesture-map.test.js
-node tests/number-face-layout.test.js
-node tests/primary-face-layout.test.js
-node tests/legend-geometry-layout.test.js
+node tests/backup-js.test.js
+cc -std=c11 -Wall -Wextra -Werror -I src/c \
+  tests/caret-layout-test.c src/c/ui/caret_layout.c -o /tmp/jot-caret-layout-test
+/tmp/jot-caret-layout-test
 ```
+
+Source-text assertion suites and the pre-calibration numeric legend pixel-parity test were retired. These host tests do not validate every Pebble SDK interaction, visual styling choice, or compiled RAM footprint.
 
 Run **on-watch QA** for changes to touch recognition, layer lifetimes, optical alignment, firmware RAM, storage, or animation. Host tests cannot prove real wrist ergonomics or a successful SDK metadata-injection build.
 

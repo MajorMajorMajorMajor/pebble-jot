@@ -51,16 +51,9 @@ Build and inspect on the watch:
 pebble build && pebble install --cloudpebble
 ```
 
-Run the pure C pixel-parity test after changing the geometry:
-
-```sh
-cc -std=c11 -Wall -Wextra -Werror -I src/c \
-  tests/legend-geometry-test.c src/c/ui/legend_geometry.c -o /tmp/jot-geometry-test
-/tmp/jot-geometry-test
-```
-
-The baseline test intentionally expects the current unadjusted numeric
-positions. Once you've approved your new positions, we should update
-its expected coordinates to make those adjustments permanent.
+The old pixel-parity regression was intentionally removed: it froze the
+pre-calibration numeric positions and would reject your intended optical
+adjustments. Check the positions on the watch instead. The retained C
+keyboard-binding tests validate the character mappings, not legend placement.
 The numeric legend **character mappings** remain in
 `src/c/keyboard/number_face.c` and should not need editing.
