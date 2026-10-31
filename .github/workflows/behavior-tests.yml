@@ -35,3 +35,25 @@ jobs:
           /tmp/jot-writing
       - name: Back up notes (atomicity, retransmission and export)
         run: node tests/behavior/backup.js
+
+  sdk-build:
+    name: Build Emery app with Pebble SDK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      # Use the repository's pinned Pebble SDK environment, rather than a
+      # second toolchain installation that can drift from local builds.
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v17
+        with:
+          name: pebble
+          skipPush: true
+      - name: Compile, link and package Emery app
+        run: nix develop --command pebble build
+      - name: Verify packaged PBW exists
+        run: |
+          pbw="$(find build -type f -name '*.pbw' -print -quit)"
+          test -n "$pbw"
+          test -s "$pbw"
+          unzip -t "$pbw"
