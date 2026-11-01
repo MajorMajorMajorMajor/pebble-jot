@@ -73,11 +73,14 @@ Centre indices follow the familiar numeric order:
 The **wide 0** is `[9]` and shares the numeric table, even though
 its text frame has a special width and height.
 
-Both alphabet and numeric centre glyphs are currently unchanged:
-all per-key centre corrections are zero. The original shared centre
-formula (including its -2px vertical correction), the special 0
-rectangle, and even the legacy right/bottom text slots are now
-calculated by `jot_key_text_frame()` in that file. The key painter
+All **ten numeric centre glyphs** (7, 8, 9, 4, 5, 6, 1, 2, 3 and
+wide 0) are shifted **down 1 pixel** using
+`NUMBER_CENTER_OFFSET_Y = 1` in `legend_geometry.c`. The
+alphabetic centre labels and special-key labels stay in place;
+individual centre tables remain zero for later per-glyph tuning.
+The original shared centre formula (including its -2px vertical
+correction), the special 0 rectangle, and even the legacy right/bottom
+text slots are still calculated by `jot_key_text_frame()` in that file. The key painter
 only selects fonts/colours, measures glyphs, and draws the returned
 rectangle. The control pictograms are drawn as separate icon artwork,
 not as text labels.
@@ -87,3 +90,12 @@ face isolation without freezing specific numeric nudge values, so
 you can experiment with optical offsets without rewriting expected
 pixel snapshots. You still need a real-watch inspection before
 accepting the adjusted positioning.
+
+## Future font-metrics cleanup
+
+The shared +1 numeric centre offset and existing per-direction optical
+nudges are deliberate interim calibration values, not an assertion that
+Pebble's font heights are wrong. Track the font-metric-driven approach
+and removal of manual optical nudges in
+[issue #52](https://github.com/MajorMajorMajorMajor/pebble-jot/issues/52).
+Preserve the approved on-watch appearance until that issue is verified.

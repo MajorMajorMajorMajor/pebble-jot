@@ -84,8 +84,16 @@ JotLegendPosition jot_legend_position(
   };
 }
 
+// A common optical correction for the *central numeric glyphs* (7-9,
+// 4-6, 1-3 and wide 0). Pebble's font text frame isn't its visible ink
+// box; all ten numerals looked 1px too high on Emery. Keep this
+// face-wide correction separate from per-digit corrections and avoid
+// changing UIFont.height_px, which is used in other layouts.
+// TODO(#52): source optical alignment from explicit font metrics instead.
+enum { NUMBER_CENTER_OFFSET_Y = 1 };
+
 // Big centre glyph offsets. Calibrate individual digits here after wrist
-// testing; entries default to zero to preserve the current appearance.
+// testing; entries default to zero (apart from the global numeric shift).
 // Key indices are the same as for the peripheral compass above.
 // ABC's existing approved centre positions are unchanged.
 static const JotLegendPosition s_abc_center_optical[9] = {
@@ -107,8 +115,10 @@ JotLabelFrame jot_key_text_frame(JotTextPlacement placement,
   if (placement == JOT_TEXT_CENTER || placement == JOT_TEXT_ZERO) {
     if (face == JOT_LEGEND_ABC && key >= 0 && key < 9)
       offset = s_abc_center_optical[key];
-    else if (face == JOT_LEGEND_NUMBER && key >= 0 && key < 10)
+    else if (face == JOT_LEGEND_NUMBER && key >= 0 && key < 10) {
       offset = s_number_center_optical[key];
+      offset.y += NUMBER_CENTER_OFFSET_Y;
+    }
   }
 
   switch (placement) {

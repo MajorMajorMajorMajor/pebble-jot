@@ -42,8 +42,31 @@ static void verify_base_frames(void) {
     assert(zero.x == 0 && zero.y == m.bounds_h / 2 - 22);
     assert(zero.w == m.bounds_w && zero.h == 36);
 
-    // Future optical tuning must not change dimensions, and only centre
-    // positions are permitted to be affected by centre offset tables.
+    // Numeric central glyphs share one +1px optical correction.
+    // ABC retains the original center coordinates. The wide numeric
+    // zero uses a separate rectangle but gets the same correction.
+    for (int key = 0; key < 9; ++key) {
+      const JotLabelFrame abc = jot_key_text_frame(
+          JOT_TEXT_CENTER, JOT_LEGEND_ABC, key, m);
+      const JotLabelFrame digit = jot_key_text_frame(
+          JOT_TEXT_CENTER, JOT_LEGEND_NUMBER, key, m);
+      assert(digit.x == abc.x);
+      assert(digit.y == abc.y + 1);
+      assert(digit.w == abc.w && digit.h == abc.h);
+    }
+    const JotLabelFrame numeric_zero = jot_key_text_frame(
+        JOT_TEXT_ZERO, JOT_LEGEND_NUMBER, 9, m);
+    assert(numeric_zero.x == zero.x);
+    assert(numeric_zero.y == zero.y + 1);
+    assert(numeric_zero.w == zero.w && numeric_zero.h == zero.h);
+    // Only 7/8/9/4/5/6/1/2/3 and wide 0 get the correction;
+    // the ABC toggle key and other out-of-range keys must not move.
+    const JotLabelFrame other = jot_key_text_frame(
+        JOT_TEXT_CENTER, JOT_LEGEND_NUMBER, 11, m);
+    assert(other.x == center.x && other.y == center.y);
+
+    // Optical tuning must not change dimensions; edge slots are
+    // unaffected by the central correction.
     for (int face = JOT_LEGEND_ABC; face <= JOT_LEGEND_NUMBER; ++face) {
       for (int key = 0; key < 9; ++key) {
         JotLabelFrame f = jot_key_text_frame(
