@@ -164,11 +164,11 @@ static void shift_case_and_state(void) {
   assert(mode == JOT_SHIFT_ONCE);
   assert(jot_shift_prepare(&mode, ".", out)[0] == '.');
   assert(mode == JOT_SHIFT_ONCE);
-  assert(jot_shift_prepare(&mode, "\${t}", out)[0] == '\${t}');
+  assert(jot_shift_prepare(&mode, "\b", out)[0] == '\b');
   assert(mode == JOT_SHIFT_ONCE);
-  assert(jot_shift_prepare(&mode, "\${t}", out)[0] == '\${t}');
+  assert(jot_shift_prepare(&mode, "\n", out)[0] == '\n');
   assert(mode == JOT_SHIFT_ONCE);
-  assert(jot_shift_prepare(&mode, "é", out)[0] != '\${t}');
+  assert(jot_shift_prepare(&mode, "é", out)[0] != '\0');
   assert(mode == JOT_SHIFT_ONCE);
   assert(strcmp(jot_shift_prepare(&mode, "f", out), "F") == 0);
   assert(mode == JOT_SHIFT_OFF);
