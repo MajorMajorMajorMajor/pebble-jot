@@ -31,7 +31,9 @@ assert.match(button,/jot_shift_active\(shift_mode\) \? jot_shift_upper\(symbol\)
 assert.match(button,/void key_button_set_shift_mode/);
 assert.match(button,/layer_mark_dirty\(button->base_layer\)/);
 assert.match(button,/layer_mark_dirty\(button->label_layers\[i\]->layer\)/);
-assert.match(button,/graphics_fill_triangle/);
+assert.match(button,/for \(int row = 0; row < 8; \+\+row\)/);
+assert.match(button,/graphics_draw_line\(ctx, GPoint\(cx - half/);
+assert.doesNotMatch(button,/graphics_fill_triangle\(ctx/);
 assert.match(button,/mode == JOT_SHIFT_LOCKED/);
 assert.match(button,/jot_shift_active\(mode\)/);
 assert.match(grid,/key_button_set_shift_mode\(grid->buttons\[i\], mode\)/);

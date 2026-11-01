@@ -363,17 +363,27 @@ static void prv_draw_shift_indicators(GContext *ctx, const Key *key,
   const int h = bounds.size.h;
   const GColor teal = GColorFromRGB(0, 170, 170);
   const GColor mint = GColorFromRGB(85, 255, 170);
-  graphics_context_set_fill_color(ctx, jot_shift_active(mode) ? mint : teal);
-  graphics_fill_triangle(ctx, GPoint(cx, 3),
-                         GPoint(cx - 6, 11), GPoint(cx + 6, 11));
+  // PebbleOS supports filled rectangles and stroked lines, but not
+  // graphics_fill_triangle(). Eight 1px horizontal scanlines form each
+  // solid indicator using the firmware's standard drawing primitives.
+  graphics_context_set_stroke_width(ctx, 1);
+  graphics_context_set_stroke_color(ctx, jot_shift_active(mode) ? mint : teal);
+  for (int row = 0; row < 8; ++row) {
+    const int half = row * 6 / 7;
+    graphics_draw_line(ctx, GPoint(cx - half, 3 + row),
+                       GPoint(cx + half, 3 + row));
+  }
   if (mode == JOT_SHIFT_LOCKED) {
+    graphics_context_set_fill_color(ctx, mint);
     graphics_fill_rect(ctx, GRect(cx - 6, 13, 12, 3), 0, GCornerNone);
   }
   if (jot_shift_active(mode)) {
-    graphics_context_set_fill_color(ctx, teal);
-    graphics_fill_triangle(ctx, GPoint(cx, h - 3),
-                           GPoint(cx - 6, h - 11),
-                           GPoint(cx + 6, h - 11));
+    graphics_context_set_stroke_color(ctx, teal);
+    for (int row = 0; row < 8; ++row) {
+      const int half = row * 6 / 7;
+      graphics_draw_line(ctx, GPoint(cx - half, h - 3 - row),
+                         GPoint(cx + half, h - 3 - row));
+    }
   }
 }
 
