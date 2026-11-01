@@ -1,3 +1,27 @@
+## Jot 1.17.0 — Shift and Shift Lock (#33; Emery QA pending)
+
+On the **ABC** keyboard, swipe **R up** to cycle through three modes:
+**normal → uppercase next letter → uppercase lock → normal**.
+Swipe **R down** to cancel immediately from either shifted mode.
+The R key shows an upward triangle in normal mode, a brighter upward
+triangle plus a downward cancel arrow in one-shot mode, and an extra
+horizontal bar under the bright triangle in locked mode, following
+the Android reference. Both the **nine large central letters and all
+alphabetic peripheral legends** change to uppercase in either shifted
+mode. Punctuation and control icons never change case.
+
+One-shot Shift is consumed by one alphabetic character entered using
+an ABC gesture, not by moving the cursor, punctuation, Space,
+Backspace, Save, Return, or switching briefly to 123. Caps Lock stays
+enabled until R-down or the third R-up. The numeric face retains its
+own unchanged bindings and labels. Finishing a note and entering the
+list/reader clears Shift so it cannot unexpectedly carry to another
+note. Shift is transient and never persisted at startup.
+
+No new key layers, icons, geometry, touch hitboxes or note storage
+changes. Pure C tests cover all three modes and ASCII/UTF-8 casing;
+the SDK build and real Ember wrist usability remain to be verified.
+
 # Jot — a pocket notebook for Pebble
 
 **A thought, one button away.**

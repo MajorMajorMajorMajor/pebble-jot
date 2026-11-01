@@ -5,6 +5,7 @@
 #include "keyboard/layout.h"
 #include "keyboard/state.h"
 #include "keyboard/flip_layout.h"
+#include "keyboard/shift.h"
 
 #include "ui/style.h"
 #include "ui/key_grid.h"
@@ -30,6 +31,7 @@ struct KeyboardWindow {
   KeyGrid *grid;
   Layer *content_layer;
   JotFlipLayout flip_mode;
+  JotShiftMode shift_mode; // Never persisted, unlike the ergonomic flip.
 };
 
 // Future logic for showing different key grids
@@ -90,6 +92,7 @@ static void prv_window_load(Window *window) {
   self->grid = key_grid_create(layout, dimensions.grid_frame, self->style,
                                jot_flip_right(self->flip_mode));
   PEBBLE_ASSERT(self->grid);
+  key_grid_set_shift_mode(self->grid, self->shift_mode);
       
   // add grid layer to the window
   Layer *grid_layer = key_grid_get_layer(self->grid);
@@ -247,6 +250,7 @@ bool keyboard_window_toggle_number_face(void) {
                                  frames.grid_frame, self->style,
                                  jot_flip_right(self->flip_mode));
   if (!next) return false;
+  key_grid_set_shift_mode(next, self->shift_mode);
   KeyGrid *old = self->grid;
   layer_add_child(window_get_root_layer(self->window),
                   key_grid_get_layer(next));
@@ -276,4 +280,24 @@ bool keyboard_window_cycle_flip(int direction) {
   prv_attach_content_layer(self);
   persist_write_int(JOT_FLIP_PERSIST_KEY, (int)next);
   return true;
+}
+
+JotShiftMode keyboard_window_shift_mode(void) {
+  return s_loaded_keyboard ? s_loaded_keyboard->shift_mode : JOT_SHIFT_OFF;
+}
+
+void keyboard_window_set_shift_mode(JotShiftMode mode) {
+  KeyboardWindow *self = s_loaded_keyboard;
+  if (!self || self->shift_mode == mode) return;
+  self->shift_mode = mode;
+  key_grid_set_shift_mode(self->grid, mode);
+}
+
+void keyboard_window_cycle_shift(void) {
+  keyboard_window_set_shift_mode(
+      jot_shift_cycle(keyboard_window_shift_mode()));
+}
+
+void keyboard_window_reset_shift(void) {
+  keyboard_window_set_shift_mode(JOT_SHIFT_OFF);
 }

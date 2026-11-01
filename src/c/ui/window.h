@@ -5,6 +5,7 @@
 #include "ui/style.h"
 #include "keyboard/state.h"
 #include "keyboard/flip_layout.h"
+#include "keyboard/shift.h"
 
 typedef struct KeyboardWindow KeyboardWindow; // defined in window.c
 
@@ -33,3 +34,8 @@ bool keyboard_window_number_face_active(void);
 // Four orientations: LH/top, RH/top, RH/bottom, LH/bottom.
 JotFlipLayout keyboard_window_flip_mode(void);
 bool keyboard_window_cycle_flip(int direction);
+// Shift controls apply only to the ABC R key; the numeric face is unchanged.
+JotShiftMode keyboard_window_shift_mode(void);
+void keyboard_window_set_shift_mode(JotShiftMode mode);
+void keyboard_window_cycle_shift(void);
+void keyboard_window_reset_shift(void);

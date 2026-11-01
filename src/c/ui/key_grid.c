@@ -2,6 +2,7 @@
 
 #include "keyboard/layout.h"
 #include "keyboard/flip_layout.h"
+#include "keyboard/shift.h"
 
 #include "ui/key_button.h"
 
@@ -182,6 +183,12 @@ KeyGrid *key_grid_create(const Layout *layout, GRect frame,
   return grid;
 }
 
+
+void key_grid_set_shift_mode(KeyGrid *grid, JotShiftMode mode) {
+  if (!grid) return;
+  for (size_t i = 0; i < grid->button_count; ++i)
+    key_button_set_shift_mode(grid->buttons[i], mode);
+}
 
 void key_grid_set_right_hand(KeyGrid *grid, bool right_hand) {
   if (!grid || grid->right_hand == right_hand) return;

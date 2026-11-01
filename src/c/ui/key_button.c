@@ -6,6 +6,7 @@
 #include "keyboard/key_label.h"
 #include "keyboard/number_face.h"
 #include "keyboard/primary_face.h"
+#include "keyboard/shift.h"
 #include "ui/legend_geometry.h"
 #include <stddef.h>
 
@@ -33,6 +34,7 @@ struct KeyButtonLayer {
 
   Layer *base_layer;
   uint8_t feedback_level; // 0=rest, 255=full press.
+  JotShiftMode shift_mode;
   KeyLabelLayer *label_layers[KEY_LABEL_COUNT];
 };
 
@@ -152,7 +154,14 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
       GTextAlignment text_alignment = GTextAlignmentCenter;
 
 
-      const char *text = key_label->text;
+      char upper_center[2] = {0};
+      const ptrdiff_t alpha_index = label->key - get_key(KEY_ENGLISH_A);
+      const bool alphabet_key = alpha_index >= 0 && alpha_index < 9;
+      if (alphabet_key && jot_shift_active(label->owner->shift_mode) &&
+          key_label->text[0] && !key_label->text[1]) {
+        upper_center[0] = jot_shift_upper(key_label->text[0]);
+      }
+      const char *text = upper_center[0] ? upper_center : key_label->text;
       const UIFont *ui_font;
       JotTextPlacement placement;
 
@@ -198,7 +207,7 @@ static void prv_draw_key_label(Layer *layer, GContext* ctx) {
           });
       text_frame = GRect(frame.x, frame.y, frame.w, frame.h);
       graphics_context_set_text_color(ctx, text_color);
-      graphics_draw_text(ctx, key_label->text, text_font, text_frame,
+      graphics_draw_text(ctx, text, text_font, text_frame,
                          text_overflow_mode, text_alignment, NULL);
       // Labels never move or change weight during an A-style fill pulse.
     }
@@ -323,7 +332,7 @@ static void prv_draw_number_legends(GContext *ctx, const Key *key,
 // Directional compass around the unchanged central label:
 // NW N NE / W [CENTER] E / SW S SE.
 static void prv_draw_primary_legends(GContext *ctx, const Key *key,
-                                    GRect bounds) {
+                                    GRect bounds, JotShiftMode shift_mode) {
   const ptrdiff_t index = key - get_key(KEY_ENGLISH_A);
   if (index < 0 || index >= 9) return;
   const GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
@@ -331,12 +340,40 @@ static void prv_draw_primary_legends(GContext *ctx, const Key *key,
   for (int d = 0; d < 8; ++d) {
     const char symbol = jot_primary_face_legend((int)index, d);
     if (!symbol) continue;
-    const char text[2] = {symbol, '\0'};
+    const char text[2] = {
+      jot_shift_active(shift_mode) ? jot_shift_upper(symbol) : symbol, '\0'
+    };
     const JotLegendPosition pos = jot_legend_position(
         JOT_LEGEND_ABC, (int)index, d, bounds.size.w, bounds.size.h);
     graphics_draw_text(ctx, text, font,
         GRect(pos.x, pos.y, JOT_LEGEND_SLOT_W, JOT_LEGEND_SLOT_H),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  }
+}
+
+
+// The R key carries the same compact state pictograms as the Android
+// reference: teal up arrow in normal mode, mint up in one-shot,
+// mint up with a bar for lock, and a small down arrow for cancellation.
+// Paint on the existing background (no new layers or icon assets).
+static void prv_draw_shift_indicators(GContext *ctx, const Key *key,
+                                      GRect bounds, JotShiftMode mode) {
+  if (key != get_key(KEY_ENGLISH_R)) return;
+  const int cx = bounds.size.w / 2;
+  const int h = bounds.size.h;
+  const GColor teal = GColorFromRGB(0, 170, 170);
+  const GColor mint = GColorFromRGB(85, 255, 170);
+  graphics_context_set_fill_color(ctx, jot_shift_active(mode) ? mint : teal);
+  graphics_fill_triangle(ctx, GPoint(cx, 3),
+                         GPoint(cx - 6, 11), GPoint(cx + 6, 11));
+  if (mode == JOT_SHIFT_LOCKED) {
+    graphics_fill_rect(ctx, GRect(cx - 6, 13, 12, 3), 0, GCornerNone);
+  }
+  if (jot_shift_active(mode)) {
+    graphics_context_set_fill_color(ctx, teal);
+    graphics_fill_triangle(ctx, GPoint(cx, h - 3),
+                           GPoint(cx - 6, h - 11),
+                           GPoint(cx + 6, h - 11));
   }
 }
 
@@ -405,7 +442,8 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   graphics_draw_round_rect(ctx, face, style->key_corner_radius);
   prv_draw_key_bevel(ctx, face, special, space);
   prv_draw_number_legends(ctx, button->key, bounds);
-  prv_draw_primary_legends(ctx, button->key, bounds);
+  prv_draw_primary_legends(ctx, button->key, bounds, button->shift_mode);
+  prv_draw_shift_indicators(ctx, button->key, bounds, button->shift_mode);
 }
 
 KeyButtonLayer *key_button_create(const Key *key, GRect frame, const UIStyle *style) {
@@ -477,6 +515,16 @@ void key_button_set_feedback_level(KeyButtonLayer *button, uint8_t level) {
     for (int i = 0; i < KEY_LABEL_COUNT; ++i)
       if (button->label_layers[i])
         layer_mark_dirty(button->label_layers[i]->layer);
+}
+
+void key_button_set_shift_mode(KeyButtonLayer *button, JotShiftMode mode) {
+  if (!button || button->shift_mode == mode) return;
+  button->shift_mode = mode;
+  if (button->base_layer) layer_mark_dirty(button->base_layer);
+  for (int i = 0; i < KEY_LABEL_COUNT; ++i) {
+    if (button->label_layers[i])
+      layer_mark_dirty(button->label_layers[i]->layer);
+  }
 }
 
 void key_button_destroy(KeyButtonLayer *button){  

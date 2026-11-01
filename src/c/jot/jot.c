@@ -2,6 +2,7 @@
 #include "jot/jot.h"
 #include "jot/store.h"
 #include "ui/touch.h"
+#include "ui/window.h"
 #include "jot/list_focus.h"
 #include "jot/list_touch.h"
 #include "jot/backup.h"
@@ -528,6 +529,8 @@ static int prv_rank_of_slot(int slot) {
 
 static void prv_push_list_at(int rank) {
   if (!s_list_window) return;
+  // A temporary uppercase gesture never leaks into the next note.
+  keyboard_window_reset_shift();
   s_selected_rank = jot_list_focus_initial(rank, jot_store_count());
   s_list_focus_valid = true;
   s_confirm_delete = false;

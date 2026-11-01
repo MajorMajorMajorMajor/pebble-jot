@@ -7,6 +7,7 @@
 #include "ui/touch.h"
 #include "ui/key_repeat.h"
 #include "keyboard/flip_layout.h"
+#include "keyboard/shift.h"
 #include "ui/kinetic_scroll.h"
 #include "jot/jot.h"
 #include "jot/store.h"
@@ -483,6 +484,19 @@ static void prv_update_repeat(const TouchEvent *event, uint32_t now_ms) {
     prv_schedule_repeat(JOT_REPEAT_DELAY_MS);
 }
 
+
+// Shift is applied only to alphabetic text input on the ABC face.
+// Retain a one-shot Shift while moving the caret, entering whitespace,
+// deleting, or temporarily visiting the numeric face.
+static void prv_jot_input_abc(const char *binding) {
+  if (!binding || !*binding) return;
+  JotShiftMode mode = keyboard_window_shift_mode();
+  char uppercase[2] = {0};
+  const char *text = jot_shift_prepare(&mode, binding, uppercase);
+  jot_input(text);
+  keyboard_window_set_shift_mode(mode);
+}
+
 static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
   switch (event->type) {
     case TouchEvent_Touchdown:
@@ -628,7 +642,15 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
           if (repeated) break; // Timer already committed editing commands.
           // The physical 123/ABC cell switches faces on tap only.
           // The saved draft and its caret remain in the same editor.
-          if (s_touch_key == 13 &&
+          if (!keyboard_window_number_face_active() &&
+              s_touch_key == 5 && gesture_index == 1) {
+            // R-up: normal -> one uppercase letter -> caps lock -> normal.
+            keyboard_window_cycle_shift();
+          } else if (!keyboard_window_number_face_active() &&
+                     s_touch_key == 5 && gesture_index == 5) {
+            // R-down always cancels either shifted state.
+            keyboard_window_reset_shift();
+          } else if (s_touch_key == 13 &&
               (gesture_index == 17 || gesture_index == 18)) {
             // SAVE-circle: clockwise advances through all four #36
             // layouts, counterclockwise reverses. Never saves/prints.
@@ -665,7 +687,8 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
             // their established cursor movements on both faces.
             const char *numeric = keyboard_window_number_face_active() ?
                 jot_number_face_binding(s_touch_key, gesture_index) : NULL;
-            jot_input(numeric ? numeric : binding);
+            if (numeric) jot_input(numeric);
+            else prv_jot_input_abc(binding);
           }
           break;
         }
@@ -1202,6 +1225,7 @@ void touch_recorder_next_direction(void) {
 void touch_enter_harness(void) {
   if (s_mode != MODE_JOT || jot_list_is_open()) return;
   jot_save_now();
+  keyboard_window_reset_shift();
   s_mode = MODE_MENU;
   prv_show_menu();
 }
@@ -1219,6 +1243,7 @@ void touch_init(void) {
 }
 
 void touch_deinit(void) {
+  keyboard_window_reset_shift();
   touch_cancel_kinetic();
   prv_stop_repeat();
   jot_key_repeat_end(&s_repeat);
