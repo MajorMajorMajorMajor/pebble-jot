@@ -20,7 +20,7 @@ note. Shift is transient and never persisted at startup.
 
 No new key layers, icons, geometry, touch hitboxes or note storage
 changes. Pure C tests cover all three modes and ASCII/UTF-8 casing;
-the SDK build and real Ember wrist usability remain to be verified.
+the SDK build and real Emery wrist usability remain to be verified.
 
 # Jot — controls and developer guide
 
