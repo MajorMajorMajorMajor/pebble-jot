@@ -6,6 +6,7 @@
 #include <string.h>
 #include "ui/caret_layout.h"
 #include "ui/key_repeat.h"
+#include "keyboard/shift.h"
 
 static int measure(const char *text, size_t first, size_t last, void *unused) {
   (void)unused;
@@ -135,7 +136,56 @@ static void hold_latches_until_release(void) {
   assert(jot_key_repeat_end(&state));
 }
 
+
+static void shift_case_and_state(void) {
+  JotShiftMode mode = JOT_SHIFT_OFF;
+  char out[2] = {0};
+  assert(!jot_shift_active(mode));
+  assert(jot_shift_cycle(mode) == JOT_SHIFT_ONCE);
+  mode = jot_shift_cycle(mode);
+  assert(jot_shift_active(mode));
+  assert(jot_shift_upper('q') == 'Q');
+  assert(jot_shift_upper('w') == 'W');
+  assert(jot_shift_upper('r') == 'R');
+  assert(jot_shift_upper('a') == 'A');
+  assert(jot_shift_upper('z') == 'Z');
+  assert(jot_shift_upper(':') == ':');
+
+  // Cancel is always available from either mode, and does not type R.
+  assert(jot_shift_cancel(mode) == JOT_SHIFT_OFF);
+  mode = jot_shift_cycle(mode);
+  assert(mode == JOT_SHIFT_LOCKED);
+  assert(jot_shift_cancel(mode) == JOT_SHIFT_OFF);
+  mode = JOT_SHIFT_OFF;
+
+  // One-shot survives Space/punctuation/cursor/delete until a letter.
+  mode = jot_shift_cycle(mode);
+  assert(jot_shift_prepare(&mode, " ", out)[0] == ' ');
+  assert(mode == JOT_SHIFT_ONCE);
+  assert(jot_shift_prepare(&mode, ".", out)[0] == '.');
+  assert(mode == JOT_SHIFT_ONCE);
+  assert(jot_shift_prepare(&mode, "\\b", out)[0] == '\\b');
+  assert(mode == JOT_SHIFT_ONCE);
+  assert(jot_shift_prepare(&mode, "\\n", out)[0] == '\\n');
+  assert(mode == JOT_SHIFT_ONCE);
+  assert(jot_shift_prepare(&mode, "é", out)[0] != '\\0');
+  assert(mode == JOT_SHIFT_ONCE);
+  assert(strcmp(jot_shift_prepare(&mode, "f", out), "F") == 0);
+  assert(mode == JOT_SHIFT_OFF);
+  assert(strcmp(jot_shift_prepare(&mode, "o", out), "o") == 0);
+
+  // Lock remains through multiple uppercase and lowercase ASCII gestures.
+  mode = jot_shift_cycle(jot_shift_cycle(JOT_SHIFT_OFF));
+  assert(mode == JOT_SHIFT_LOCKED);
+  assert(strcmp(jot_shift_prepare(&mode, "j", out), "J") == 0);
+  assert(strcmp(jot_shift_prepare(&mode, "O", out), "O") == 0);
+  assert(strcmp(jot_shift_prepare(&mode, "x", out), "X") == 0);
+  assert(mode == JOT_SHIFT_LOCKED);
+  assert(jot_shift_cycle(mode) == JOT_SHIFT_OFF);
+  assert(jot_shift_prepare(NULL, "q", out)[0] == 'q');
+}
 int main(void) {
+  shift_case_and_state();
   text_wrapping_and_cursor();
   editing_gesture_bindings();
   hold_latches_until_release();

@@ -31,8 +31,9 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/behavior/writing.c src/c/ui/caret_layout.c \
-            src/c/ui/key_repeat.c -o /tmp/jot-writing
+            src/c/ui/key_repeat.c src/c/keyboard/shift.c -o /tmp/jot-writing
           /tmp/jot-writing
+          node tests/behavior/shift-routing.js
       - name: Text-label geometry (shared layout, no pixel freeze)
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
