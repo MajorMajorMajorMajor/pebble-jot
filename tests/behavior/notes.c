@@ -6,6 +6,7 @@
 #include <string.h>
 #include <pebble.h>
 #include "jot/store.h"
+#include "keyboard/compose.h"
 
 enum {
   STORAGE_KEY_FIRST = 5000,
@@ -414,6 +415,70 @@ static void test_capacity_and_quota(void) {
   expect_note(failed_slot, last_committed);
 }
 
+
+static bool apply_compose(void) {
+  JotComposeEdit edit;
+  if (!jot_compose_at(jot_store_text(), jot_store_cursor(), &edit))
+    return false;
+  return jot_store_replace_before_cursor(
+      edit.codepoints_before_cursor, edit.replacement);
+}
+
+// 11. Every Compose edit is a single UTF-8 safe, crash-recoverable
+// mutation; a failed replacement never removes the original bytes.
+static void test_compose_undo_and_capacity(void) {
+  fresh_store();
+  assert(jot_store_input("hello oe world"));
+  assert(jot_store_set_cursor(8)); // After "oe", before " world".
+  assert(apply_compose());
+  assert(strcmp(jot_store_text(), "hello œ world") == 0);
+  assert(jot_store_cursor() == strlen("hello œ"));
+  // With the cursor moved, we cycle a character entered earlier.
+  assert(jot_store_set_cursor(strlen("hello œ")));
+  assert(apply_compose());
+  assert(strcmp(jot_store_text(), "hello ¤ world") == 0);
+  assert(jot_store_cursor() == strlen("hello ¤"));
+  // A transformation on the prefix never damages the UTF-8 suffix.
+  assert(jot_store_flush());
+  const int slot = jot_store_active_slot();
+  jot_store_init();
+  expect_note(slot, "hello ¤ world");
+
+  assert(jot_store_new());
+  assert(jot_store_input("s"));
+  static const char *const cycle[] = {"š", "ş", "ŝ", "ß", "∫", "s"};
+  for (size_t i = 0; i < sizeof cycle / sizeof cycle[0]; ++i) {
+    assert(apply_compose());
+    assert(strcmp(jot_store_text(), cycle[i]) == 0);
+    assert(jot_store_cursor() == strlen(cycle[i]));
+  }
+  assert(jot_store_flush());
+  const int cycle_slot = jot_store_active_slot();
+  jot_store_init();
+  expect_note(cycle_slot, "s");
+
+  // A full note cannot be expanded, but its bytes, cursor, dirty flag
+  // and suffix remain intact. The rejected Compose is not autosaved.
+  assert(jot_store_new());
+  char full[JOT_NOTE_TEXT_BYTES];
+  memset(full, 'q', JOT_NOTE_TEXT_BYTES - 2);
+  full[JOT_NOTE_TEXT_BYTES - 2] = 's';
+  full[JOT_NOTE_TEXT_BYTES - 1] = '\0';
+  assert(jot_store_input(full));
+  assert(jot_store_flush());
+  assert(!jot_store_dirty());
+  assert(jot_store_cursor() == JOT_NOTE_TEXT_BYTES - 1);
+  assert(!apply_compose()); // s → š would grow the note by one byte.
+  assert(!jot_store_dirty());
+  assert(jot_store_length() == JOT_NOTE_TEXT_BYTES - 1);
+  assert(jot_store_cursor() == JOT_NOTE_TEXT_BYTES - 1);
+  assert(strcmp(jot_store_text(), full) == 0);
+  assert(!jot_store_replace_before_cursor(2, NULL));
+  assert(!jot_store_replace_before_cursor(0, "x"));
+  assert(!jot_store_replace_before_cursor(3, "x"));
+  assert(!jot_store_dirty());
+}
+
 int main(void) {
   test_committed_round_trip();
   test_ranked_slot_lifecycle();
@@ -424,8 +489,9 @@ int main(void) {
   test_stale_bank_deletion();
   test_mixed_generation_recovery();
   test_utf8_editing();
+  test_compose_undo_and_capacity();
   test_capacity_and_quota();
   jot_store_deinit();
-  puts("Ten independent storage safety scenarios passed");
+  puts("Eleven independent storage safety scenarios passed");
   return 0;
 }
