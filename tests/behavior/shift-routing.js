@@ -38,16 +38,25 @@ assert.match(button,/const GColor teal = GColorFromRGB\(0, 170, 170\)/);
 assert.match(button,/const GColor blue = GColorFromRGB\(0, 85, 170\)/);
 assert.match(button,/mode == JOT_SHIFT_OFF \? teal : blue/);
 assert.match(button,/if \(mode == JOT_SHIFT_LOCKED\) \{[\s\S]*?for \(int row = 0; row <= bottom - top; \+\+row\)/);
-assert.match(button,/\} else \{[\s\S]*?graphics_draw_line\(ctx, GPoint\(cx, top\)/);
-assert.match(button,/GPoint\(cx - half_width, bottom\)/);
+// Once is now a raster outline rather than two aliasing sloped strokes.
+// Mirror the two 3px side runs exactly; keep the original 2px base
+// and the original 13x8 silhouette. Off and lock are unchanged.
+assert.match(button,/else if \(mode == JOT_SHIFT_ONCE\) \{/);
+assert.match(button,/row <= 2 \|\| row >= bottom - top - 1/);
+assert.match(button,/GPoint\(cx - half \+ 2, y\)/);
+assert.match(button,/GPoint\(cx \+ half - 2, y\)/);
+assert.match(button,/GPoint\(cx - half, bottom\)|GPoint\(cx - half_width, bottom\)/);
 assert.match(button,/GPoint\(cx \+ half_width, bottom\)/);
-// Only one-shot gets a second pixel-inset outline: off stays a thin
-// teal outline and lock keeps the current fully-filled silhouette.
-assert.match(button,/if \(mode == JOT_SHIFT_ONCE\) \{[\s\S]*?const int inner_top = top \+ 1/);
-assert.match(button,/const int inner_bottom = bottom - 1/);
-assert.match(button,/const int inner_half_width = half_width - 2/);
-assert.match(button,/GPoint\(cx - inner_half_width, inner_bottom\)/);
-assert.match(button,/GPoint\(cx \+ inner_half_width, inner_bottom\)/);
+// Rasterized left/right thickness and bounds are symmetrical at each row.
+for(let row=0;row<=7;row++){
+  const half=Math.floor(row*6/7);
+  const left=[-half, row<=2||row>=6?half:-half+2];
+  const right=[row<=2||row>=6?-half:half-2, half];
+  assert.equal(left[0],-right[1]);
+  assert.equal(left[1],-right[0]);
+  assert.ok(left[0]>=-6 && right[1]<=6);
+  assert.ok(left[1]>=left[0] && right[1]>=right[0]);
+}
 assert.doesNotMatch(button,/graphics_context_set_stroke_width\(ctx, 2\)/);
 assert.doesNotMatch(button,/graphics_fill_triangle\(ctx/);
 assert.doesNotMatch(button,/graphics_fill_rect\(ctx, GRect\(cx - 6, 13, 12, 3\)/);

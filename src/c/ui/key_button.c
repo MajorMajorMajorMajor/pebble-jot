@@ -381,30 +381,34 @@ static void prv_draw_shift_indicators(GContext *ctx, const Key *key,
       graphics_draw_line(ctx, GPoint(cx - half, top + row),
                          GPoint(cx + half, top + row));
     }
+  } else if (mode == JOT_SHIFT_ONCE) {
+    // A second sloping outline was uneven on Emery: Bresenham lines
+    // sometimes shared pixels and sometimes left a 1px gap. Paint an
+    // explicitly symmetric raster outline instead. Each slope gets a
+    // three-pixel horizontal run (~2px perpendicular to the slope);
+    // the bottom remains the approved two solid rows. All ink stays
+    // within the same 13x8 triangle, and both sides mirror exactly.
+    for (int row = 0; row <= bottom - top; ++row) {
+      const int half = row * half_width / (bottom - top);
+      const int y = top + row;
+      if (row <= 2 || row >= bottom - top - 1) {
+        graphics_draw_line(ctx, GPoint(cx - half, y),
+                           GPoint(cx + half, y));
+      } else {
+        graphics_draw_line(ctx, GPoint(cx - half, y),
+                           GPoint(cx - half + 2, y));
+        graphics_draw_line(ctx, GPoint(cx + half - 2, y),
+                           GPoint(cx + half, y));
+      }
+    }
   } else {
-    // Same outer silhouette for off and one-shot, with the latter getting
-    // a second inset blue outline instead of a thicker outward stroke.
+    // Normal mode keeps the original slim teal outline.
     graphics_draw_line(ctx, GPoint(cx, top),
                        GPoint(cx - half_width, bottom));
     graphics_draw_line(ctx, GPoint(cx, top),
                        GPoint(cx + half_width, bottom));
     graphics_draw_line(ctx, GPoint(cx - half_width, bottom),
                        GPoint(cx + half_width, bottom));
-    if (mode == JOT_SHIFT_ONCE) {
-      // A second outline entirely INSIDE the approved 13x8 footprint
-      // makes one-shot Shift read as double-weight on Emery. Deliberate
-      // inset points avoid outward stroke growth or blurry 2px joins.
-      // The base at bottom-1 is adjacent to the original bottom row.
-      const int inner_top = top + 1;
-      const int inner_bottom = bottom - 1;
-      const int inner_half_width = half_width - 2;
-      graphics_draw_line(ctx, GPoint(cx, inner_top),
-                         GPoint(cx - inner_half_width, inner_bottom));
-      graphics_draw_line(ctx, GPoint(cx, inner_top),
-                         GPoint(cx + inner_half_width, inner_bottom));
-      graphics_draw_line(ctx, GPoint(cx - inner_half_width, inner_bottom),
-                         GPoint(cx + inner_half_width, inner_bottom));
-    }
   }
   if (jot_shift_active(mode)) {
     // Keep the existing teal R-down cancel glyph in both shifted modes.
