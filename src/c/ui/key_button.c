@@ -349,6 +349,16 @@ static void prv_draw_primary_legends(GContext *ctx, const Key *key,
         GRect(pos.x, pos.y, JOT_LEGEND_SLOT_W, JOT_LEGEND_SLOT_H),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
   }
+  if (index == 0) {
+    // A NW was deliberately blank before Compose existed. Now reveal
+    // its original action with a small blue C at the NW compass slot.
+    // This is a control glyph, so it stays uppercase in both Shift modes.
+    const JotLegendPosition compose = jot_legend_position(
+        JOT_LEGEND_ABC, 0, 0, bounds.size.w, bounds.size.h);
+    graphics_draw_text(ctx, "C", font,
+        GRect(compose.x, compose.y, JOT_LEGEND_SLOT_W, JOT_LEGEND_SLOT_H),
+        GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  }
 }
 
 

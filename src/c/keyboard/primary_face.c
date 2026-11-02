@@ -1,7 +1,8 @@
 #include "keyboard/primary_face.h"
 
 // Compact 9x8 lookup table. Canonical gesture directions: NW/N/NE/E/SE/S/SW/W.
-// Compose on A NW is deliberately not implemented or labeled.
+// A NW is the Compose command, painted independently as a blue C in
+// key_button.c; this table stores printable alphabetic legends only.
 static const char s_letters[9][8] = {
   { 0,   0,   0,   0, 'v',  0,   0,   0 }, // a
   { 0,   0,   0,   0,   0, 'l',  0,   0 }, // n

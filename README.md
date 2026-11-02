@@ -12,8 +12,10 @@ including when any variant was inserted directly by a numeric gesture.
 Uppercase has a companion `S → Š → Ş → Ŝ → S` cycle. A cursor moved
 through existing text works identically to freshly typed input.
 
-The full #32 reference (222 entries, 217 distinct pairs, first
-mapping wins on duplicates) is compiled as static UTF-8 data. Note text
+The full #32 reference (223 entries, 217 distinct pairs, first
+mapping wins on duplicates) is compiled as static UTF-8 data.
+A small blue `C` in the A-key northwest corner makes the
+previously reserved gesture discoverable without a new layer. Note text
 is changed only by an **atomic, UTF-8-boundary-safe replacement** that
 preserves cursor and suffix and refuses changes that exceed the 4095-byte
 note limit. Unknown input, an empty prefix and unusable cursor positions

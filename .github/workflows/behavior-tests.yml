@@ -27,6 +27,7 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/behavior/compose.c src/c/keyboard/compose.c -o /tmp/jot-compose
           /tmp/jot-compose
+          node tests/behavior/compose-routing.js
       - name: Read notes (navigation, safe delete, touch and drag)
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \

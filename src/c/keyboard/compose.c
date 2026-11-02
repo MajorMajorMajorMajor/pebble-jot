@@ -5,7 +5,7 @@
 // Duplicate pair entries retain the first listed meaning; later variations
 // remain available by cycling. The reference contains occasionally missing
 // spaces/ambiguous typography; normalize only the pair syntax, not glyphs.
-// 222 reference entries; 217 distinct pairs; 6 ambiguities.
+// 223 listed reference entries; 217 distinct pairs; 6 ambiguities.
 typedef struct { const char *left, *right, *result; } ComposePair;
 static const ComposePair s_pairs[] = {
   {"f", "/", "ƒ"},
