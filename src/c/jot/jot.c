@@ -1,6 +1,7 @@
 #include <pebble.h>
 #include "jot/jot.h"
 #include "jot/store.h"
+#include "keyboard/compose.h"
 #include "ui/touch.h"
 #include "ui/window.h"
 #include "jot/list_focus.h"
@@ -72,6 +73,22 @@ void jot_input(const char *binding) {
   bool ok = jot_store_input(binding);
   s_input_full = !ok;
   if (ok && jot_store_dirty()) prv_schedule_autosave();
+  jot_refresh_editor();
+}
+
+void jot_compose(void) {
+  if ((s_list_window && window_stack_get_top_window() == s_list_window) ||
+      jot_reader_is_open()) return;
+  JotComposeEdit edit;
+  if (!jot_compose_at(jot_store_text(), jot_store_cursor(), &edit))
+    return; // Unknown/empty sequence is an intentional no-op.
+  if (!jot_store_replace_before_cursor(edit.codepoints_before_cursor,
+                                       edit.replacement)) {
+    s_input_full = true; // Capacity failure: original text stays intact.
+  } else {
+    s_input_full = false;
+    if (jot_store_dirty()) prv_schedule_autosave();
+  }
   jot_refresh_editor();
 }
 

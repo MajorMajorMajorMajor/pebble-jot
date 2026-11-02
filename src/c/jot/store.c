@@ -408,6 +408,40 @@ bool jot_store_input(const char *binding) {
   return true;
 }
 
+bool jot_store_replace_before_cursor(size_t codepoints, const char *replacement) {
+  if (!replacement || codepoints < 1 || codepoints > 2) return false;
+  size_t start = s_cursor;
+  for (size_t n = 0; n < codepoints; ++n) {
+    if (!start) return false;
+    start = prv_previous(start);
+  }
+  const size_t removed = s_cursor - start;
+  const size_t added = strlen(replacement);
+  if (added == removed && memcmp(s_text + start, replacement, added) == 0)
+    return false;
+  if (s_length - removed + added >= sizeof s_text) return false;
+  if (s_active_slot < 0 && prv_free_slot() < 0) return false;
+
+  // The note is unchanged unless the *entire* replacement fits.
+  memmove(s_text + start + added, s_text + s_cursor,
+          s_length - s_cursor + 1); // Including the NUL.
+  memcpy(s_text + start, replacement, added);
+  s_length = s_length - removed + added;
+  s_cursor = start + added;
+  s_keep_vertical_column = false;
+  if (s_active_slot < 0 && s_length) {
+    s_active_slot = prv_free_slot();
+    s_index[s_active_slot] = (NoteIndex){
+      .used = true, .bank = -1, .serial = s_next_serial++,
+      .timestamp = (uint32_t)time(NULL)
+    };
+    s_active_time = (time_t)s_index[s_active_slot].timestamp;
+    prv_ranked_insert(s_active_slot);
+  }
+  if (s_active_slot >= 0) s_dirty = true;
+  return true;
+}
+
 bool jot_store_delete_forward(void) {
   if (s_cursor >= s_length) return false;
   // Advance by one whole UTF-8 codepoint, including newlines.

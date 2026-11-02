@@ -1,3 +1,28 @@
+## Jot 1.18.0 — Retroactive Compose (#32; wrist QA pending)
+
+Swipe **A up-left** on the ABC face to transform text immediately to
+the **left of the insertion cursor**, even when navigating inside a
+previously saved note. The canonical MessagEase pairs include
+`o`+`e` → `œ`, `a`+`´` → `á`, `T`+`M` → `™`, and Greek/math
+symbols. For a recognized two-codepoint sequence, Compose replaces
+both with the resulting Unicode character. If no pair matches, it
+cycles the nearest preceding character through supported alternatives.
+The `s` cycle is deliberately `s → š → ş → ŝ → ß → ∫ → s`,
+including when any variant was inserted directly by a numeric gesture.
+Uppercase has a companion `S → Š → Ş → Ŝ → S` cycle. A cursor moved
+through existing text works identically to freshly typed input.
+
+The full #32 reference (222 entries, 217 distinct pairs, first
+mapping wins on duplicates) is compiled as static UTF-8 data. Note text
+is changed only by an **atomic, UTF-8-boundary-safe replacement** that
+preserves cursor and suffix and refuses changes that exceed the 4095-byte
+note limit. Unknown input, an empty prefix and unusable cursor positions
+are no-ops; no Compose mode, queue, extra layers or startup-time work.
+The active Shift mode is unchanged by Compose. The watch's stock fonts
+may lack glyphs for some rare symbols; they remain safely stored UTF-8.
+The full Emery build and real hardware display/cursor verification must
+pass before closing #32.
+
 ## Jot 1.17.2 — stronger one-shot Shift icon (Emery QA pending)
 
 The one-shot Shift **blue upward outline on R** now has a second

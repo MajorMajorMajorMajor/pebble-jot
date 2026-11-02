@@ -643,6 +643,12 @@ static void prv_update_stroke(const TouchEvent *event, uint32_t now_ms) {
           // The physical 123/ABC cell switches faces on tap only.
           // The saved draft and its caret remain in the same editor.
           if (!keyboard_window_number_face_active() &&
+              s_touch_key == 0 && gesture_index == 8) {
+            // A-up-left: retroactive MessagEase Compose at the cursor.
+            // No modal state: transform a recognized pair or cycle the
+            // character immediately to its left. Shift is unaffected.
+            jot_compose();
+          } else if (!keyboard_window_number_face_active() &&
               s_touch_key == 5 && gesture_index == 1) {
             // R-up: normal -> one uppercase letter -> caps lock -> normal.
             keyboard_window_cycle_shift();

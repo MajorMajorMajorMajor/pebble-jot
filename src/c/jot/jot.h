@@ -6,6 +6,8 @@
 void jot_init(void);
 void jot_deinit(void);
 void jot_input(const char *binding);
+// A-up Compose: pair conversion first, otherwise cycling at the cursor.
+void jot_compose(void);
 // Delete forward at the cursor without advancing it.
 void jot_delete_forward(void);
 void jot_new_note(void);

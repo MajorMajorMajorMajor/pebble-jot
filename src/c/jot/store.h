@@ -32,6 +32,9 @@ int jot_store_active_slot(void);
 // UTF-8 text is inserted at the cursor; \\b removes the previous codepoint.
 // Refuses to create a 257th note rather than silently overwriting text.
 bool jot_store_input(const char *binding);
+// Atomically replace exactly 1 or 2 UTF-8 codepoints immediately preceding
+// the cursor. Never mutates text/cursor/dirty state on capacity failure.
+bool jot_store_replace_before_cursor(size_t codepoints, const char *replacement);
 // Delete next UTF-8 codepoint; returns false when already at end.
 bool jot_store_delete_forward(void);
 bool jot_store_flush(void);
