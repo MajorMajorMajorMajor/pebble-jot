@@ -52,8 +52,8 @@ for(let row=0;row<=7;row++){
   const half=Math.floor(row*6/7);
   const left=[-half, row<=2||row>=6?half:-half+2];
   const right=[row<=2||row>=6?-half:half-2, half];
-  assert.equal(left[0],-right[1]);
-  assert.equal(left[1],-right[0]);
+  assert.ok(left[0] === -right[1]);
+  assert.ok(left[1] === -right[0]);
   assert.ok(left[0]>=-6 && right[1]<=6);
   assert.ok(left[1]>=left[0] && right[1]>=right[0]);
 }
