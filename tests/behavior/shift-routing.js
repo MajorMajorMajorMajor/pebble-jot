@@ -32,8 +32,8 @@ assert.match(button,/void key_button_set_shift_mode/);
 assert.match(button,/layer_mark_dirty\(button->base_layer\)/);
 assert.match(button,/layer_mark_dirty\(button->label_layers\[i\]->layer\)/);
 // R's up indicator has *three* distinct visible states without needing
-// extra room: teal outline, blue outline, filled blue. In all of them the
-// triangle's position and dimensions are identical.
+// extra room: thin teal outline, double blue outline, filled blue.
+// Their outer triangle footprint and R-down cancel glyph are identical.
 assert.match(button,/const GColor teal = GColorFromRGB\(0, 170, 170\)/);
 assert.match(button,/const GColor blue = GColorFromRGB\(0, 85, 170\)/);
 assert.match(button,/mode == JOT_SHIFT_OFF \? teal : blue/);
@@ -41,6 +41,14 @@ assert.match(button,/if \(mode == JOT_SHIFT_LOCKED\) \{[\s\S]*?for \(int row = 0
 assert.match(button,/\} else \{[\s\S]*?graphics_draw_line\(ctx, GPoint\(cx, top\)/);
 assert.match(button,/GPoint\(cx - half_width, bottom\)/);
 assert.match(button,/GPoint\(cx \+ half_width, bottom\)/);
+// Only one-shot gets a second pixel-inset outline: off stays a thin
+// teal outline and lock keeps the current fully-filled silhouette.
+assert.match(button,/if \(mode == JOT_SHIFT_ONCE\) \{[\s\S]*?const int inner_top = top \+ 1/);
+assert.match(button,/const int inner_bottom = bottom - 1/);
+assert.match(button,/const int inner_half_width = half_width - 2/);
+assert.match(button,/GPoint\(cx - inner_half_width, inner_bottom\)/);
+assert.match(button,/GPoint\(cx \+ inner_half_width, inner_bottom\)/);
+assert.doesNotMatch(button,/graphics_context_set_stroke_width\(ctx, 2\)/);
 assert.doesNotMatch(button,/graphics_fill_triangle\(ctx/);
 assert.doesNotMatch(button,/graphics_fill_rect\(ctx, GRect\(cx - 6, 13, 12, 3\)/);
 assert.match(button,/if \(jot_shift_active\(mode\)\) \{[\s\S]*?graphics_context_set_stroke_color\(ctx, teal\)/);

@@ -1,3 +1,18 @@
+## Jot 1.17.2 — stronger one-shot Shift icon (Emery QA pending)
+
+The one-shot Shift **blue upward outline on R** now has a second
+1-pixel inset outline, creating a clearer double-weight arrow at
+Pebble scale. Its 13×8 outer silhouette does **not** grow. Normal Shift
+stays the original thin **teal outline**; Shift Lock remains the
+**solid blue triangle**. The downward teal cancellation arrow,
+alphabet case switching, controls and all keyboard gestures are
+unchanged.
+
+The second outline uses only Pebble-supported 1px graphics lines
+and is drawn on the same R-key layer with no extra allocation.
+Visual contract tests guard the inset geometry and state restriction.
+Emery contrast/appearance still needs a wrist test.
+
 ## Jot 1.17.1 — distinct R-key Shift indicators (Emery QA pending)
 
 Refine the R-up glyph within its **original 13×8 pixel footprint**:

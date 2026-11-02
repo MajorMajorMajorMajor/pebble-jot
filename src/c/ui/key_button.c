@@ -362,7 +362,7 @@ static void prv_draw_shift_indicators(GContext *ctx, const Key *key,
   const int cx = bounds.size.w / 2;
   const int h = bounds.size.h;
   // The entire three-state legend fits in the original triangle footprint:
-  // OFF = teal outline; ONCE = dark-blue outline; LOCKED = solid blue.
+  // OFF = thin teal outline; ONCE = double blue outline; LOCKED = solid blue.
   // A separate horizontal lock bar was visually lost against the large R
   // glyph at Emery's resolution, so shape (not subtle colour) conveys lock.
   const GColor teal = GColorFromRGB(0, 170, 170);
@@ -382,14 +382,29 @@ static void prv_draw_shift_indicators(GContext *ctx, const Key *key,
                          GPoint(cx + half, top + row));
     }
   } else {
-    // Outline only: identical triangle coordinates for unshifted and
-    // one-shot Shift, distinguished by their established accent colours.
+    // Same outer silhouette for off and one-shot, with the latter getting
+    // a second inset blue outline instead of a thicker outward stroke.
     graphics_draw_line(ctx, GPoint(cx, top),
                        GPoint(cx - half_width, bottom));
     graphics_draw_line(ctx, GPoint(cx, top),
                        GPoint(cx + half_width, bottom));
     graphics_draw_line(ctx, GPoint(cx - half_width, bottom),
                        GPoint(cx + half_width, bottom));
+    if (mode == JOT_SHIFT_ONCE) {
+      // A second outline entirely INSIDE the approved 13x8 footprint
+      // makes one-shot Shift read as double-weight on Emery. Deliberate
+      // inset points avoid outward stroke growth or blurry 2px joins.
+      // The base at bottom-1 is adjacent to the original bottom row.
+      const int inner_top = top + 1;
+      const int inner_bottom = bottom - 1;
+      const int inner_half_width = half_width - 2;
+      graphics_draw_line(ctx, GPoint(cx, inner_top),
+                         GPoint(cx - inner_half_width, inner_bottom));
+      graphics_draw_line(ctx, GPoint(cx, inner_top),
+                         GPoint(cx + inner_half_width, inner_bottom));
+      graphics_draw_line(ctx, GPoint(cx - inner_half_width, inner_bottom),
+                         GPoint(cx + inner_half_width, inner_bottom));
+    }
   }
   if (jot_shift_active(mode)) {
     // Keep the existing teal R-down cancel glyph in both shifted modes.
