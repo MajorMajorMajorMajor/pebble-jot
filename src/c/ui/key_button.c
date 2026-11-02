@@ -361,23 +361,38 @@ static void prv_draw_shift_indicators(GContext *ctx, const Key *key,
   if (key != get_key(KEY_ENGLISH_R)) return;
   const int cx = bounds.size.w / 2;
   const int h = bounds.size.h;
+  // The entire three-state legend fits in the original triangle footprint:
+  // OFF = teal outline; ONCE = dark-blue outline; LOCKED = solid blue.
+  // A separate horizontal lock bar was visually lost against the large R
+  // glyph at Emery's resolution, so shape (not subtle colour) conveys lock.
   const GColor teal = GColorFromRGB(0, 170, 170);
-  const GColor mint = GColorFromRGB(85, 255, 170);
-  // PebbleOS supports filled rectangles and stroked lines, but not
-  // graphics_fill_triangle(). Eight 1px horizontal scanlines form each
-  // solid indicator using the firmware's standard drawing primitives.
+  const GColor blue = GColorFromRGB(0, 85, 170);
+  const int top = 3;
+  const int bottom = 10;
+  const int half_width = 6;
   graphics_context_set_stroke_width(ctx, 1);
-  graphics_context_set_stroke_color(ctx, jot_shift_active(mode) ? mint : teal);
-  for (int row = 0; row < 8; ++row) {
-    const int half = row * 6 / 7;
-    graphics_draw_line(ctx, GPoint(cx - half, 3 + row),
-                       GPoint(cx + half, 3 + row));
-  }
+  graphics_context_set_stroke_color(ctx,
+      mode == JOT_SHIFT_OFF ? teal : blue);
   if (mode == JOT_SHIFT_LOCKED) {
-    graphics_context_set_fill_color(ctx, mint);
-    graphics_fill_rect(ctx, GRect(cx - 6, 13, 12, 3), 0, GCornerNone);
+    // Pebble does not provide graphics_fill_triangle; draw the same
+    // 13x8 silhouette with supported 1px horizontal scanlines.
+    for (int row = 0; row <= bottom - top; ++row) {
+      const int half = row * half_width / (bottom - top);
+      graphics_draw_line(ctx, GPoint(cx - half, top + row),
+                         GPoint(cx + half, top + row));
+    }
+  } else {
+    // Outline only: identical triangle coordinates for unshifted and
+    // one-shot Shift, distinguished by their established accent colours.
+    graphics_draw_line(ctx, GPoint(cx, top),
+                       GPoint(cx - half_width, bottom));
+    graphics_draw_line(ctx, GPoint(cx, top),
+                       GPoint(cx + half_width, bottom));
+    graphics_draw_line(ctx, GPoint(cx - half_width, bottom),
+                       GPoint(cx + half_width, bottom));
   }
   if (jot_shift_active(mode)) {
+    // Keep the existing teal R-down cancel glyph in both shifted modes.
     graphics_context_set_stroke_color(ctx, teal);
     for (int row = 0; row < 8; ++row) {
       const int half = row * 6 / 7;

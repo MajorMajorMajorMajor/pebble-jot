@@ -31,11 +31,20 @@ assert.match(button,/jot_shift_active\(shift_mode\) \? jot_shift_upper\(symbol\)
 assert.match(button,/void key_button_set_shift_mode/);
 assert.match(button,/layer_mark_dirty\(button->base_layer\)/);
 assert.match(button,/layer_mark_dirty\(button->label_layers\[i\]->layer\)/);
-assert.match(button,/for \(int row = 0; row < 8; \+\+row\)/);
-assert.match(button,/graphics_draw_line\(ctx, GPoint\(cx - half/);
+// R's up indicator has *three* distinct visible states without needing
+// extra room: teal outline, blue outline, filled blue. In all of them the
+// triangle's position and dimensions are identical.
+assert.match(button,/const GColor teal = GColorFromRGB\(0, 170, 170\)/);
+assert.match(button,/const GColor blue = GColorFromRGB\(0, 85, 170\)/);
+assert.match(button,/mode == JOT_SHIFT_OFF \? teal : blue/);
+assert.match(button,/if \(mode == JOT_SHIFT_LOCKED\) \{[\s\S]*?for \(int row = 0; row <= bottom - top; \+\+row\)/);
+assert.match(button,/\} else \{[\s\S]*?graphics_draw_line\(ctx, GPoint\(cx, top\)/);
+assert.match(button,/GPoint\(cx - half_width, bottom\)/);
+assert.match(button,/GPoint\(cx \+ half_width, bottom\)/);
 assert.doesNotMatch(button,/graphics_fill_triangle\(ctx/);
-assert.match(button,/mode == JOT_SHIFT_LOCKED/);
-assert.match(button,/jot_shift_active\(mode\)/);
+assert.doesNotMatch(button,/graphics_fill_rect\(ctx, GRect\(cx - 6, 13, 12, 3\)/);
+assert.match(button,/if \(jot_shift_active\(mode\)\) \{[\s\S]*?graphics_context_set_stroke_color\(ctx, teal\)/);
+assert.match(button,/for \(int row = 0; row < 8; \+\+row\)/);
 assert.match(grid,/key_button_set_shift_mode\(grid->buttons\[i\], mode\)/);
 assert.match(window,/key_grid_set_shift_mode\(next, self->shift_mode\)/);
 assert.match(window,/key_grid_set_shift_mode\(self->grid, mode\)/);

@@ -1,3 +1,24 @@
+## Jot 1.17.1 — distinct R-key Shift indicators (Emery QA pending)
+
+Refine the R-up glyph within its **original 13×8 pixel footprint**:
+- **No Shift:** outlined upward triangle in the normal teal accent
+  (RGB 0,170,170).
+- **Shift once:** the same outline in the dark blue already used for
+  keyboard peripheral legends (RGB 0,85,170).
+- **Shift Lock:** a **solid filled blue triangle**, with no extra bar.
+
+The down-pointing teal cancel triangle remains visible in both shifted
+states. This three-way icon treatment matches the approved visual mockup
+while solving the pale-on-cream contrast and insufficient space for a
+separate lock bar. It uses only supported Pebble line primitives on
+the existing R key layer, without allocations or new assets.
+
+The actual R-up/R-down gestures, uppercase center/peripheral legends,
+one-shot behavior, Shift Lock, keyboard flips, text editor and storage
+are unchanged. New visual contracts in the writing behavior tests keep
+outline/fill, colours, geometry and the cancellation arrow intentional.
+The Nix Emery build runs in CI; final contrast/legibility needs wrist QA.
+
 ## Jot 1.17.0 — Shift and Shift Lock (#33; Emery QA pending)
 
 On the **ABC** keyboard, swipe **R up** to cycle through three modes:
