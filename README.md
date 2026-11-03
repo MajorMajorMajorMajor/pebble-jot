@@ -1,3 +1,18 @@
+## Jot 1.19.5 — Restore full-weight red margin without gaps (#59; Emery QA pending)
+
+The first watch screenshot of 1.19.4 confirmed the gray placeholder is now
+perfect, but showed that the red margin was only **2 physical pixels** wide
+(previously **3**) and stopped one cream pixel short of the black outline
+at each end. In 1.19.5 the red margin is a **3px-wide, flat-ended filled
+rectangle**, covering exactly the inner cream face (y=1 through h−3).
+It meets the black top and bottom frame **edge to edge** without painting
+over them. No pointed stroke caps, white endpoint gaps or lost ink border.
+
+The approved placeholder contrast and dirty asterisk are unchanged, as
+are the editor/caret geometry, keyboard, data storage and touch behavior.
+The visual regression now checks width and frame adjacency for multiple
+editor heights. Pending final on-wrist approval.
+
 ## Jot 1.19.4 — Wrist-calibrated editor paper (#59; QA pending)
 
 First on-watch inspection of 1.19.3 identified two small visual defects:

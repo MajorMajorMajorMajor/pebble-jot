@@ -69,14 +69,15 @@ static void prv_background(Layer *layer, GContext *ctx) {
     graphics_draw_line(ctx, GPoint(3, y),
                        GPoint(bounds.size.w - 4, y));
   }
-  // Flat-ended, exactly two-pixel rule. A stroked Pebble line produces
-  // tapered end pixels and its stroke overpaints the outer ink outline.
-  // The inner paper begins at y=1 and ends at h-3. Leave ONE paper pixel
-  // at each end (y=1, h-3) so the rule reaches nearly the entire face,
-  // but never touches the perimeter, regardless of editor orientation.
+  // Wrist-calibrated margin: Pebble's original 2px line stroke rendered
+  // THREE ink pixels wide (x=9..11). Keep that 3px weight, but render
+  // it as a filled rectangle for clean, square ends.
+  // The cream paper face occupies y=1..h-3; fill EXACTLY that height.
+  // Red now meets the black frame at y=0 and y=h-2 with no white gap,
+  // without painting over either black frame pixel.
   graphics_context_set_fill_color(ctx, GColorFromRGB(231, 72, 58));
   graphics_fill_rect(ctx,
-      GRect(EDITOR_MARGIN_RULE_X - 1, 2, 2, bounds.size.h - 5),
+      GRect(EDITOR_MARGIN_RULE_X - 1, 1, 3, bounds.size.h - 3),
       0, GCornerNone);
 
   // A tiny handwritten asterisk lives LEFT of the rule (x=4..8), never

@@ -13,9 +13,18 @@ const reflow = between('static void prv_reflow(', 'static void prv_status(');
 const status = between('static void prv_status(', 'void alert_set_text(');
 const editor = between('void alert_set_editor(', 'Layer *alert_ui_init(');
 
-// A rectangular rule cannot have rounded/tapered stroke caps. Both ends
-// stop 1px within the cream paper rather than cutting into the ink rim.
-assert.match(background, /graphics_fill_rect\(ctx,\s*GRect\(EDITOR_MARGIN_RULE_X - 1, 2, 2, bounds\.size\.h - 5\),\s*0, GCornerNone\)/);
+// A rectangle keeps the original 3px *rendered* weight without the
+// tapered caps of a 2px Pebble stroke. It fills the cream paper exactly,
+// adjoining the frame without overpainting either black edge.
+assert.match(background, /graphics_fill_rect\(ctx,\s*GRect\(EDITOR_MARGIN_RULE_X - 1, 1, 3, bounds\.size\.h - 3\),\s*0, GCornerNone\)/);
+for (const height of [44, 45, 47]) {
+  const paperTop = 1, paperBottom = height - 3;
+  const redTop = 1, redHeight = height - 3, redBottom = redTop + redHeight - 1;
+  assert.equal(redTop, paperTop);
+  assert.equal(redBottom, paperBottom);
+  assert.equal(redTop - 1, 0);                // The black top edge.
+  assert.equal(redBottom + 1, height - 2);  // The black bottom edge.
+}
 assert.doesNotMatch(background, /graphics_draw_line\(ctx, GPoint\(EDITOR_MARGIN_RULE_X/);
 assert.match(background, /GColorFromRGB\(231, 72, 58\)/);
 assert.doesNotMatch(background, /GColorFromRGB\(188, 161, 124\)/);
