@@ -11,6 +11,7 @@
     "displayName": "Jot",
     "uuid": "b1bfef07-497f-4f18-8740-6f606b59a4e4",
     "sdkVersion": "3",
+    "configPage": "config.html",
     "enableMultiJS": false,
     "targetPlatforms": [
       "emery"

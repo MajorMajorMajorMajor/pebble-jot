@@ -109,6 +109,70 @@ Pebble.addEventListener('appmessage', function (event) {
   }
 });
 
+
+// Experimental bundled configuration page (#39). Read only; no note writes.
+// The phone companion's existing atomic backup snapshot remains authoritative.
+var configBackup = null;
+var CONFIG_CHUNK = 1024;
+function configChunkEnd(s, start) {
+  var end = Math.min(s.length, start + CONFIG_CHUNK);
+  // Keep each UTF-16 surrogate pair intact across WebView messages.
+  if (end > start && end < s.length &&
+      s.charCodeAt(end - 1) >= 0xD800 && s.charCodeAt(end - 1) <= 0xDBFF &&
+      s.charCodeAt(end) >= 0xDC00 && s.charCodeAt(end) <= 0xDFFF) end--;
+  return end;
+}
+Pebble.addEventListener('configmessage', function (event) {
+  var request = event.data || {};
+  if (request.type === 'jotBackupInfo') {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      configBackup = raw ? JSON.parse(raw) : null;
+      if (configBackup && (configBackup.format !== 'jot-backup-v1' ||
+          !Array.isArray(configBackup.notes) ||
+          configBackup.notes.length > 256)) throw new Error('Invalid backup');
+      if (configBackup) for (var k = 0; k < configBackup.notes.length; k++)
+        if (!configBackup.notes[k] ||
+            typeof configBackup.notes[k].text !== 'string' ||
+            !isFinite(Number(configBackup.notes[k].created)))
+          throw new Error('Invalid note');
+      event.respond(configBackup ?
+        {ok: true, found: true, count: configBackup.notes.length,
+         session: configBackup.session, savedAt: configBackup.savedAt} :
+        {ok: true, found: false});
+    } catch (e) {
+      configBackup = null;
+      event.respond({ok: false, error: 'Could not read local backup'});
+    }
+    return;
+  }
+  if (request.type === 'jotBackupNote') {
+    var index = Number(request.index), part = Number(request.part);
+    if (!configBackup || !isFinite(index) || !isFinite(part) ||
+        index < 0 || index !== Math.floor(index) ||
+        part < 0 || part !== Math.floor(part) ||
+        index >= configBackup.notes.length || part > 8192) {
+      event.respond({ok: false, error: 'Invalid note request'});
+      return;
+    }
+    var note = configBackup.notes[index], start = 0, step = 0;
+    while (step < part && start < note.text.length) {
+      start = configChunkEnd(note.text, start);
+      step++;
+    }
+    if (step !== part || (part > 0 && start >= note.text.length)) {
+      event.respond({ok: false, error: 'Invalid note part'});
+      return;
+    }
+    var end = configChunkEnd(note.text, start);
+    event.respond({ok: true, index: index, part: part,
+      created: note.created, text: note.text.slice(start, end),
+      done: end === note.text.length});
+    return;
+  }
+  event.respond({ok: false, error: 'Unknown configuration request'});
+});
+
 // Base64-encode UTF-8 without requiring btoa/TextEncoder in PebbleKit JS.
 function toBase64Utf8(text) {
   var binary = encodeURIComponent(text).replace(/%([0-9A-F]{2})/g,
