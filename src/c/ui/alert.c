@@ -69,12 +69,15 @@ static void prv_background(Layer *layer, GContext *ctx) {
     graphics_draw_line(ctx, GPoint(3, y),
                        GPoint(bounds.size.w - 4, y));
   }
-  graphics_context_set_stroke_color(ctx, GColorFromRGB(231, 72, 58));
-  graphics_context_set_stroke_width(ctx, 2);
-  // Run the red rule the entire inner paper height; don't stop it four
-  // pixels shy of the keyboard or draw another orange seam below the ink.
-  graphics_draw_line(ctx, GPoint(EDITOR_MARGIN_RULE_X, 1),
-                     GPoint(EDITOR_MARGIN_RULE_X, bounds.size.h - 2));
+  // Flat-ended, exactly two-pixel rule. A stroked Pebble line produces
+  // tapered end pixels and its stroke overpaints the outer ink outline.
+  // The inner paper begins at y=1 and ends at h-3. Leave ONE paper pixel
+  // at each end (y=1, h-3) so the rule reaches nearly the entire face,
+  // but never touches the perimeter, regardless of editor orientation.
+  graphics_context_set_fill_color(ctx, GColorFromRGB(231, 72, 58));
+  graphics_fill_rect(ctx,
+      GRect(EDITOR_MARGIN_RULE_X - 1, 2, 2, bounds.size.h - 5),
+      0, GCornerNone);
 
   // A tiny handwritten asterisk lives LEFT of the rule (x=4..8), never
   // over the first glyph/caret (starts x=18). Paint it in the existing
@@ -132,10 +135,12 @@ static void prv_reflow(void) {
 
   text_layer_set_font(s_textbox, font);
   text_layer_set_overflow_mode(s_textbox, GTextOverflowModeWordWrap);
-  // Quiet, warm-gray guidance, distinctly lighter than actual note ink.
-  // Restored immediately when the first real character is entered.
+  // Clear but secondary placeholder. On Pebble's 2-bit/channel palette,
+  // the old (164,151,130) quantized to very faint 170/170/170; these
+  // warm-gray source values yield readable 85/85/85 against cream paper.
+  // Real note text stays the original dark ink.
   text_layer_set_text_color(s_textbox,
-      s_editor_mode && s_placeholder ? GColorFromRGB(164, 151, 130) :
+      s_editor_mode && s_placeholder ? GColorFromRGB(120, 115, 110) :
       GColorFromRGB(41, 40, 43));
   text_layer_set_text(s_textbox, s_display_text);
 

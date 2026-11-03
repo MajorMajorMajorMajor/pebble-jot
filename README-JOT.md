@@ -1,3 +1,19 @@
+## Jot 1.19.4 — Wrist-calibrated editor paper (#59; QA pending)
+
+First on-watch inspection of 1.19.3 identified two small visual defects:
+the `Write something...` placeholder was too faint, and the red margin
+rule had tapered stroke ends which collided with the black frame. The
+placeholder now uses a legible subdued gray (85/85/85 after Pebble's
+2-bit-channel palette conversion), still lighter than actual ink. The red
+rule is now a **filled, flat-ended 2×(h−5) pixel rectangle**, leaving
+exactly one pixel of cream paper at each end before the black outline.
+It spans nearly the full height without cutting into the border. No
+new layers, fonts, geometry changes or animation.
+
+The left-margin dirty asterisk is **unchanged**, as approved on-wrist.
+Keyboard layout, editor scrolling/caret and note storage are untouched.
+Tested through source contracts; awaits comparison on actual Emery.
+
 ## Jot 1.19.3 — Quiet notebook editor polish (#59; Emery QA pending)
 
 A tiny, layout-neutral pass on the editor strip: remove the rust/orange
