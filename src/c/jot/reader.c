@@ -167,6 +167,8 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
   const int width = bounds.size.w;
   const int footer_y = bounds.size.h - READER_FOOTER_H;
+  const int usable_width = width -
+      (s_review.open && !s_is_peek ? ACTION_BAR_WIDTH : 0);
 
   // Unlike the footer, this header belongs to the SCROLLING document.
   // The transparent chrome layer paints over the page after the note so
@@ -183,8 +185,7 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
     prv_draw_back(ctx, header_y);
 
     graphics_context_set_text_color(ctx, prv_ink());
-    const int usable_width = width -
-        (s_review.open && !s_is_peek ? ACTION_BAR_WIDTH : 0);
+
     graphics_draw_text(ctx, s_is_peek ? "EDIT" : "NOTES",
                        fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
                        GRect(44, 7 + header_y, usable_width - 44 - 73, 27),
