@@ -1,3 +1,12 @@
+## Jot 1.18.1 — Inverted Compose legend (#32; Emery QA pending)
+
+The tiny `C` at A↖ is now cream lettering on a filled blue
+rectangle, visually distinguishing the Compose *action* from the
+alphabetic swipe letters. The background aligns to the same calibrated
+16×15 northwest compass slot without changing key dimensions,
+gesture mapping or typography. No new Pebble layers or assets.
+Compose and all existing editor functions are unchanged.
+
 ## Jot 1.18.0 — Retroactive Compose (#32; wrist QA pending)
 
 Swipe **A up-left** on the ABC face to transform text immediately to
@@ -14,7 +23,7 @@ through existing text works identically to freshly typed input.
 
 The full #32 reference (223 entries, 217 distinct pairs, first
 mapping wins on duplicates) is compiled as static UTF-8 data.
-A small blue `C` in the A-key northwest corner makes the
+An inverted cream-on-blue `C` in the A-key northwest corner makes the
 previously reserved gesture discoverable without a new layer. Note text
 is changed only by an **atomic, UTF-8-boundary-safe replacement** that
 preserves cursor and suffix and refuses changes that exceed the 4095-byte

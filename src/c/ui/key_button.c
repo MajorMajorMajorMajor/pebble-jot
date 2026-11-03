@@ -350,14 +350,25 @@ static void prv_draw_primary_legends(GContext *ctx, const Key *key,
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
   }
   if (index == 0) {
-    // A NW was deliberately blank before Compose existed. Now reveal
-    // its original action with a small blue C at the NW compass slot.
-    // This is a control glyph, so it stays uppercase in both Shift modes.
+    // Compose is an action, not a letter: invert the A/NW compass
+    // legend on a small blue keycap with cream ink. Keep the already
+    // calibrated text slot unchanged so no gesture or label moves.
     const JotLegendPosition compose = jot_legend_position(
         JOT_LEGEND_ABC, 0, 0, bounds.size.w, bounds.size.h);
+    const GColor compose_blue = GColorFromRGB(0, 85, 170);
+    const GColor compose_cream = GColorFromRGB(255, 250, 239);
+    // The font's painted ink starts below the draw frame. Inset the
+    // background at +3 to enclose the ink without clipping at key top.
+    graphics_context_set_fill_color(ctx, compose_blue);
+    graphics_fill_rect(ctx,
+        GRect(compose.x, compose.y + 3,
+              JOT_LEGEND_SLOT_W, JOT_LEGEND_SLOT_H - 1),
+        0, GCornerNone);
+    graphics_context_set_text_color(ctx, compose_cream);
     graphics_draw_text(ctx, "C", font,
         GRect(compose.x, compose.y, JOT_LEGEND_SLOT_W, JOT_LEGEND_SLOT_H),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+    graphics_context_set_text_color(ctx, compose_blue);
   }
 }
 
