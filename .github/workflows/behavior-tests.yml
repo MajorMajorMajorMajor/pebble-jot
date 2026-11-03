@@ -44,6 +44,13 @@ jobs:
             src/c/jot/list_touch.c -o /tmp/jot-list-back
           /tmp/jot-list-back
           node tests/behavior/list-back-routing.js
+      - name: Held Reader button scroll repeat and cancellation
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/behavior/reader_repeat.c src/c/jot/reader_repeat.c \
+            -o /tmp/jot-reader-repeat
+          /tmp/jot-reader-repeat
+          node tests/behavior/reader-repeat-routing.js
       - name: Read notes (navigation, safe delete, touch and drag)
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \

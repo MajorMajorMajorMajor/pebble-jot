@@ -4,6 +4,7 @@
 #include "jot/reader_touch.h"
 #include "ui/touch.h"
 #include "jot/reader_review.h"
+#include "jot/reader_repeat.h"
 #include "jot/jot.h"
 #include "jot/store.h"
 #include "ui/tab_display.h"
@@ -12,8 +13,7 @@ enum {
   READER_HEADER_H = JOT_READER_HEADER_H,
   READER_FOOTER_H = JOT_READER_FOOTER_H,
   READER_META_H = JOT_READER_META_H,
-  READER_TEXT_PADDING = JOT_READER_TEXT_PADDING,
-  READER_SCROLL_STEP = 60
+  READER_TEXT_PADDING = JOT_READER_TEXT_PADDING
 };
 
 static Window *s_window;
@@ -46,6 +46,10 @@ static bool s_open_error;
 static bool s_is_peek;
 static JotReaderReview s_review;
 static const char *s_review_message;
+// Timer exists only during an active physical Up/Down hold; idle cost is zero.
+static AppTimer *s_button_repeat_timer;
+static JotReaderRepeat s_button_repeat;
+static void prv_cancel_button_repeat(void);
 
 static GColor prv_ink(void) { return GColorFromRGB(41, 40, 43); }
 static GColor prv_yellow(void) { return GColorFromRGB(255, 209, 88); }
@@ -64,6 +68,7 @@ bool jot_reader_is_peek(void) {
 }
 
 static void prv_mark_review(void) {
+  if (s_review.open) prv_cancel_button_repeat();
   if (s_nub) layer_set_hidden(s_nub, s_review.open);
   if (s_action_bar) {
     if (s_review.open) {
@@ -109,6 +114,7 @@ static void prv_mark_review(void) {
 }
 
 void jot_reader_back(void) {
+  prv_cancel_button_repeat();
   touch_cancel_kinetic();
   if (!jot_reader_is_open()) return;
   // First Back disarms deletion; next Back closes the action bar.
@@ -325,6 +331,7 @@ static void prv_reflow_page(void) {
 }
 
 static void prv_update_rank(int rank) {
+  prv_cancel_button_repeat();
   // Changing notes is a read-only preview. Load into a temporary buffer
   // first so an I/O error never destroys the current reader snapshot.
   if (!jot_reader_is_open() || s_is_peek || rank == s_rank) return;
@@ -381,6 +388,7 @@ static void prv_browse(int direction) {
 }
 
 static void prv_confirm_delete(void) {
+  prv_cancel_button_repeat();
   if (!jot_reader_is_open() || s_is_peek || s_slot < 0) return;
   const int rank = s_rank;
   if (!jot_store_delete(s_slot)) {
@@ -424,20 +432,71 @@ static void prv_confirm_delete(void) {
   prv_mark_review(); // Keep Delete mode open, ready for next triage action.
 }
 
+// When the native action bar is open, Up/Down browse notes exactly as
+// before. Do not attach repeated scrolling in browse/delete mode.
 static void prv_reader_up(ClickRecognizerRef ref, void *context) {
+  prv_cancel_button_repeat();
   touch_cancel_kinetic();
-  if (s_review.open && !s_is_peek) { prv_browse(-1); return; }
-  s_scroll -= READER_SCROLL_STEP;
-  if (s_scroll < 0) s_scroll = 0;
-  prv_update_scroll();
+  if (s_review.open && !s_is_peek) prv_browse(-1);
+}
+static void prv_reader_down(ClickRecognizerRef ref, void *context) {
+  prv_cancel_button_repeat();
+  touch_cancel_kinetic();
+  if (s_review.open && !s_is_peek) prv_browse(1);
 }
 
-static void prv_reader_down(ClickRecognizerRef ref, void *context) {
-  touch_cancel_kinetic();
-  if (s_review.open && !s_is_peek) { prv_browse(1); return; }
-  s_scroll += READER_SCROLL_STEP;
-  if (s_scroll > s_scroll_max) s_scroll = s_scroll_max;
+static void prv_cancel_button_repeat(void) {
+  if (s_button_repeat_timer) {
+    app_timer_cancel(s_button_repeat_timer);
+    s_button_repeat_timer = NULL;
+  }
+  jot_reader_repeat_cancel(&s_button_repeat);
+}
+
+static void prv_reader_repeat_tick(void *context) {
+  s_button_repeat_timer = NULL; // This timer has just fired.
+  if (!jot_reader_is_open() || s_review.open ||
+      !s_button_repeat.direction) {
+    prv_cancel_button_repeat();
+    return;
+  }
+  if (!jot_reader_repeat_advance(&s_button_repeat, &s_scroll,
+                                 s_scroll_max, JOT_READER_REPEAT_STEP_PX)) {
+    prv_cancel_button_repeat();
+    return;
+  }
   prv_update_scroll();
+  if (s_button_repeat.direction) {
+    s_button_repeat_timer = app_timer_register(
+        JOT_READER_REPEAT_INTERVAL_MS, prv_reader_repeat_tick, NULL);
+    if (!s_button_repeat_timer) prv_cancel_button_repeat();
+  }
+}
+
+// Raw press keeps single clicks immediate, with the same original 60px
+// movement. Only a *continued hold* hires a delayed timer; smaller,
+// faster steps then flow until button-up, the note edge or navigation.
+static void prv_reader_scroll_press(ClickRecognizerRef ref, void *context) {
+  if (!jot_reader_is_open() || s_review.open) return;
+  const ButtonId key = click_recognizer_get_button_id(ref);
+  if (key != BUTTON_ID_UP && key != BUTTON_ID_DOWN) return;
+  prv_cancel_button_repeat();
+  touch_cancel_kinetic();
+  jot_reader_repeat_begin(&s_button_repeat,
+                          key == BUTTON_ID_UP ? -1 : 1);
+  if (jot_reader_repeat_advance(&s_button_repeat, &s_scroll,
+                                s_scroll_max, JOT_READER_REPEAT_CLICK_PX)) {
+    prv_update_scroll();
+    if (s_button_repeat.direction) {
+      s_button_repeat_timer = app_timer_register(
+          JOT_READER_REPEAT_DELAY_MS, prv_reader_repeat_tick, NULL);
+      if (!s_button_repeat_timer) prv_cancel_button_repeat();
+    }
+  }
+}
+
+static void prv_reader_scroll_release(ClickRecognizerRef ref, void *context) {
+  prv_cancel_button_repeat(); // Liftoff always ends repeat, even at an edge.
 }
 
 JotReaderTouchLayout jot_reader_touch_layout(void) {
@@ -462,6 +521,7 @@ bool jot_reader_kinetic_step(int delta_scroll) {
 }
 
 void jot_reader_drag(int16_t finger_delta_y) {
+  prv_cancel_button_repeat();
   if (!jot_reader_is_open() || !s_viewport || !s_text_layer) return;
   const JotReaderTouchLayout layout = jot_reader_touch_layout();
   const int next = jot_reader_touch_scroll_after_drag(
@@ -492,6 +552,7 @@ bool jot_reader_edit_current(void) {
 }
 
 static void prv_reader_select(ClickRecognizerRef ref, void *context) {
+  prv_cancel_button_repeat();
   touch_cancel_kinetic();
   if (s_is_peek) {
     jot_reader_back();
@@ -506,6 +567,7 @@ static void prv_reader_select(ClickRecognizerRef ref, void *context) {
 }
 
 static void prv_reader_select_hold(ClickRecognizerRef ref, void *context) {
+  prv_cancel_button_repeat();
   touch_cancel_kinetic();
   if (s_is_peek || !s_action_bar) return; // Drafts are never deletable.
   jot_reader_review_hold(&s_review);
@@ -518,8 +580,17 @@ static void prv_reader_back(ClickRecognizerRef ref, void *context) {
 }
 
 static void prv_reader_clicks(void *context) {
-  window_single_click_subscribe(BUTTON_ID_UP, prv_reader_up);
-  window_single_click_subscribe(BUTTON_ID_DOWN, prv_reader_down);
+  if (s_review.open && !s_is_peek) {
+    // Native action bar must retain click/highlight/browse semantics.
+    window_single_click_subscribe(BUTTON_ID_UP, prv_reader_up);
+    window_single_click_subscribe(BUTTON_ID_DOWN, prv_reader_down);
+  } else {
+    // Immediate down action; repeat starts only after the 550ms hold.
+    window_raw_click_subscribe(BUTTON_ID_UP,
+        prv_reader_scroll_press, prv_reader_scroll_release, NULL);
+    window_raw_click_subscribe(BUTTON_ID_DOWN,
+        prv_reader_scroll_press, prv_reader_scroll_release, NULL);
+  }
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_reader_select);
   window_long_click_subscribe(BUTTON_ID_SELECT, 800,
                               prv_reader_select_hold, NULL);
@@ -594,6 +665,7 @@ static void prv_reader_load(Window *window) {
 }
 
 static void prv_reader_unload(Window *window) {
+  prv_cancel_button_repeat();
   touch_cancel_kinetic();
   if (s_danger_badge) {
     layer_remove_from_parent(s_danger_badge);
@@ -641,6 +713,7 @@ bool jot_reader_init(void) {
 }
 
 void jot_reader_deinit(void) {
+  prv_cancel_button_repeat();
   if (!s_window) return;
   if (window_stack_contains_window(s_window))
     window_stack_remove(s_window, false);
@@ -652,6 +725,7 @@ void jot_reader_deinit(void) {
 }
 
 bool jot_reader_show(int slot, int rank, int total) {
+  prv_cancel_button_repeat();
   if (!s_window || jot_reader_is_open() || slot < 0 ||
       rank < 0 || rank >= total) return false;
   s_note = malloc(JOT_NOTE_TEXT_BYTES);
@@ -691,6 +765,7 @@ bool jot_reader_show(int slot, int rank, int total) {
 }
 
 bool jot_reader_peek(void) {
+  prv_cancel_button_repeat();
   if (!s_window || jot_reader_is_open()) return false;
   // The editor may be dirty or completely blank. This is only a snapshot:
   // no flush, no note allocation, no switching the active note.

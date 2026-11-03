@@ -1,3 +1,23 @@
+## Jot 1.19.6 — Reader: hold Up/Down to scroll (#55; Emery wrist QA pending)
+
+Physical Up and Down in normal saved Reader **and** draft Peek retain
+their immediate 60px movement on button-down. Hold for 550ms (the
+existing keyboard repeat threshold) and smaller 18px steps follow at
+65ms intervals until release. An edge immediately ends repeat.
+The timer exists only while actively held; no idle polling or animation.
+The text and note data are unchanged.
+
+In the native Reader action bar, Up/Down **still browse notes once** per
+click: they do not automatically cycle notes, nor interfere with the
+Select long-hold delete and its two-confirmation safeguard. Every
+button-up, Back, edit, note change, screen unload, action-bar switch,
+and direct touch scroll cancels any scheduled repeat before transition.
+Touch kinetic scrolling continues to work independently.
+
+A pure C repeat model and SDK-routing regression tests verify immediate
+short clicks, distinct hold timing, edge clamping, cancellation and
+safe action bar handling. Full Emery build and wrist QA follow.
+
 ## Jot 1.19.5 — Restore full-weight red margin without gaps (#59; Emery QA pending)
 
 The first watch screenshot of 1.19.4 confirmed the gray placeholder is now
