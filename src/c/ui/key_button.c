@@ -350,14 +350,14 @@ static void prv_draw_primary_legends(GContext *ctx, const Key *key,
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
   }
   if (index == 0) {
-    // The Compose tile is painted into the A key's corner before its
-    // outline and bevel. Only the cream C is drawn here. Preserve the
-    // calibrated font slot so the gesture and label remain unchanged.
+    // The blue Compose inlay is drawn flush to the A face below.
+    // The cream C stays inside its NW legend slot, with a 1px optical
+    // downward nudge for balance inside the flush corner.
     const JotLegendPosition compose = jot_legend_position(
         JOT_LEGEND_ABC, 0, 0, bounds.size.w, bounds.size.h);
     graphics_context_set_text_color(ctx, GColorFromRGB(255, 250, 239));
     graphics_draw_text(ctx, "C", font,
-        GRect(compose.x, compose.y, JOT_LEGEND_SLOT_W, JOT_LEGEND_SLOT_H),
+        GRect(compose.x, compose.y + 1, JOT_LEGEND_SLOT_W, JOT_LEGEND_SLOT_H),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
     graphics_context_set_text_color(ctx, GColorFromRGB(0, 85, 170));
   }
@@ -492,17 +492,16 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
       prv_feedback_fill(special, space, level, style));
   graphics_fill_rect(ctx, face, style->key_corner_radius, GCornersAll);
   if (button->key == get_key(KEY_ENGLISH_A)) {
-    // A tiny blue inlay belongs to the key's NW corner, not a floating
-    // rectangular badge. Its outer radius follows the parent key, while
-    // only the inner bottom-right corner curves into the cream face.
-    // The 1px inset lets the parent's outline and bevel remain continuous.
-    const GRect inlay_frame = GRect(face.origin.x + 1, face.origin.y + 1,
+    // Truly flush with the NW edges of the A key's rounded face.
+    // The outside corner follows the parent's curve; the inlay's
+    // bottom-right (interior) corner is deliberately square.
+    // Drawing the key outline and 1px bevel AFTER the inlay keeps
+    // the parent perimeter crisp and continuous.
+    const GRect inlay_frame = GRect(face.origin.x, face.origin.y,
                                    JOT_LEGEND_SLOT_W, JOT_LEGEND_SLOT_H);
-    const uint16_t inlay_radius = style->key_corner_radius > 0 ?
-                                  style->key_corner_radius - 1 : 0;
     graphics_context_set_fill_color(ctx, GColorFromRGB(0, 85, 170));
-    graphics_fill_rect(ctx, inlay_frame, inlay_radius,
-                       GCornerTopLeft | GCornerBottomRight);
+    graphics_fill_rect(ctx, inlay_frame, style->key_corner_radius,
+                       GCornerTopLeft);
   }
   // The original ink outline is ALWAYS the same, regardless of the pulse.
   graphics_context_set_stroke_color(ctx, style->key_outline_color);

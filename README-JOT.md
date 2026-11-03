@@ -1,3 +1,13 @@
+## Jot 1.18.3 — Compose corner pixel polish (Emery QA pending)
+
+The Compose inlay is now **truly flush** with the A key's upper and
+left face edges. Its outer northwest corner matches the parent key
+radius, while its inner lower-right corner is deliberately square.
+The cream C is nudged 1 px downward for optical balance. The existing
+outer ink border and 1px bevel still paint on top for an uninterrupted
+outline. No changes to glyph mappings, touch geometry, note storage,
+Compose behavior, or Shift.
+
 ## Jot 1.18.2 — flush corner Compose inlay (Emery wrist QA pending)
 
 The small inverted Compose `C` on the A key now uses an inset
