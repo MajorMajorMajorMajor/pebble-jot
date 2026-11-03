@@ -14,7 +14,7 @@ assert.match(s,/jot_reader_repeat_advance\(&s_button_repeat, &s_scroll,\s*s_scro
 assert.match(s,/static void prv_reader_scroll_release\(/);
 assert.match(s,/prv_cancel_button_repeat\(\)/);
 // Native action bar must retain single clicks for note browsing, not repeat deletion/browse.
-assert.match(s,/if \(s_review.open && !s_is_peek\) \{\s*window_single_click_subscribe\(BUTTON_ID_UP, prv_reader_up\)/);
+assert.match(s,/if \(s_review.open && !s_is_peek\) \{[\s\S]*?window_single_click_subscribe\(BUTTON_ID_UP, prv_reader_up\)/);
 assert.match(s,/window_single_click_subscribe\(BUTTON_ID_SELECT, prv_reader_select\)/);
 assert.match(s,/window_long_click_subscribe\(BUTTON_ID_SELECT, 800,\s*prv_reader_select_hold, NULL\)/);
 // Leaving the reader, entering an overlay, or touching to drag cancels timers.

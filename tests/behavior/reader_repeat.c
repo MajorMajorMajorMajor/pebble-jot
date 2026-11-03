@@ -4,7 +4,7 @@
 #include "jot/reader_repeat.h"
 
 static void immediate_click_and_delayed_repeat(void) {
-  assert(JOT_READER_REPEAT_DELAY_MS == JOT_REPEAT_DELAY_MS);
+  assert((int)JOT_READER_REPEAT_DELAY_MS == (int)JOT_REPEAT_DELAY_MS);
   assert(JOT_READER_REPEAT_DELAY_MS > JOT_READER_REPEAT_INTERVAL_MS);
   assert(JOT_READER_REPEAT_STEP_PX < JOT_READER_REPEAT_CLICK_PX);
 
