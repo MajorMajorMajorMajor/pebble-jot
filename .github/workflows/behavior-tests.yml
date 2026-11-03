@@ -34,6 +34,7 @@ jobs:
             tests/behavior/tabs.c src/c/ui/tab_display.c \
             src/c/ui/caret_layout.c -o /tmp/jot-tabs
           /tmp/jot-tabs
+          node tests/behavior/tab-routing.js
       - name: Read notes (navigation, safe delete, touch and drag)
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
