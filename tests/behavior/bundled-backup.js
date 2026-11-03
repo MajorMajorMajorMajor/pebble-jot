@@ -74,3 +74,72 @@ assert.ok(page.includes('jot-notes.json'));
 assert.ok(page.includes('jot-notes.txt'));
 assert.equal(JSON.parse(fs.readFileSync('package.json','utf8')).pebble.configPage,'config.html');
 console.log('Bundled viewer: 256-note Unicode chunking, read-only privacy passed');
+
+
+// Exercise the actual bundled-page JS against a minimal phone WebView DOM.
+// A completed backup is exposed only after *every* note is received.
+(async function checkPageBridge() {
+  class Element {
+    constructor() {
+      this.children=[]; this.value=''; this.disabled=false;
+      this._text=''; this.onclick=null;
+    }
+    set textContent(v) { this._text=String(v); this.children=[]; }
+    get textContent() { return this._text; }
+    appendChild(node) { this.children.push(node); return node; }
+    focus() {}
+    select() {}
+  }
+  const elements={};
+  for(const id of ['status','backupText','notes','copy','select','download','json'])
+    elements[id]=new Element();
+  const document={
+    getElementById(id) { return elements[id]; },
+    createElement() { return new Element(); },
+    execCommand() { return true; },
+    body: new Element()
+  };
+  const pageEvents={};
+  let interrupt=false;
+  const localPebble={
+    addEventListener(n,fn) { pageEvents[n]=fn; },
+    sendMessage(target,request) {
+      assert.equal(target,'pkjs');
+      if(interrupt && request.type==='jotBackupNote' &&
+         request.index===1 && request.part===1)
+        return Promise.resolve({ok:false});
+      return Promise.resolve(ask(request));
+    }
+  };
+  const script=page.match(/<script>([\s\S]*?)<\/script>/)[1];
+  vm.runInNewContext(script,{
+    Pebble:localPebble,document,navigator:{},Date,Number,
+    Blob,URL,setTimeout,console
+  });
+  saved['jot.backup.v1']=original;
+  pageEvents.ready({target:'pkjs'});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(elements.notes.children.length,256);
+  assert.ok(elements.backupText.value.includes('good-will'));
+  assert.ok(elements.backupText.value.includes('📝'));
+  assert.equal(elements.copy.disabled,false);
+  assert.equal(elements.json.disabled,false);
+  assert.equal(elements.notes.children[1].children[1].textContent, long);
+
+  delete saved['jot.backup.v1'];
+  pageEvents.ready({target:'pkjs'});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(elements.status.textContent,/No phone backup found/);
+  assert.equal(elements.copy.disabled,true);
+  assert.equal(elements.notes.children.length,0);
+
+  saved['jot.backup.v1']=original;
+  interrupt=true;
+  pageEvents.ready({target:'pkjs'});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(elements.status.textContent,/Could not read your notes/);
+  assert.equal(elements.notes.children.length,0);
+  assert.equal(elements.backupText.value,'');
+  assert.equal(elements.json.disabled,true);
+  console.log('Bundled page: full, empty and interrupted WebView flows passed');
+})().catch(e=>{console.error(e);process.exitCode=1;});
