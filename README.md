@@ -1,25 +1,3 @@
-## Jot 1.20.0 — Continuous-paper Reader (#56; Emery QA pending)
-
-The saved Reader and draft Peek now scroll as **one notebook sheet**:
-the yellow header, NOTES/EDIT Back, DRAFT/note counter, timestamp, ink
-divider, blue ruled lines and note text all travel upward together.
-Only the 30px bottom hint strip remains fixed. After the first 75px,
-the text can use the entire 198px-tall visible paper area, recovering
-roughly **two to three extra lines** without reducing the font. Ruled
-lines maintain the same phase as the text during touch drag, kinetic
-fling and held Up/Down repeat. No new fonts, assets or allocations.
-
-Back in a Reader or Peek first returns a genuinely scrolled page to the
-top, then exits normally; open review bar/delete confirmation still
-take precedence. An ordinary tap or Select on a draft Peek **still
-returns immediately to the editor** rather than requiring scroll-home.
-The header's touch region moves and vanishes with the header. Exposed
-paper becomes tappable/drag-scrollable even at the former header area.
-Footer and native action-bar touch safety, notes, backup, editing and
-stored UTF-8 remain unchanged. Tests check full-page geometry, dynamic
-rules, moving touch targets, boundaries, drag vs tap, scroll limits and
-Back/Peek routing. Final hardware verification pending.
-
 ## Jot 1.19.6 — Reader: hold Up/Down to scroll (#55; Emery wrist QA pending)
 
 Physical Up and Down in normal saved Reader **and** draft Peek retain

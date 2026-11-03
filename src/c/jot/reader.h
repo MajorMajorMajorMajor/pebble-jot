@@ -8,10 +8,8 @@ bool jot_reader_init(void);
 void jot_reader_deinit(void);
 bool jot_reader_show(int slot, int rank, int total);
 bool jot_reader_is_open(void);
-// Physical/header Back returns a scrolled page to the top first, then
-// exits on the next Back. The native action bar/delete flow still has
-// priority. An ordinary Peek page tap/Select bypasses scroll-home and
-// immediately returns to the unchanged draft.
+// Same context-sensitive exit for physical Back and header touch Back.
+// Saved reader -> notes list; draft peek -> unchanged editor.
 void jot_reader_back(void);
 
 // Current saved reader -> existing note editor. Physical Select and paper

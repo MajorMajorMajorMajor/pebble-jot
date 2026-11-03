@@ -2,9 +2,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// Full-screen Pebble touch coordinates. The header and timestamp scroll
-// out of view with the note; the footer stays fixed. Entire visible paper
-// is an edit target, except where the moving yellow header is still shown.
+// Reader touch coordinates are measured in full-screen Pebble pixels.
+// The entire visible notebook paper is an edit target, including timestamp,
+// margins and blank space; the header and footer are separate regions.
 enum {
   JOT_READER_HEADER_H = 42,
   JOT_READER_BACK_W = 42, // Fallback only when layout is unavailable.
@@ -21,8 +21,8 @@ typedef struct {
   int screen_width; // Visible paper width: excludes native action bar if open.
   int screen_height;
   int text_height;
-  int scroll_y; // Current offset of the ENTIRE document, including header.
-  int scroll_max; // Measured limit against full-height paper viewport.
+  int scroll_y;
+  int scroll_max; // Measured scroll limit from the live reader viewport.
 } JotReaderTouchLayout;
 
 typedef enum {
@@ -32,9 +32,10 @@ typedef enum {
   JOT_READER_TOUCH_EDIT
 } JotReaderTouchAction;
 
-// Back hitbox moves up with the header and disappears when it does.
-// The badge remains inactive while visible. Start/end taps on the exposed
-// paper, including the vacated top area, edit the saved note; never footer/bar.
+// For a saved-note reader: short taps across the full-height left HEADER
+// (arrow + NOTES/EDIT label) go Back. The badge at right remains inactive.
+// Taps that START AND END anywhere on the visible paper edit, including
+// timestamp, empty paper and side margins, but not header/footer/action bar.
 // In a draft Peek, ordinary stationary taps simply return to the draft.
 // No content-region edit action is ever emitted for a peek.
 //
@@ -45,8 +46,9 @@ JotReaderTouchAction jot_reader_touch_action(bool peek, int start_x,
     int start_y, int end_x, int end_y, bool moved, uint32_t duration_ms,
     const JotReaderTouchLayout *layout);
 
-// Drag anywhere on the paper (including the visible header/timestamp)
-// to scroll. Footer and native action bar cannot start a paper drag.
+// Only gestures starting in the clipped body viewport may scroll. The
+// header, timestamp and footer remain fixed. Blank paper in the viewport
+// is both a drag surface and (for short stationary taps) an edit target.
 bool jot_reader_touch_can_drag(int start_x, int start_y,
                                const JotReaderTouchLayout *layout);
 

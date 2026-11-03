@@ -1,5 +1,4 @@
 #include "jot/reader_touch.h"
-#include "jot/reader_page.h"
 
 static int prv_abs(int n) { return n < 0 ? -n : n; }
 
@@ -10,21 +9,19 @@ static bool prv_back_hit(int x, int y, const JotReaderTouchLayout *layout) {
   const int reach = layout && layout->screen_width > 0 ?
                     layout->screen_width - JOT_READER_HEADER_BADGE_SPACE :
                     JOT_READER_BACK_W;
-  const int visible = jot_reader_page_visible_header(
-      layout ? layout->scroll_y : 0);
   return x >= 0 && x < reach &&
-         y >= 0 && y < visible;
+         y >= 0 && y < JOT_READER_HEADER_H;
 }
 
-// The top of the paper becomes tappable for editing once the yellow
-// header has scrolled away. While it's visible, reserve the entire header
-// including the badge, not just its Back control. Footer/bar stay excluded.
+// Whole-paper hit: unlike the old TextLayer-only area, this includes
+// timestamp, margin and unused blank notebook space. Header, footer and
+// action-bar column are intentionally excluded.
 static bool prv_paper_hit(int x, int y,
                           const JotReaderTouchLayout *layout) {
   return layout && layout->screen_width > 0 &&
-         layout->screen_height > JOT_READER_FOOTER_H &&
+         layout->screen_height > JOT_READER_HEADER_H + JOT_READER_FOOTER_H &&
          x >= 0 && x < layout->screen_width &&
-         y >= jot_reader_page_visible_header(layout->scroll_y) &&
+         y >= JOT_READER_HEADER_H &&
          y < layout->screen_height - JOT_READER_FOOTER_H;
 }
 
@@ -48,12 +45,13 @@ JotReaderTouchAction jot_reader_touch_action(bool peek, int start_x,
 bool jot_reader_touch_can_drag(int x, int y,
                                 const JotReaderTouchLayout *layout) {
   if (!layout || layout->scroll_max <= 0 || layout->screen_width <= 0 ||
-      layout->screen_height <= JOT_READER_FOOTER_H) return false;
+      layout->screen_height <= JOT_READER_HEADER_H +
+                               JOT_READER_META_H +
+                               JOT_READER_FOOTER_H) return false;
+  const int viewport_top = JOT_READER_HEADER_H + JOT_READER_META_H;
   const int viewport_bottom = layout->screen_height - JOT_READER_FOOTER_H;
-  // Finger dragging anywhere on the continuous page—including its
-  // visible header and timestamp—moves the same paper beneath it.
   return x >= 0 && x < layout->screen_width &&
-         y >= 0 && y < viewport_bottom;
+         y >= viewport_top && y < viewport_bottom;
 }
 
 int jot_reader_touch_scroll_after_drag(int scroll_y, int finger_delta_y,

@@ -846,10 +846,9 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
         else touch_cancel_kinetic();
         if (blocked || s_reader_touch_suppress_tap) return;
         // A tap on a moving page only stops it; the next tap may edit.
-        if (action == JOT_READER_TOUCH_BACK) {
+        if (action == JOT_READER_TOUCH_BACK ||
+            action == JOT_READER_TOUCH_DISMISS_PEEK) {
           jot_reader_back();
-        } else if (action == JOT_READER_TOUCH_DISMISS_PEEK) {
-          jot_reader_dismiss_peek();
         } else if (action == JOT_READER_TOUCH_EDIT) {
           // The same safe window-stack transition as physical Select.
           jot_reader_edit_current();

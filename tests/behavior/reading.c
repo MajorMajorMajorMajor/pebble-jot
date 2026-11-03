@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include "jot/reader_review.h"
 #include "jot/reader_touch.h"
-#include "jot/reader_page.h"
 
 static const JotReaderTouchLayout short_note = {200, 228, 60, 0, 0};
 static const JotReaderTouchLayout long_note = {200, 228, 300, 160, 181};
@@ -51,8 +50,8 @@ static void page_and_note_navigation(void) {
 }
 
 static void tap_to_edit_or_return(void) {
-  // The left header is full-height when visible, but is not pinned.
-  // The right count/DRAFT badge never acts as Back or Edit.
+  // Entire full-height left header (arrow AND NOTES/EDIT label) goes Back.
+  // The right count/DRAFT badge is not part of Back's target.
   assert(tap(false, 0, 0, 0, 0, false, 100, &short_note)
          == JOT_READER_TOUCH_BACK);
   assert(tap(false, 70, 20, 70, 20, false, 100, &short_note)
@@ -101,26 +100,11 @@ static void tap_to_edit_or_return(void) {
   assert(tap(false, 20, 20, 20, 20, false, 100, NULL)
          == JOT_READER_TOUCH_BACK);
 
-  // After header scrolls away, its old space becomes actual paper.
-  // Badge and Back no longer intercept taps on that exposed area.
-  assert(tap(false, 40, 0, 40, 0, false, 100, &long_note)
-         == JOT_READER_TOUCH_EDIT);
-  assert(tap(false, 130, 20, 130, 20, false, 100, &long_note)
-         == JOT_READER_TOUCH_EDIT);
+  // The note may scroll, but its paper remains wholly tappable.
   assert(tap(false, 40, 197, 40, 197, false, 100, &long_note)
          == JOT_READER_TOUCH_EDIT);
   assert(tap(false, 40, 198, 40, 198, false, 100, &long_note)
          == JOT_READER_TOUCH_NONE);
-  // Partial header leaves only its remaining yellow pixels clickable.
-  const JotReaderTouchLayout half_header = {200, 228, 300, 21, 181};
-  assert(tap(false, 80, 20, 80, 20, false, 100, &half_header)
-         == JOT_READER_TOUCH_BACK);
-  assert(tap(false, 80, 21, 80, 21, false, 100, &half_header)
-         == JOT_READER_TOUCH_EDIT);
-  assert(tap(false, 175, 20, 175, 20, false, 100, &half_header)
-         == JOT_READER_TOUCH_NONE); // Half-visible counter.
-  assert(tap(false, 80, 20, 80, 24, false, 100, &half_header)
-         == JOT_READER_TOUCH_NONE); // Cannot cross header/paper edge.
 
   // Never reinterpret an interrupted drag, long hold or wide tap as edit.
   assert(tap(false, 45, 100, 45, 100, true, 100, &short_note)
@@ -137,19 +121,12 @@ static void tap_to_edit_or_return(void) {
          == JOT_READER_TOUCH_DISMISS_PEEK);
   assert(tap(true, 100, 100, 100, 100, true, 100, &short_note)
          == JOT_READER_TOUCH_NONE);
-  assert(tap(true, 20, 0, 20, 0, false, 100, &long_note)
-         == JOT_READER_TOUCH_DISMISS_PEEK);
 }
 
 static void drag_and_clamp(void) {
   assert(jot_reader_touch_can_drag(100, 75, &long_note));
   assert(jot_reader_touch_can_drag(100, 197, &long_note));
-  assert(jot_reader_touch_can_drag(100, 74, &long_note));
-  assert(jot_reader_touch_can_drag(100, 0, &long_note));
-  assert(jot_reader_touch_can_drag(100, 41, &long_note));
-  assert(!jot_reader_touch_can_drag(100, 198, &long_note));
-  assert(!jot_reader_touch_can_drag(166, 100,
-      &(JotReaderTouchLayout){166, 228, 300, 80, 181}));
+  assert(!jot_reader_touch_can_drag(100, 74, &long_note));
   assert(!jot_reader_touch_can_drag(100, 198, &long_note));
   assert(!jot_reader_touch_can_drag(100, 100, &short_note));
   assert(!jot_reader_touch_can_drag(100, 100, NULL));
@@ -166,6 +143,6 @@ int main(void) {
   page_and_note_navigation();
   tap_to_edit_or_return();
   drag_and_clamp();
-  puts("Reading behavior: moving header, full paper touch, delete safety, drag passed");
+  puts("Reading behavior: navigation, delete safety, touch, and drag passed");
   return 0;
 }
