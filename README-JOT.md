@@ -1,3 +1,13 @@
+## Jot 1.18.2 — flush corner Compose inlay (Emery wrist QA pending)
+
+The small inverted Compose `C` on the A key now uses an inset
+rounded blue corner, matching the key's outer upper-left curve and
+rounding the inner lower-right corner like the approved *Before* design.
+It sits flush inside the existing one-pixel key outline; the outer
+outline and highlight are drawn over the inlay for a continuous edge.
+The calibrated cream `C` stays in exactly the same northwest text slot.
+No changes to note data, Unicode Compose, Shift, input hitboxes, or layout.
+
 ## Jot 1.18.1 — Inverted Compose legend (#32; Emery QA pending)
 
 The tiny `C` at A↖ is now cream lettering on a filled blue
