@@ -489,7 +489,6 @@ static void prv_draw_key_background (Layer *layer, GContext *ctx){
   const GRect bounds = layer_get_bounds(layer);
   const int w = bounds.size.w;
   const int h = bounds.size.h;
-  const GColor charcoal = GColorFromRGB(41, 40, 43);
   const uint8_t level = button->feedback_level;
 
   // One-pixel ink outline and flush 1px inner bevel follow the rounded
