@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "ui/alert.h"
 #include "ui/caret_layout.h"
+#include "ui/tab_display.h"
 #include "jot/store.h"
 
 // The editor strip is a clipped viewport containing a TextLayer for the
@@ -13,6 +14,7 @@ static Layer *s_caret_layer;
 static TextLayer *s_statusbox;
 static char s_text[ALERT_MAX_LENGTH]; // Diagnostics/placeholder only.
 static const char *s_display_text = s_text;
+static JotTabDisplay s_tab_view; // Only allocated if note contains Tab.
 static char s_measure_small[128];
 static char *s_measure_heap;
 static size_t s_measure_capacity;
@@ -207,6 +209,7 @@ void alert_set_text(const char *new_text) {
   s_display_text = s_text;
   prv_status(false, false, false);
   prv_reflow();
+  jot_tab_display_release(&s_tab_view);
 }
 
 void alert_set_editor(const char *note, size_t cursor,
@@ -220,15 +223,21 @@ void alert_set_editor(const char *note, size_t cursor,
   // truncation. Jot refreshes this TextLayer after every editor mutation.
   // The caret remains a separate overlay and never changes note text.
   s_placeholder = !*note;
+  JotTabDisplay next = {0};
   if (s_placeholder) {
     snprintf(s_text, sizeof s_text, "Write something...");
     s_display_text = s_text;
     s_caret_index = 0;
   } else {
-    s_display_text = note;
-    s_caret_index = cursor;
+    // The TextLayer and the caret BOTH measure the same display-only
+    // expansion. The store still owns the unmodified U+0009 bytes.
+    jot_tab_display_make(note, cursor, &next);
+    s_display_text = next.text;
+    s_caret_index = next.cursor;
   }
   prv_reflow();
+  jot_tab_display_release(&s_tab_view);
+  s_tab_view = next;
   prv_status(dirty, save_error, full);
 }
 
@@ -289,6 +298,7 @@ void alert_ui_deinit(void) {
     layer_destroy(s_root);
     s_root = NULL;
   }
+  jot_tab_display_release(&s_tab_view);
   free(s_measure_heap);
   s_measure_heap = NULL;
   s_measure_capacity = 0;

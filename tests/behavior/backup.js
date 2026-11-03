@@ -60,13 +60,13 @@ function multipart_retransmission_is_idempotent() {
   packet(2, 44, 0, {BackupPart: 0, BackupFinal: 0,
     BackupTimestamp: 200, BackupText: 'First 📝 '});
   packet(2, 44, 0, {BackupPart: 1, BackupFinal: 0,
-    BackupTimestamp: 200, BackupText: 'second café '});
+    BackupTimestamp: 200, BackupText: 'second\tcafé '});
   packet(2, 44, 0, {BackupPart: 1, BackupFinal: 0,
-    BackupTimestamp: 200, BackupText: 'second café '});
+    BackupTimestamp: 200, BackupText: 'second\tcafé '});
   packet(2, 44, 0, {BackupPart: 2, BackupFinal: 1,
     BackupTimestamp: 200, BackupText: 'third'});
   packet(3, 44, 1);
-  assert.equal(snapshot().notes[0].text, 'First 📝 second café third');
+  assert.equal(snapshot().notes[0].text, 'First 📝 second\tcafé third');
   assert.equal(snapshot().notes[0].created, 200);
 }
 
@@ -95,7 +95,7 @@ function exported_snapshot_is_readable() {
   listeners.showConfiguration();
   assert.ok(openedUrl.startsWith('https://majormajormajormajor.github.io/pebble-jot/export.html#'));
   const restored = JSON.parse(Buffer.from(openedUrl.split('#')[1], 'base64').toString('utf8'));
-  assert.equal(restored.notes[0].text, 'First 📝 second café third');
+  assert.equal(restored.notes[0].text, 'First 📝 second\tcafé third');
 }
 
 complete_snapshot_is_atomic();

@@ -373,6 +373,33 @@ static void test_utf8_editing(void) {
   expect_note(slot, "B");
 }
 
+// Tab storage is U+0009, never a display-converted space.
+static void test_tab_editing_and_persistence(void) {
+  fresh_store();
+  assert(jot_store_input("a\té\n\tZ"));
+  assert(jot_store_length() == strlen("a\té\n\tZ"));
+  assert(jot_store_set_cursor(1)); // Immediately before tab.
+  assert(jot_store_move_cursor(JOT_CURSOR_RIGHT));
+  assert(jot_store_cursor() == 2);
+  assert(jot_store_move_cursor(JOT_CURSOR_LEFT));
+  assert(jot_store_delete_forward()); // Remove tab, not é.
+  assert(strcmp(jot_store_text(), "aé\n\tZ") == 0);
+  assert(jot_store_input("\t"));
+  assert(jot_store_input("\b")); // Remove tab in one backspace.
+  assert(strcmp(jot_store_text(), "aé\n\tZ") == 0);
+  assert(jot_store_input("\t"));
+  assert(jot_store_set_cursor(strlen("a\té\n")));
+  assert(jot_store_input("\b")); // Delete LF, keep two tabs.
+  assert(strcmp(jot_store_text(), "a\té\tZ") == 0);
+  assert(jot_store_input("\n"));
+  assert(jot_store_flush());
+  const int slot = jot_store_active_slot();
+  jot_store_init();
+  expect_note(slot, "a\té\n\tZ");
+  assert(jot_store_open(slot));
+  assert(strcmp(jot_store_text(), "a\té\n\tZ") == 0);
+}
+
 // 10. The 256-slot and 1 MiB app budget are strict, recoverable limits.
 static void test_capacity_and_quota(void) {
   fresh_store();
@@ -489,9 +516,10 @@ int main(void) {
   test_stale_bank_deletion();
   test_mixed_generation_recovery();
   test_utf8_editing();
+  test_tab_editing_and_persistence();
   test_compose_undo_and_capacity();
   test_capacity_and_quota();
   jot_store_deinit();
-  puts("Eleven independent storage safety scenarios passed");
+  puts("Twelve independent storage safety scenarios (including Tab) passed");
   return 0;
 }

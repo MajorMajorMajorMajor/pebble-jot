@@ -1,3 +1,20 @@
+## Jot 1.19.0 — Literal Tab gestures (#31; wrist QA pending)
+
+Swipe **T down-right** on ABC or **1 down-right** on 123 to insert
+an actual U+0009 Tab at the cursor. All existing Shift, Compose,
+cursor, save, repeat and keyboard-flip gestures remain unchanged.
+The persisted note and phone JSON backup keep raw Tab characters;
+no premature Tab legend is drawn.
+
+For display only, both the editor and Reader/Peek expand each Tab to
+the next four-column logical-line stop. The editor caret is measured
+against that *same rendered string*, with a UTF-8-safe mapping from
+the stored cursor offset to the display offset. Expansion allocates
+nothing for notes without tabs and never modifies the note buffer.
+Regression coverage checks both gestures, character boundaries,
+word wrapping, Backspace/forward delete, persistence and backup.
+Emery wrist visual QA still required.
+
 ## Jot 1.18.3 — Compose corner pixel polish (Emery QA pending)
 
 The Compose inlay is now **truly flush** with the A key's upper and

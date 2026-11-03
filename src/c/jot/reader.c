@@ -6,6 +6,7 @@
 #include "jot/reader_review.h"
 #include "jot/jot.h"
 #include "jot/store.h"
+#include "ui/tab_display.h"
 
 enum {
   READER_HEADER_H = JOT_READER_HEADER_H,
@@ -36,6 +37,7 @@ static Layer *s_viewport;
 static TextLayer *s_text_layer;
 
 static char *s_note; // Allocated only while Reader/Peek is open.
+static JotTabDisplay s_tab_view; // Display-only when note has Tab.
 static char s_timestamp[32];
 static int s_slot, s_rank, s_total;
 static int s_scroll, s_scroll_max;
@@ -288,15 +290,19 @@ static void prv_measure_text(void) {
   const int width = area.size.w - 2 * READER_TEXT_PADDING;
   const GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
   const char *text = *s_note ? s_note : "(empty note)";
+  JotTabDisplay next = {0};
+  jot_tab_display_make(text, 0, &next);
   const GSize size = graphics_text_layout_get_content_size(
-      text, font, GRect(0, 0, width, 16384),
+      next.text, font, GRect(0, 0, width, 16384),
       GTextOverflowModeWordWrap, GTextAlignmentLeft);
   s_text_height = size.h + 8;
   if (s_text_height < 34) s_text_height = 34;
   s_scroll_max = s_text_height + 4 - area.size.h;
   if (s_scroll_max < 0) s_scroll_max = 0;
   if (s_scroll > s_scroll_max) s_scroll = s_scroll_max;
-  text_layer_set_text(s_text_layer, text);
+  text_layer_set_text(s_text_layer, next.text);
+  jot_tab_display_release(&s_tab_view);
+  s_tab_view = next;
   prv_update_scroll();
 }
 
@@ -609,6 +615,7 @@ static void prv_reader_unload(Window *window) {
   s_review_message = NULL;
   if (s_text_layer) text_layer_destroy(s_text_layer);
   s_text_layer = NULL;
+  jot_tab_display_release(&s_tab_view);
   if (s_viewport) layer_destroy(s_viewport);
   s_viewport = NULL;
   if (s_paper) layer_destroy(s_paper);
@@ -636,6 +643,7 @@ void jot_reader_deinit(void) {
     window_stack_remove(s_window, false);
   window_destroy(s_window);
   s_window = NULL;
+  jot_tab_display_release(&s_tab_view);
   free(s_note);
   s_note = NULL;
 }
