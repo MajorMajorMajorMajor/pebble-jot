@@ -20,6 +20,7 @@ static char *s_measure_heap;
 static size_t s_measure_capacity;
 static bool s_editor_mode;
 static bool s_placeholder;
+static bool s_dirty_mark; // 5px ink asterisk drawn in the left paper margin.
 static size_t s_caret_index;
 static int s_caret_x, s_caret_y, s_caret_height;
 
@@ -70,15 +71,24 @@ static void prv_background(Layer *layer, GContext *ctx) {
   }
   graphics_context_set_stroke_color(ctx, GColorFromRGB(231, 72, 58));
   graphics_context_set_stroke_width(ctx, 2);
-  graphics_draw_line(ctx, GPoint(EDITOR_MARGIN_RULE_X, 3),
-                     GPoint(EDITOR_MARGIN_RULE_X, bounds.size.h - 5));
+  // Run the red rule the entire inner paper height; don't stop it four
+  // pixels shy of the keyboard or draw another orange seam below the ink.
+  graphics_draw_line(ctx, GPoint(EDITOR_MARGIN_RULE_X, 1),
+                     GPoint(EDITOR_MARGIN_RULE_X, bounds.size.h - 2));
 
-  // Subtle inner bottom edge gives the paper a little thickness while
-  // keeping the caret and text region free of decorative overlays.
-  graphics_context_set_stroke_width(ctx, 1);
-  graphics_context_set_stroke_color(ctx, GColorFromRGB(188, 161, 124));
-  graphics_draw_line(ctx, GPoint(4, bounds.size.h - 4),
-                     GPoint(bounds.size.w - 5, bounds.size.h - 4));
+  // A tiny handwritten asterisk lives LEFT of the rule (x=4..8), never
+  // over the first glyph/caret (starts x=18). Paint it in the existing
+  // background layer, without a text layer or an additional allocation.
+  // SAVE ERROR and FULL retain their more prominent upper-right badges.
+  if (s_editor_mode && s_dirty_mark) {
+    const int x = 6, y = 8;
+    graphics_context_set_stroke_width(ctx, 1);
+    graphics_context_set_stroke_color(ctx, GColorFromRGB(125, 65, 43));
+    graphics_draw_line(ctx, GPoint(x, y - 3), GPoint(x, y + 3));
+    graphics_draw_line(ctx, GPoint(x - 2, y), GPoint(x + 2, y));
+    graphics_draw_line(ctx, GPoint(x - 2, y - 2), GPoint(x + 2, y + 2));
+    graphics_draw_line(ctx, GPoint(x - 2, y + 2), GPoint(x + 2, y - 2));
+  }
 }
 
 static void prv_draw_caret(Layer *layer, GContext *ctx) {
@@ -122,6 +132,11 @@ static void prv_reflow(void) {
 
   text_layer_set_font(s_textbox, font);
   text_layer_set_overflow_mode(s_textbox, GTextOverflowModeWordWrap);
+  // Quiet, warm-gray guidance, distinctly lighter than actual note ink.
+  // Restored immediately when the first real character is entered.
+  text_layer_set_text_color(s_textbox,
+      s_editor_mode && s_placeholder ? GColorFromRGB(164, 151, 130) :
+      GColorFromRGB(41, 40, 43));
   text_layer_set_text(s_textbox, s_display_text);
 
   int height = bounds.size.h;
@@ -182,29 +197,36 @@ static void prv_reflow(void) {
 }
 
 static void prv_status(bool dirty, bool save_error, bool full) {
+  // The dirty asterisk has its own tiny home in the notebook's margin.
+  // Preserve the original priority: errors and FULL supersede "*".
+  const bool dirty_mark = s_editor_mode && dirty && !save_error && !full;
+  if (s_dirty_mark != dirty_mark) {
+    s_dirty_mark = dirty_mark;
+    if (s_root) layer_mark_dirty(s_root);
+  }
   if (!s_statusbox || !s_root) return;
   const char *label = save_error ? "SAVE ERROR" :
-                      full ? "FULL" : dirty ? "*" : "";
+                      full ? "FULL" : "";
   if (!*label) {
     layer_set_hidden(text_layer_get_layer(s_statusbox), true);
     return;
   }
   const GRect bounds = layer_get_bounds(s_root);
-  const int width = save_error ? 84 : full ? 42 : 14;
+  const int width = save_error ? 84 : 42;
   layer_set_frame(text_layer_get_layer(s_statusbox),
                   GRect(bounds.size.w - width - 2, 0, width, 19));
   text_layer_set_text(s_statusbox, label);
   text_layer_set_background_color(s_statusbox,
       save_error ? GColorFromRGB(132, 38, 39) :
-      full ? GColorFromRGB(41, 40, 43) :
-             GColorFromRGB(255, 250, 239));
+      GColorFromRGB(41, 40, 43));
   text_layer_set_text_color(s_statusbox,
-      save_error || full ? GColorWhite : GColorFromRGB(41, 40, 43));
+      GColorWhite);
   layer_set_hidden(text_layer_get_layer(s_statusbox), false);
 }
 
 void alert_set_text(const char *new_text) {
   s_editor_mode = false;
+  s_placeholder = false;
   snprintf(s_text, sizeof s_text, "%s", new_text ? new_text : "");
   s_display_text = s_text;
   prv_status(false, false, false);

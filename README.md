@@ -1,3 +1,21 @@
+## Jot 1.19.3 — Quiet notebook editor polish (#59; Emery QA pending)
+
+A tiny, layout-neutral pass on the editor strip: remove the rust/orange
+rule along the bottom edge; draw the saturated red left-margin line from
+the top to the bottom of the *inner paper*; and move the dirty `*` into
+a 5×7px, hand-drawn ink star inside the narrow left margin, clear of
+both the red rule and the text/caret. The asterisk is part of the
+existing paper background—**no extra Pebble layer or allocation**.
+Saving removes it; **SAVE ERROR** and **FULL** retain their existing
+more prominent upper-right badges and supersede the star.
+
+The empty draft's `Write something...` guidance is now warm-gray rather
+than normal ink. The first keystroke restores normal ink immediately.
+All 44px paper dimensions, font sizes, caret measurement, scrolling,
+keyboard/flip geometry, and touch hit regions are unchanged. Diagnostic
+messages keep their original normal-ink treatment. Automated contracts
+check these distinctions, with real-watch pixel-level approval pending.
+
 ## Jot 1.19.2 — Forgiving touch targets without visual changes (#54)
 
 In the saved Reader or draft Peek, **Back** now occupies the full top
