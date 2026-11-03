@@ -47,7 +47,7 @@ assert.match(peek,/window_stack_pop\(true\)/);
 assert.doesNotMatch(peek,/jot_reader_back\(/);
 assert.match(dispatch,/action == JOT_READER_TOUCH_DISMISS_PEEK\) \{\s*jot_reader_dismiss_peek\(\)/);
 assert.match(reader,/if \(s_is_peek\) \{\s*jot_reader_dismiss_peek\(\);\s*return;/);
-assert.match(touch,/jot_reader_page_visible_header\(layout \? layout->scroll_y : 0\)/);
+assert.match(touch,/jot_reader_page_visible_header\(\s*layout \? layout->scroll_y : 0\)/);
 assert.match(touch,/jot_reader_page_visible_header\(layout->scroll_y\)/);
 assert.match(touch,/y >= 0 && y < viewport_bottom/);
 assert.match(page,/JOT_READER_HEADER_H \+ JOT_READER_META_H/);
