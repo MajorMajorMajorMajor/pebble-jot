@@ -51,11 +51,19 @@ jobs:
             -o /tmp/jot-reader-repeat
           /tmp/jot-reader-repeat
           node tests/behavior/reader-repeat-routing.js
+      - name: Continuous Reader page and Back-to-top geometry
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/behavior/reader_page.c src/c/jot/reader_page.c \
+            -o /tmp/jot-reader-page
+          /tmp/jot-reader-page
+          node tests/behavior/reader-page-routing.js
       - name: Read notes (navigation, safe delete, touch and drag)
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \
             tests/behavior/reading.c src/c/jot/reader_review.c \
-            src/c/jot/reader_touch.c -o /tmp/jot-reading
+            src/c/jot/reader_touch.c src/c/jot/reader_page.c \
+            -o /tmp/jot-reading
           /tmp/jot-reading
           node tests/behavior/touch-target-routing.js
       - name: Write notes (caret wrapping and held editing)
