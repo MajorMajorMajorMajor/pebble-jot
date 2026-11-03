@@ -3,10 +3,12 @@
 #include <stdint.h>
 
 // Reader touch coordinates are measured in full-screen Pebble pixels.
-// The header, timestamp, footer and blank paper are NOT editing targets.
+// The entire visible notebook paper is an edit target, including timestamp,
+// margins and blank space; the header and footer are separate regions.
 enum {
   JOT_READER_HEADER_H = 42,
-  JOT_READER_BACK_W = 42,
+  JOT_READER_BACK_W = 42, // Fallback only when layout is unavailable.
+  JOT_READER_HEADER_BADGE_SPACE = 67, // Reserved count/DRAFT badge at right.
   JOT_READER_META_H = 33,
   JOT_READER_FOOTER_H = 30,
   JOT_READER_TEXT_PADDING = 12,
@@ -16,7 +18,7 @@ enum {
 };
 
 typedef struct {
-  int screen_width;
+  int screen_width; // Visible paper width: excludes native action bar if open.
   int screen_height;
   int text_height;
   int scroll_y;
@@ -30,9 +32,11 @@ typedef enum {
   JOT_READER_TOUCH_EDIT
 } JotReaderTouchAction;
 
-// For a saved-note reader: short taps inside the Back rectangle exit;
-// short taps that START AND END inside the visible text area edit.
-// In a draft peek, ordinary stationary taps simply return to the draft.
+// For a saved-note reader: short taps across the full-height left HEADER
+// (arrow + NOTES/EDIT label) go Back. The badge at right remains inactive.
+// Taps that START AND END anywhere on the visible paper edit, including
+// timestamp, empty paper and side margins, but not header/footer/action bar.
+// In a draft Peek, ordinary stationary taps simply return to the draft.
 // No content-region edit action is ever emitted for a peek.
 //
 // 'moved' is sticky across the whole gesture: moving away then back is
@@ -44,7 +48,7 @@ JotReaderTouchAction jot_reader_touch_action(bool peek, int start_x,
 
 // Only gestures starting in the clipped body viewport may scroll. The
 // header, timestamp and footer remain fixed. Blank paper in the viewport
-// is a useful drag surface, but still NOT a tap-to-edit target.
+// is both a drag surface and (for short stationary taps) an edit target.
 bool jot_reader_touch_can_drag(int start_x, int start_y,
                                const JotReaderTouchLayout *layout);
 

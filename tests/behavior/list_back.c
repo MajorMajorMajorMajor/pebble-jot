@@ -50,7 +50,24 @@ static void scrolled_list_returns_to_top(void) {
   assert(jot_list_touch_clamp_scroll(80, 0, screen_height) == 0);
 }
 
+static void expanded_new_hit_targets(void) {
+  // Header action extends beyond the drawn +NEW pill while staying clear
+  // of the Jot brand and all card rows. Edges are exact half-open bounds.
+  assert(jot_list_touch_new_hit(96, 0, 200));
+  assert(jot_list_touch_new_hit(199, 42, 200));
+  assert(jot_list_touch_new_hit(105, 39, 200));
+  assert(!jot_list_touch_new_hit(95, 20, 200));
+  assert(!jot_list_touch_new_hit(200, 20, 200));
+  assert(!jot_list_touch_new_hit(100, 43, 200));
+  assert(!jot_list_touch_new_hit(100, -1, 200));
+  assert(!jot_list_touch_new_hit(100, 228, 200));
+  // Originating inside a card's 43+ region is never a NEW hit.
+  assert(!jot_list_touch_new_hit(120, 46, 200));
+  assert(jot_list_touch_hit_card(120, 46, 200, 228, 5, 0) == 0);
+}
+
 int main(void) {
+  expanded_new_hit_targets();
   top_without_scroll();
   scrolled_list_returns_to_top();
   puts("Note list Back: visual-top exit, scrolled return, touch/button focus passed");

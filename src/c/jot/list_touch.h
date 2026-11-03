@@ -1,4 +1,5 @@
 #pragma once
+#include <stdbool.h>
 
 // Pure layout/hit-testing helpers shared by drawing and touch handling.
 // The cards occupy a clipped strip; header and footer are never scrollable.
@@ -7,8 +8,12 @@ enum {
   JOT_LIST_TOUCH_FOOTER_H = 29,
   JOT_LIST_TOUCH_ROWS = 3,
   JOT_LIST_CARD_X = 7,
-  JOT_LIST_CARD_Y_PAD = 3
+  JOT_LIST_CARD_Y_PAD = 3,
+  JOT_LIST_TOUCH_NEW_RIGHT_REACH = 104 // Pill + 5px left, 8px right.
 };
+
+// Full-height +NEW header region, disjoint from the Jot branding.
+bool jot_list_touch_new_hit(int x, int y, int screen_width);
 
 int jot_list_touch_row_height(int screen_height);
 int jot_list_touch_max_scroll(int count, int screen_height);

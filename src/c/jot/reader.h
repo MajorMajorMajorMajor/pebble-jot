@@ -12,10 +12,11 @@ bool jot_reader_is_open(void);
 // Saved reader -> notes list; draft peek -> unchanged editor.
 void jot_reader_back(void);
 
-// Current saved reader -> existing note editor. Physical Select and text
-// tap call the same transition; on failure, reader remains open.
+// Current saved reader -> existing note editor. Physical Select and paper
+// tap call the same transition; deleting/armed states cannot edit, and
+// storage-open failure leaves the reader intact.
 bool jot_reader_edit_current(void);
-// Actual reader viewport measurements for precise text-only hit testing.
+// Actual visible paper dimensions for the reader's touch hit testing.
 JotReaderTouchLayout jot_reader_touch_layout(void);
 // Direct finger scrolling inside the clipped text viewport. This never
 // edits a saved note or dismisses a draft Peek.

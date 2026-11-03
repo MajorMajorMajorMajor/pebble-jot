@@ -906,7 +906,8 @@ static void prv_touch_handler(const TouchEvent *event, void *context) {
         if (dragged) prv_release_kinetic(now_ms);
         else touch_cancel_kinetic();
         if (tap && !s_list_touch_suppress_tap)
-          jot_list_tap(event->x, event->y);
+          jot_list_tap(s_list_touch_x, s_list_touch_y,
+                       event->x, event->y);
       }
     }
     return;

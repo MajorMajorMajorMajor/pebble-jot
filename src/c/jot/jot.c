@@ -696,23 +696,27 @@ bool jot_list_is_open(void) {
   return s_list_window && window_stack_get_top_window() == s_list_window;
 }
 
-void jot_list_tap(int16_t x, int16_t y) {
+void jot_list_tap(int16_t start_x, int16_t start_y,
+                  int16_t end_x, int16_t end_y) {
   if (!jot_list_is_open() || !s_list_layer ||
       s_confirm_delete || jot_backup_active()) return;
   const GRect screen = layer_get_bounds(s_list_layer);
-  // Header NEW remains a distinct tappable action.
-  if (x >= screen.size.w - LIST_NEW_PILL_X_RIGHT &&
-      x < screen.size.w - LIST_NEW_PILL_X_RIGHT + LIST_NEW_PILL_W &&
-      y >= LIST_NEW_PILL_Y && y < LIST_NEW_PILL_Y + LIST_NEW_PILL_H) {
+  // A stationary touch must BEGIN and END in the full-height NEW region.
+  // Merely drifting from the top note into the header can't create a note.
+  if (jot_list_touch_new_hit(start_x, start_y, screen.size.w) &&
+      jot_list_touch_new_hit(end_x, end_y, screen.size.w)) {
     prv_list_new_note();
     return;
   }
 
-  // Use precisely the same row height, scroll pixels and card margins as
-  // the clipped drawing layer. Neither the paper gaps nor footer are links.
-  const int rank = jot_list_touch_hit_card(
-      x, y, screen.size.w, screen.size.h, jot_store_count(), s_list_scroll_px);
-  if (rank >= 0) prv_open_list_note(rank);
+  // Both endpoints must belong to the same rendered card; a little movement
+  // into the paper gaps or footer is not permission to open another note.
+  const int start_rank = jot_list_touch_hit_card(start_x, start_y,
+      screen.size.w, screen.size.h, jot_store_count(), s_list_scroll_px);
+  const int end_rank = jot_list_touch_hit_card(end_x, end_y,
+      screen.size.w, screen.size.h, jot_store_count(), s_list_scroll_px);
+  if (start_rank >= 0 && start_rank == end_rank)
+    prv_open_list_note(start_rank);
 }
 
 bool jot_list_can_drag(int16_t y) {

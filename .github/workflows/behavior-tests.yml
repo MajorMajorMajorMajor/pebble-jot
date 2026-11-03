@@ -48,6 +48,7 @@ jobs:
             tests/behavior/reading.c src/c/jot/reader_review.c \
             src/c/jot/reader_touch.c -o /tmp/jot-reading
           /tmp/jot-reading
+          node tests/behavior/touch-target-routing.js
       - name: Write notes (caret wrapping and held editing)
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \

@@ -21,9 +21,10 @@ void jot_editor_back(void);
 void jot_editor_touch_save(void);
 void jot_show_list(void);
 bool jot_list_is_open(void);
-// Handle a short, stationary tap on the notes-list + pill.
-// Tap an actual card to open the reader, or tap + NEW to start a note.
-void jot_list_tap(int16_t x, int16_t y);
+// Handle a short, stationary notes-list tap: both down/up locations must
+// belong to the same target (+NEW header region, or a specific note card).
+void jot_list_tap(int16_t start_x, int16_t start_y,
+                  int16_t end_x, int16_t end_y);
 // Vertical drags are accepted only from within the clipped card viewport.
 bool jot_list_can_drag(int16_t y);
 void jot_list_drag(int16_t delta_y);

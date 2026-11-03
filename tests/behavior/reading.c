@@ -50,35 +50,63 @@ static void page_and_note_navigation(void) {
 }
 
 static void tap_to_edit_or_return(void) {
-  // Back: both endpoints must land inside the top-left header target.
-  assert(tap(false, 20, 20, 20, 20, false, 100, &short_note)
+  // Entire full-height left header (arrow AND NOTES/EDIT label) goes Back.
+  // The right count/DRAFT badge is not part of Back's target.
+  assert(tap(false, 0, 0, 0, 0, false, 100, &short_note)
          == JOT_READER_TOUCH_BACK);
-  assert(tap(false, 42, 20, 42, 20, false, 100, &short_note)
+  assert(tap(false, 70, 20, 70, 20, false, 100, &short_note)
+         == JOT_READER_TOUCH_BACK);
+  assert(tap(false, 132, 41, 132, 41, false, 100, &short_note)
+         == JOT_READER_TOUCH_BACK);
+  assert(tap(false, 133, 20, 133, 20, false, 100, &short_note)
+         == JOT_READER_TOUCH_NONE);
+  assert(tap(false, 130, 20, 134, 20, false, 100, &short_note)
          == JOT_READER_TOUCH_NONE);
   assert(tap(false, 20, 20, 45, 20, false, 100, &short_note)
          == JOT_READER_TOUCH_NONE);
 
-  // Saved notes: text can be edited, blank paper and metadata cannot.
+  // Native action bar occupies the last 34 pixels, and also moves the
+  // count badge left. In that mode header Back stops at x=99.
+  const JotReaderTouchLayout with_bar = {166, 228, 300, 0, 181};
+  assert(tap(false, 98, 20, 98, 20, false, 100, &with_bar)
+         == JOT_READER_TOUCH_BACK);
+  assert(tap(false, 99, 20, 99, 20, false, 100, &with_bar)
+         == JOT_READER_TOUCH_NONE);
+  assert(tap(false, 165, 100, 165, 100, false, 100, &with_bar)
+         == JOT_READER_TOUCH_EDIT);
+  assert(tap(false, 166, 100, 166, 100, false, 100, &with_bar)
+         == JOT_READER_TOUCH_NONE);
+
+  // Entire visible paper, not just the measured text, opens saved editing:
+  // the timestamp band, side gutters, blank space and clipped text viewport.
   assert(tap(false, 45, 100, 45, 100, false, 100, &short_note)
          == JOT_READER_TOUCH_EDIT);
   assert(tap(false, 45, 137, 45, 137, false, 100, &short_note)
-         == JOT_READER_TOUCH_NONE);
+         == JOT_READER_TOUCH_EDIT);
   assert(tap(false, 45, 65, 45, 65, false, 100, &short_note)
+         == JOT_READER_TOUCH_EDIT);
+  assert(tap(false, 0, 42, 0, 42, false, 100, &short_note)
+         == JOT_READER_TOUCH_EDIT);
+  assert(tap(false, 199, 197, 199, 197, false, 100, &short_note)
+         == JOT_READER_TOUCH_EDIT);
+  assert(tap(false, 200, 100, 200, 100, false, 100, &short_note)
          == JOT_READER_TOUCH_NONE);
-  assert(tap(false, 11, 100, 11, 100, false, 100, &short_note)
+  assert(tap(false, 45, 198, 45, 198, false, 100, &short_note)
          == JOT_READER_TOUCH_NONE);
   assert(tap(false, 45, 65, 45, 100, false, 100, &short_note)
          == JOT_READER_TOUCH_NONE);
   assert(tap(false, 45, 100, 45, 100, false, 100, NULL)
          == JOT_READER_TOUCH_NONE);
+  assert(tap(false, 20, 20, 20, 20, false, 100, NULL)
+         == JOT_READER_TOUCH_BACK);
 
-  // Scrolled TextLayer is still clipped to the visible paper viewport.
+  // The note may scroll, but its paper remains wholly tappable.
   assert(tap(false, 40, 197, 40, 197, false, 100, &long_note)
          == JOT_READER_TOUCH_EDIT);
   assert(tap(false, 40, 198, 40, 198, false, 100, &long_note)
          == JOT_READER_TOUCH_NONE);
 
-  // Never interpret a drag, long press, or wide tap as an edit.
+  // Never reinterpret an interrupted drag, long hold or wide tap as edit.
   assert(tap(false, 45, 100, 45, 100, true, 100, &short_note)
          == JOT_READER_TOUCH_NONE);
   assert(tap(false, 45, 100, 45, 100, false, 700, &short_note)
@@ -86,11 +114,11 @@ static void tap_to_edit_or_return(void) {
   assert(tap(false, 45, 100, 56, 100, false, 100, &short_note)
          == JOT_READER_TOUCH_NONE);
 
-  // Draft peek is dismissible without editing a saved note; Back wins.
+  // Peek still returns to the existing draft, with header Back preferred.
   assert(tap(true, 80, 20, 80, 20, false, 100, &short_note)
-         == JOT_READER_TOUCH_DISMISS_PEEK);
-  assert(tap(true, 20, 20, 20, 20, false, 100, &short_note)
          == JOT_READER_TOUCH_BACK);
+  assert(tap(true, 150, 20, 150, 20, false, 100, &short_note)
+         == JOT_READER_TOUCH_DISMISS_PEEK);
   assert(tap(true, 100, 100, 100, 100, true, 100, &short_note)
          == JOT_READER_TOUCH_NONE);
 }

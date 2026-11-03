@@ -3,6 +3,13 @@
 static int prv_max(int x, int y) { return x > y ? x : y; }
 static int prv_min(int x, int y) { return x < y ? x : y; }
 
+bool jot_list_touch_new_hit(int x, int y, int screen_width) {
+  return screen_width > JOT_LIST_TOUCH_NEW_RIGHT_REACH &&
+         x >= screen_width - JOT_LIST_TOUCH_NEW_RIGHT_REACH &&
+         x < screen_width &&
+         y >= 0 && y < JOT_LIST_TOUCH_HEADER_H;
+}
+
 int jot_list_touch_row_height(int screen_height) {
   const int view = screen_height - JOT_LIST_TOUCH_HEADER_H -
                    JOT_LIST_TOUCH_FOOTER_H;

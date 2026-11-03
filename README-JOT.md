@@ -1,3 +1,24 @@
+## Jot 1.19.2 — Forgiving touch targets without visual changes (#54)
+
+In the saved Reader or draft Peek, **Back** now occupies the full top
+header height across the arrow *and its NOTES/EDIT label*. The separate
+counter/DRAFT badge is reserved; if the native action bar is open, its
+column is excluded. On a saved note, a short tap on **any notebook paper**
+including margins, timestamp and blank area enters editing, not only text.
+The footer and action bar are never edit targets. In delete confirmation
+mode, page taps cannot open the editor; Back still disarms/cancels normally.
+Peek's existing return-to-typing behavior remains unchanged.
+
+In the list, **+NEW** gets a full-height, slightly wider right-hand header
+region. Taps must start *and* end on the same header action or same
+drawn card. Drags, kinetic gestures, held touches, modal delete, active
+backup, and empty paper cannot accidentally create or open notes.
+The visible graphics, keyboard, save pipeline and note storage are unchanged.
+
+Pure C boundary tests and source-routing guards check exact hitbox edges,
+action-bar width, timestamp/blank-paper taps, drag/hold suppression and
+delete safety; final Emery wrist QA is still required.
+
 ## Jot 1.19.1 — Back follows the visible note-list scroll, not the highlight (#53)
 
 One physical **Back** press exits Jot whenever the note list is already

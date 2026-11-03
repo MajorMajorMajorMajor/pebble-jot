@@ -126,7 +126,7 @@ void jot_reader_dismiss_peek(void) {
 }
 
 static void prv_draw_back(GContext *ctx) {
-  // The actual touch rectangle is 0..41 x 0..41 (reader_touch.h).
+  // The entire left header through NOTES/EDIT is tappable (reader_touch.h).
   // A small paper key makes the arrow obviously actionable rather than
   // decorative. Both reader states share this exact button.
   const GRect button = GRect(5, 7, 34, 27);
@@ -194,8 +194,8 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
                                                  "TAP to return to typing") :
                      s_review.armed ? "SEL confirm  DN cancel" :
                      s_review.open ? "UP/DN notes" :
-                     s_scroll_max ? "DRAG scroll  SEL menu" :
-                                    "TAP text  SEL menu";
+                     s_scroll_max ? "DRAG scroll  TAP edit" :
+                                    "TAP page  SEL menu";
   graphics_draw_text(ctx, hint,
                      fonts_get_system_font(FONT_KEY_GOTHIC_14),
                      GRect(5, footer_y + 5, usable_width - 10,
@@ -475,7 +475,10 @@ bool jot_reader_edit_current(void) {
   touch_cancel_kinetic();
   // Keep physical Select and touch text-edit on the exact same route.
   // A Peek is not an existing saved note and cannot become one here.
-  if (!jot_reader_is_open() || s_is_peek || s_slot < 0) return false;
+  // A deletion flow is modal: tapping the paper must not escape the
+  // armed/cancel state or silently reopen a note for editing.
+  if (!jot_reader_is_open() || s_is_peek || s_slot < 0 ||
+      s_review.delete_mode || s_review.armed) return false;
   if (!jot_reader_edit(s_slot)) {
     s_open_error = true;
     if (s_chrome) layer_mark_dirty(s_chrome);
