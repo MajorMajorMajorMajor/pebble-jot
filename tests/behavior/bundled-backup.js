@@ -28,16 +28,18 @@ assert.deepEqual(JSON.parse(JSON.stringify(ask({type:'jotBackupInfo'}))),
   {ok:true,found:false});
 assert.equal(note(0,0).ok,false);
 
-const long='📝'.repeat(1000)+' café good-will\n'+('a'.repeat(300));
+const long='a'+'📝'.repeat(850)+' café good-will\n'+('a'.repeat(300));
 const notes=Array.from({length:256},(_,i)=>({
   created:1730000000+i,
-  text:i===0?'':i===1?long:('Note '+i+' 🌈 ').repeat(180)
+  text:i===0?'':i===1?long:('Note '+i+' 🌈 ').repeat(280)
 }));
 saved['jot.backup.v1']=JSON.stringify({
   format:'jot-backup-v1',session:7,
   savedAt:'2026-11-03T10:00:00.000Z',notes
 });
 const original=saved['jot.backup.v1'];
+assert.ok(Buffer.byteLength(original,'utf8') > 970000,
+  'exercise realistic near-1MiB Unicode snapshot');
 assert.equal(ask({type:'jotBackupInfo'}).count,256);
 for(let index=0;index<notes.length;index++){
   let joined='',complete=false;
