@@ -31,7 +31,11 @@ Requires Pebble Tool 5.1.0+ and the project's pinned SDK toolchain.
 
 IMPORTANT: the present SDK's normal pebble build does not bundle
 config.html. Always run the local Python packer after building and
-before installing this branch. It patches appinfo.json to preview
+before installing this branch. The packer selects the only .pbw in build/
+(e.g. build/jot.pbw); it no longer assumes a package-name-based filename.
+If you have multiple PBWs, specify the exact one as an argument:
+
+    python3 scripts/pack-bundled-config.py build/jot.pbw It patches appinfo.json to preview
 manifestVersion 2 and inserts the bundled page while preserving the
 existing Pebble binary and resources.
 
