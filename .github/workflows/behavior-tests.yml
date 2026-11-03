@@ -2,7 +2,7 @@ name: Jot behavior tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, "experiments/issue-39-bundled-backup-viewer"]
   pull_request:
 
 permissions:
@@ -75,6 +75,10 @@ jobs:
           /tmp/jot-label-geometry
       - name: Back up notes (atomicity, retransmission and export)
         run: node tests/behavior/backup.js
+      - name: Bundled local phone backup viewer
+        run: |
+          node tests/behavior/bundled-backup.js
+          python3 scripts/pack-bundled-config.py --self-test
 
   sdk-build:
     name: Build Emery app with Pebble SDK
@@ -90,10 +94,14 @@ jobs:
           name: pebble
           skipPush: true
       - name: Compile, link and package Emery app
-        run: nix develop --command pebble build
+        run: |
+          nix develop --command pebble build
+          python3 scripts/pack-bundled-config.py
       - name: Verify packaged PBW exists
         run: |
           pbw="$(find build -type f -name '*.pbw' -print -quit)"
           test -n "$pbw"
           test -s "$pbw"
           unzip -t "$pbw"
+          unzip -p "$pbw" appinfo.json | python3 -c 'import json,sys; v=json.load(sys.stdin); assert v["manifestVersion"]==2 and v["configPage"]=="config.html"'
+          unzip -p "$pbw" config.html | grep -q "Jot"
