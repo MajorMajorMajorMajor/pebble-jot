@@ -14,6 +14,19 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def locate_pbw(build_dir):
+    """Find the single PBW produced by Pebble; names vary by SDK/build."""
+    build_dir = Path(build_dir)
+    files = sorted(p for p in build_dir.glob("*.pbw") if p.is_file())
+    if not files:
+        raise ValueError("No .pbw found in " + str(build_dir) +
+                         "; run 'pebble build' first")
+    if len(files) != 1:
+        raise ValueError("Multiple .pbw files in " + str(build_dir) +
+                         "; pass the desired .pbw path explicitly")
+    return files[0]
+
+
 def package(pbw, html):
     pbw, html = Path(pbw), Path(html)
     if not pbw.is_file():
@@ -59,17 +72,34 @@ def self_test():
             assert z.namelist().count("config.html") == 1
             assert z.read("pebble-app.bin") == b"\x00\x01"
             assert json.loads(z.read("appinfo.json"))["manifestVersion"] == 2
+    with tempfile.TemporaryDirectory() as directory:
+        build = Path(directory)
+        try:
+            locate_pbw(build)
+            raise AssertionError("missing .pbw must fail")
+        except ValueError as error:
+            assert "No .pbw" in str(error)
+        a = build / "jot.pbw"
+        a.write_bytes(b"test")
+        assert locate_pbw(build) == a
+        b = build / "pebble-jot.pbw"
+        b.write_bytes(b"test")
+        try:
+            locate_pbw(build)
+            raise AssertionError("ambiguous .pbw must fail")
+        except ValueError as error:
+            assert "Multiple .pbw" in str(error)
     print("Bundled config PBW packaging and idempotence passed")
 
 
 if __name__ == "__main__":
     if sys.argv[1:] == ["--self-test"]:
         self_test()
-    elif len(sys.argv) == 1:
+    elif len(sys.argv) <= 2:
         project = json.loads((ROOT / "package.json").read_text())
-        pbw = ROOT / "build" / (project["name"] + ".pbw")
+        pbw = Path(sys.argv[1]) if len(sys.argv) == 2 else locate_pbw(ROOT / "build")
         page = ROOT / project["pebble"]["configPage"]
         package(pbw, page)
         print("Bundled " + str(page) + " into " + str(pbw))
     else:
-        sys.exit("usage: python3 scripts/pack-bundled-config.py [--self-test]")
+        sys.exit("usage: python3 scripts/pack-bundled-config.py [--self-test | path/to/jot.pbw]")
