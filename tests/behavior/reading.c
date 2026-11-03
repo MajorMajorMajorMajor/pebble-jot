@@ -42,6 +42,14 @@ static void page_and_note_navigation(void) {
   assert(jot_reader_review_paper_width(20, true, 34) == 1);
   assert(jot_reader_review_paper_width(200, true, 0) == 200);
 
+  // Reader Back uses the actual page offset, including a single pixel.
+  // A short note or any reader already at the top exits directly.
+  assert(!jot_reader_back_should_scroll(-1));
+  assert(!jot_reader_back_should_scroll(0));
+  assert(jot_reader_back_should_scroll(1));
+  assert(jot_reader_back_should_scroll(60));
+  assert(jot_reader_back_should_scroll(181));
+
   assert(jot_reader_review_next_rank(4, 20, -1) == 3);
   assert(jot_reader_review_next_rank(4, 20, 1) == 5);
   assert(jot_reader_review_next_rank(0, 20, -1) == 0);

@@ -8,8 +8,9 @@ bool jot_reader_init(void);
 void jot_reader_deinit(void);
 bool jot_reader_show(int slot, int rank, int total);
 bool jot_reader_is_open(void);
-// Same context-sensitive exit for physical Back and header touch Back.
-// Saved reader -> notes list; draft peek -> unchanged editor.
+// Physical and header touch Back: close review/delete flow first, then
+// return scrolled paper to the top, then exit to notes/draft editor.
+// The fixed reader header, timestamp and paper remain unchanged.
 void jot_reader_back(void);
 
 // Current saved reader -> existing note editor. Physical Select and paper
@@ -27,7 +28,8 @@ bool jot_reader_kinetic_step(int delta_scroll);
 bool jot_reader_action_overlay_hit(int16_t x, int16_t y);
 
 // Preview the unsaved current editor buffer without changing storage.
-// Back, Select, or a touchscreen tap returns to the same editor.
+// A page tap or Select returns immediately to the same editor; physical
+// and header Back first return a scrolled draft to the top.
 bool jot_reader_peek(void);
 bool jot_reader_is_peek(void);
 void jot_reader_dismiss_peek(void);

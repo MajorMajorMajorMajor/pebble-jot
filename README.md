@@ -1,3 +1,24 @@
+## Jot 1.19.7 — Reader Back returns to top (#66; Emery QA pending)
+
+A focused, layout-neutral follow-up after parking the continuous-paper
+experiment (#56) on its own branch. On a scrolled saved note or draft
+Peek, physical Back or the fixed header's Back first returns the **actual
+Reader scroll offset** to zero, then a second Back exits. At the top
+or on short notes, Back exits immediately. Native action bar and deletion
+confirmation retain precedence over scrollback: disarm, close bar,
+scroll home, then leave.
+
+For Peek specifically, an ordinary page tap or physical Select still
+returns **directly** to the draft, even if scrolled; Back alone has
+the new return-to-top behavior. Touch momentum and the physical
+hold-repeat timer are canceled before any Back/dismiss transition.
+
+The familiar **fixed header, timestamp, page height, line positions,
+touch hitboxes and full 1.19.6 reader styling are unchanged**. Dedicated
+C behavior and SDK routing tests guard modal precedence, actual scroll
+offset, header/touch Back, and Peek's quick-return paths. No content or
+persistence changes. Emery hardware QA pending.
+
 ## Jot 1.19.6 — Reader: hold Up/Down to scroll (#55; Emery wrist QA pending)
 
 Physical Up and Down in normal saved Reader **and** draft Peek retain

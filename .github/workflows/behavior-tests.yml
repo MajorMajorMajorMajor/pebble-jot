@@ -44,6 +44,8 @@ jobs:
             src/c/jot/list_touch.c -o /tmp/jot-list-back
           /tmp/jot-list-back
           node tests/behavior/list-back-routing.js
+      - name: Reader Back returns scrolled pages home without changing chrome
+        run: node tests/behavior/reader-back-routing.js
       - name: Held Reader button scroll repeat and cancellation
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \

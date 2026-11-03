@@ -45,6 +45,10 @@ bool jot_reader_review_back(JotReaderReview *state) {
   return true;
 }
 
+bool jot_reader_back_should_scroll(int scroll_y) {
+  return scroll_y > 0;
+}
+
 int jot_reader_review_next_rank(int rank, int count, int direction) {
   if (count <= 0 || rank < 0 || rank >= count) return -1;
   if (direction < 0) return rank > 0 ? rank - 1 : rank;

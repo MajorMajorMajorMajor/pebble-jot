@@ -22,6 +22,9 @@ void jot_reader_review_hold(JotReaderReview *state);
 bool jot_reader_review_back(JotReaderReview *state);
 // True if a pending confirmation was cancelled (without moving notes).
 bool jot_reader_review_cancel_armed(JotReaderReview *state);
+// Back from a genuinely scrolled page returns home before leaving.
+// Called only after action-bar/delete Back has had first refusal.
+bool jot_reader_back_should_scroll(int scroll_y);
 // Return the next valid rank, or the current rank at an end boundary.
 // direction = -1 for newer/Up, +1 for older/Down.
 int jot_reader_review_next_rank(int rank, int count, int direction);

@@ -32,6 +32,7 @@ static const uint32_t s_icon_ids[ICON_COUNT] = {
 static void prv_reader_clicks(void *context);
 static void prv_measure_text(void);
 static void prv_reflow_page(void);
+static void prv_update_scroll(void);
 static Layer *s_paper;
 static Layer *s_viewport;
 static TextLayer *s_text_layer;
@@ -117,18 +118,30 @@ void jot_reader_back(void) {
   prv_cancel_button_repeat();
   touch_cancel_kinetic();
   if (!jot_reader_is_open()) return;
-  // First Back disarms deletion; next Back closes the action bar.
-  // Once the bar is closed, Back returns to the list (or draft editor).
+  // Keep delete confirmation and the native action bar ahead of scrollback:
+  // Back must never accidentally bypass an armed deletion.
   if (!s_is_peek && jot_reader_review_back(&s_review)) {
     s_review_message = NULL;
     prv_mark_review();
+    return;
+  }
+  // A scroll offset is the only signal: no guessing from note length,
+  // focused text or button history. This leaves all Reader chrome fixed.
+  if (jot_reader_back_should_scroll(s_scroll)) {
+    s_scroll = 0;
+    prv_update_scroll();
     return;
   }
   window_stack_pop(true);
 }
 
 void jot_reader_dismiss_peek(void) {
-  if (jot_reader_is_peek()) jot_reader_back();
+  if (!jot_reader_is_peek()) return;
+  // A page tap or Select is still a one-step return to the draft,
+  // even when physical/header Back would scroll home first.
+  prv_cancel_button_repeat();
+  touch_cancel_kinetic();
+  window_stack_pop(true);
 }
 
 static void prv_draw_back(GContext *ctx) {
@@ -555,7 +568,7 @@ static void prv_reader_select(ClickRecognizerRef ref, void *context) {
   prv_cancel_button_repeat();
   touch_cancel_kinetic();
   if (s_is_peek) {
-    jot_reader_back();
+    jot_reader_dismiss_peek();
     return;
   }
   if (!s_action_bar) { jot_reader_edit_current(); return; }
