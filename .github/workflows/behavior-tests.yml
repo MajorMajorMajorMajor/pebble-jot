@@ -35,6 +35,13 @@ jobs:
             src/c/ui/caret_layout.c -o /tmp/jot-tabs
           /tmp/jot-tabs
           node tests/behavior/tab-routing.js
+      - name: List Back navigation uses actual scroll offset
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I src/c \
+            tests/behavior/list_back.c src/c/jot/list_focus.c \
+            src/c/jot/list_touch.c -o /tmp/jot-list-back
+          /tmp/jot-list-back
+          node tests/behavior/list-back-routing.js
       - name: Read notes (navigation, safe delete, touch and drag)
         run: |
           cc -std=c11 -Wall -Wextra -Werror -I src/c \

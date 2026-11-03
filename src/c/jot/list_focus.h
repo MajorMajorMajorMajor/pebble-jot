@@ -1,4 +1,5 @@
 #pragma once
+#include <stdbool.h>
 
 // The list header's "+" is a real, button-focusable row above the first note.
 // Non-negative values are newest-first note ranks.
@@ -11,6 +12,7 @@ enum {
 int jot_list_focus_initial(int rank, int count);
 int jot_list_focus_up(int focus);
 int jot_list_focus_down(int focus, int count);
-// Back from "+" returns to the top note, if one exists; Back at the top
-// (or from "+" on an empty list) exits to the watch system.
-int jot_list_focus_back(int focus, int count);
+// Back is determined by the VISIBLE scroll offset, not the focus rank:
+// a partially/fully scrolled list returns to the top, then Back exits.
+// This intentionally works the same with button focus or touch browsing.
+bool jot_list_back_should_scroll(int scroll_px);

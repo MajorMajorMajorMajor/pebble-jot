@@ -453,21 +453,18 @@ static void prv_list_back(ClickRecognizerRef ref, void *context) {
     prv_redraw_list();
     return;
   }
-  // From touch-browsing mode, Back re-establishes newest-note focus at
-  // the top instead of using a stale rank or exiting unexpectedly.
-  if (!s_list_focus_valid) {
+  // The list's *actual scroll position*, not its selected note rank,
+  // determines Back. This also applies after touch browsing has cleared
+  // the highlight: a fully visible top page must exit in one press.
+  if (jot_list_back_should_scroll(s_list_scroll_px)) {
+    s_list_scroll_px = 0;
     s_selected_rank = jot_list_focus_initial(0, jot_store_count());
     s_list_focus_valid = true;
-    prv_follow_list_focus();
+    prv_redraw_list();
     return;
   }
-  const int focus = jot_list_focus_back(s_selected_rank, jot_store_count());
-  if (focus != JOT_LIST_FOCUS_EXIT) {
-    s_selected_rank = focus;
-    prv_follow_list_focus();
-    return;
-  }
-  // At the newest note, or NEW on an empty list, leave Jot as before.
+  // Already at the visual top: leave Jot, even if note #2/#3 or NEW
+  // is selected. Flush failures must still prevent an unsafe exit.
   if (prv_flush()) window_stack_pop_all(true);
   else prv_redraw_list();
 }

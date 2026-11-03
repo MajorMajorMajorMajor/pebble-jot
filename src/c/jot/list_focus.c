@@ -14,8 +14,6 @@ int jot_list_focus_down(int focus, int count) {
   return focus + 1 < count ? focus + 1 : focus;
 }
 
-int jot_list_focus_back(int focus, int count) {
-  if (focus > 0 || (focus == JOT_LIST_FOCUS_NEW && count > 0))
-    return 0;
-  return JOT_LIST_FOCUS_EXIT;
+bool jot_list_back_should_scroll(int scroll_px) {
+  return scroll_px > 0;
 }

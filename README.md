@@ -1,3 +1,16 @@
+## Jot 1.19.1 — Back follows the visible note-list scroll, not the highlight (#53)
+
+One physical **Back** press exits Jot whenever the note list is already
+visually at the top (scroll offset 0), **even with the second or third note
+highlighted**, or after a touch drag cleared button focus. When the list
+is genuinely scrolled down by even a pixel, Back instead jumps to the top,
+restores focus to the newest available note, and a subsequent Back exits.
+Confirmation still cancels first; failed save still prevents exiting.
+No change to note data, editing, selection, kinetic movement, backup
+transfer, keyboard or Reader behavior. Pure C and source-routing tests
+cover scroll offset, touch/button focus, empty/short lists, and Back
+guards. Pending final Emery wrist verification.
+
 ## Jot 1.19.0 — Literal Tab gestures (#31; wrist QA pending)
 
 Swipe **T down-right** on ABC or **1 down-right** on 123 to insert
