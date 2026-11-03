@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Jot · Notes backup</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#f8f0d8;color:#29282b;min-height:100vh}
+main{max-width:720px;margin:0 auto;padding:24px 18px 64px}
+header{background:#ffcf57;padding:22px;border:3px solid #26242a;border-radius:14px;box-shadow:5px 5px 0 #29282b}
+h1{font-size:32px;margin:0 0 3px;letter-spacing:-1.5px}h2{font-size:19px;margin:24px 0 10px}
+p{line-height:1.5}.sub{margin:0;font-weight:600}.muted{color:#57535b}
+.card{background:#fffaf0;border:2px solid #29282b;border-radius:10px;padding:16px;margin:16px 0}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:16px 0}
+button{background:#29282b;color:#fff;border:0;border-radius:8px;font-weight:700;font-size:15px;padding:12px 16px;cursor:pointer}
+button.secondary{background:#ffd35d;color:#29282b;border:2px solid #29282b;padding:10px 14px}
+button:disabled{opacity:.4;cursor:not-allowed}
+textarea{width:100%;min-height:200px;background:white;color:#29282b;border:2px solid #777;border-radius:7px;padding:12px;font:14px/1.5 ui-monospace,SFMono-Regular,monospace;resize:vertical}
+article{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px 0;border-bottom:1px solid #ccc}
+article:last-child{border:0}.date{font-size:12px;color:#555;margin-bottom:5px}.note{font-size:17px}
+#status{font-weight:700}footer{margin-top:30px;font-size:13px;color:#58535b}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>✎ Jot</h1>
+<p class="sub">Your pocket notebook · phone backup</p>
+</header>
+<p id="status" role="status">Waiting for the local Jot companion…</p>
+<p class="muted">This viewer is bundled with Jot. No remote page or note text in the URL. Notes remain in the phone companion.</p>
+<div class="row">
+<button id="copy">Copy notes</button>
+<button id="select" class="secondary">Select all</button>
+<button id="download" class="secondary">Save .txt</button>
+<button id="json" class="secondary">Save .json</button>
+</div>
+<label for="backupText"><strong>Plain text backup</strong></label>
+<textarea id="backupText" readonly spellcheck="false"></textarea>
+<h2>Notes</h2>
+<div id="notes"></div>
+<footer>For a fresh backup: open Jot's notes list on the watch, hold Up, wait for “Phone copy saved”, then reopen this page from the Pebble app's Jot settings. Store a separate text or JSON copy somewhere safe.</footer>
+</main>
+<script>
+(function() {
+  'use strict';
+  // The bundle contains no note text; content is fetched from PKJS in
+  // small messages while the local configuration page is open.
+  var status=document.getElementById('status'), box=document.getElementById('backupText');
+  var notesRoot=document.getElementById('notes'), snapshot=null, text='';
+  var controls=['copy','select','download','json'];
+  function mark(s){status.textContent=s;}
+  function enable(b){controls.forEach(function(id){document.getElementById(id).disabled=!b;});}
+  function date(t){var d=new Date(Number(t)*1000);return isNaN(d.getTime())?'Unknown date':d.toLocaleString();}
+  function send(m){return Pebble.sendMessage('pkjs',m);}
+  function save(name,body,mime){
+    try {
+      var url=URL.createObjectURL(new Blob([body],{type:mime}));
+      var link=document.createElement('a');
+      link.href=url;link.download=name;document.body.appendChild(link);link.click();
+      link.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+      mark('Export requested. Check Downloads.');
+    } catch(e){mark('File download unavailable. Use Copy notes instead.');}
+  }
+  async function load(){
+    enable(false);notesRoot.textContent='';box.value='';snapshot=null;text='';
+    mark('Reading the phone’s saved backup…');
+    try {
+      var info=await send({type:'jotBackupInfo'});
+      if(!info||!info.ok)throw Error('The phone companion could not read the backup');
+      if(!info.found){
+        mark('No phone backup found yet.');
+        box.value='Open the watch notes list and hold Up to send notes to the phone.';
+        return;
+      }
+      if(!Number.isInteger(info.count)||info.count<0||info.count>256)
+        throw Error('Invalid note count');
+      var value={format:'jot-backup-v1',session:info.session,savedAt:info.savedAt,notes:[]};
+      var lines=['Jot notes backup · '+(info.savedAt||'')+'\n'];
+      for(var i=0;i<info.count;i++){
+        mark('Reading note '+(i+1)+' of '+info.count+'…');
+        var body='',created=null,done=false;
+        for(var part=0;part<8192&&!done;part++){
+          var r=await send({type:'jotBackupNote',index:i,part:part});
+          if(!r||!r.ok||r.index!==i||r.part!==part||
+             typeof r.text!=='string'||typeof r.created!=='number'||
+             (part>0&&!r.done&&!r.text.length))
+            throw Error('Transfer interrupted at note '+(i+1));
+          if(part===0)created=r.created;
+          else if(created!==r.created)throw Error('Note changed during transfer');
+          body+=r.text;done=r.done===true;
+        }
+        if(!done)throw Error('Note exceeded safety limit');
+        var note={created:created,text:body};
+        value.notes.push(note);
+        lines.push('['+date(created)+']\n'+body+'\n');
+      }
+      snapshot=value;text=lines.join('\n---\n\n');box.value=text;
+      value.notes.forEach(function(note){
+        var article=document.createElement('article'),label=document.createElement('div');
+        label.className='date';label.textContent=date(note.created);
+        var content=document.createElement('div');content.className='note';
+        content.textContent=note.text; // No HTML injection from note contents.
+        article.appendChild(label);article.appendChild(content);notesRoot.appendChild(article);
+      });
+      mark(info.count+' note(s) received · '+(info.savedAt||''));enable(true);
+    }catch(e){
+      snapshot=null;text='';box.value='';notesRoot.textContent='';enable(false);
+      mark('Could not read your notes: '+e.message+'. Reopen Settings to retry.');
+    }
+  }
+  enable(false);
+  document.getElementById('select').onclick=function(){box.focus();box.select();};
+  document.getElementById('copy').onclick=function(){
+    box.focus();box.select();
+    if(navigator.clipboard&&navigator.clipboard.writeText)
+      navigator.clipboard.writeText(text).then(
+        function(){mark('Copied to clipboard');},
+        function(){mark('Text selected. Use Copy in the phone menu.');});
+    else if(document.execCommand&&document.execCommand('copy'))mark('Copied to clipboard');
+    else mark('Text selected. Use Copy in the phone menu.');
+  };
+  document.getElementById('download').onclick=function(){
+    if(snapshot)save('jot-notes.txt',text,'text/plain;charset=utf-8');
+  };
+  document.getElementById('json').onclick=function(){
+    if(snapshot)save('jot-notes.json',JSON.stringify(snapshot,null,2),'application/json;charset=utf-8');
+  };
+  Pebble.addEventListener('ready',function(event){if(event.target==='pkjs')load();});
+})();
+</script>
+</body>
+</html>
