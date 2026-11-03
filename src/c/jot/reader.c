@@ -5,6 +5,7 @@
 #include "ui/touch.h"
 #include "jot/reader_review.h"
 #include "jot/reader_repeat.h"
+#include "jot/reader_page.h"
 #include "jot/jot.h"
 #include "jot/store.h"
 #include "ui/tab_display.h"
@@ -32,6 +33,7 @@ static const uint32_t s_icon_ids[ICON_COUNT] = {
 static void prv_reader_clicks(void *context);
 static void prv_measure_text(void);
 static void prv_reflow_page(void);
+static void prv_update_scroll(void);
 static Layer *s_paper;
 static Layer *s_viewport;
 static TextLayer *s_text_layer;
@@ -117,34 +119,48 @@ void jot_reader_back(void) {
   prv_cancel_button_repeat();
   touch_cancel_kinetic();
   if (!jot_reader_is_open()) return;
-  // First Back disarms deletion; next Back closes the action bar.
-  // Once the bar is closed, Back returns to the list (or draft editor).
+  // Delete confirmation and the native action bar always close first.
+  // Once those are gone, Back follows the ACTUAL scroll position, just
+  // like the note list: one press returns to the first line; next exits.
   if (!s_is_peek && jot_reader_review_back(&s_review)) {
     s_review_message = NULL;
     prv_mark_review();
+    return;
+  }
+  if (jot_reader_page_back_to_top(s_scroll)) {
+    s_scroll = 0;
+    prv_update_scroll();
     return;
   }
   window_stack_pop(true);
 }
 
 void jot_reader_dismiss_peek(void) {
-  if (jot_reader_is_peek()) jot_reader_back();
+  if (!jot_reader_is_peek()) return;
+  // An ordinary tap/Select on the draft is always a quick return to the
+  // editor, even if the wearer was reading deep into the draft.
+  prv_cancel_button_repeat();
+  touch_cancel_kinetic();
+  window_stack_pop(true);
 }
 
-static void prv_draw_back(GContext *ctx) {
+static void prv_draw_back(GContext *ctx, int y_offset) {
   // The entire left header through NOTES/EDIT is tappable (reader_touch.h).
   // A small paper key makes the arrow obviously actionable rather than
   // decorative. Both reader states share this exact button.
-  const GRect button = GRect(5, 7, 34, 27);
+  const GRect button = GRect(5, 7 + y_offset, 34, 27);
   graphics_context_set_fill_color(ctx, GColorFromRGB(255, 250, 239));
   graphics_fill_rect(ctx, button, 5, GCornersAll);
   graphics_context_set_stroke_color(ctx, prv_ink());
   graphics_context_set_stroke_width(ctx, 1);
   graphics_draw_round_rect(ctx, button, 5);
   graphics_context_set_stroke_width(ctx, 3);
-  graphics_draw_line(ctx, GPoint(30, 20), GPoint(14, 20));
-  graphics_draw_line(ctx, GPoint(14, 20), GPoint(22, 12));
-  graphics_draw_line(ctx, GPoint(14, 20), GPoint(22, 28));
+  graphics_draw_line(ctx, GPoint(30, 20 + y_offset),
+                     GPoint(14, 20 + y_offset));
+  graphics_draw_line(ctx, GPoint(14, 20 + y_offset),
+                     GPoint(22, 12 + y_offset));
+  graphics_draw_line(ctx, GPoint(14, 20 + y_offset),
+                     GPoint(22, 28 + y_offset));
 }
 
 static void prv_draw_chrome(Layer *layer, GContext *ctx) {
@@ -152,41 +168,44 @@ static void prv_draw_chrome(Layer *layer, GContext *ctx) {
   const int width = bounds.size.w;
   const int footer_y = bounds.size.h - READER_FOOTER_H;
 
-  graphics_context_set_fill_color(ctx, prv_paper());
-  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+  // Unlike the footer, this header belongs to the SCROLLING document.
+  // The transparent chrome layer paints over the page after the note so
+  // an emerging line cannot shine through a partially visible header.
+  // Do NOT fill the whole chrome bounds: that would hide the paper.
+  const int header_y = -s_scroll;
+  if (jot_reader_page_visible_header(s_scroll) > 0) {
+    graphics_context_set_fill_color(ctx, prv_yellow());
+    graphics_fill_rect(ctx, GRect(0, header_y, width, READER_HEADER_H - 3),
+                       0, GCornerNone);
+    graphics_context_set_fill_color(ctx, prv_ink());
+    graphics_fill_rect(ctx, GRect(0, header_y + READER_HEADER_H - 3, width, 3),
+                       0, GCornerNone);
+    prv_draw_back(ctx, header_y);
 
-  graphics_context_set_fill_color(ctx, prv_yellow());
-  graphics_fill_rect(ctx, GRect(0, 0, width, READER_HEADER_H - 3),
-                     0, GCornerNone);
-  graphics_context_set_fill_color(ctx, prv_ink());
-  graphics_fill_rect(ctx, GRect(0, READER_HEADER_H - 3, width, 3),
-                     0, GCornerNone);
-  prv_draw_back(ctx);
+    graphics_context_set_text_color(ctx, prv_ink());
+    const int usable_width = width -
+        (s_review.open && !s_is_peek ? ACTION_BAR_WIDTH : 0);
+    graphics_draw_text(ctx, s_is_peek ? "EDIT" : "NOTES",
+                       fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                       GRect(44, 7 + header_y, usable_width - 44 - 73, 27),
+                       GTextOverflowModeTrailingEllipsis,
+                       GTextAlignmentLeft, NULL);
 
-  graphics_context_set_text_color(ctx, prv_ink());
-  // Context label tells the user where the header Back action goes.
-  // A normal saved note returns to NOTES; a temporary draft peek to EDIT.
-  const int usable_width = width -
-      (s_review.open && !s_is_peek ? ACTION_BAR_WIDTH : 0);
-  graphics_draw_text(ctx, s_is_peek ? "EDIT" : "NOTES",
-                     fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                     GRect(44, 7, usable_width - 44 - 73, 27),
-                     GTextOverflowModeTrailingEllipsis,
-                     GTextAlignmentLeft, NULL);
+    char count[20];
+    if (s_is_peek) snprintf(count, sizeof count, "DRAFT");
+    else snprintf(count, sizeof count, "%d / %d", s_rank + 1, s_total);
+    graphics_context_set_fill_color(ctx, prv_ink());
+    graphics_fill_rect(ctx, GRect(usable_width - 67, 8 + header_y, 59, 25),
+                       5, GCornersAll);
+    graphics_context_set_text_color(ctx, prv_yellow());
+    graphics_draw_text(ctx, count,
+                       fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+                       GRect(usable_width - 65, 11 + header_y, 55, 20),
+                       GTextOverflowModeTrailingEllipsis,
+                       GTextAlignmentCenter, NULL);
+  }
 
-  char count[20];
-  if (s_is_peek) snprintf(count, sizeof count, "DRAFT");
-  else snprintf(count, sizeof count, "%d / %d", s_rank + 1, s_total);
-  graphics_context_set_fill_color(ctx, prv_ink());
-  graphics_fill_rect(ctx, GRect(usable_width - 67, 8, 59, 25), 5, GCornersAll);
-  graphics_context_set_text_color(ctx, prv_yellow());
-  graphics_draw_text(ctx, count,
-                     fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
-                     GRect(usable_width - 65, 11, 55, 20),
-                     GTextOverflowModeTrailingEllipsis,
-                     GTextAlignmentCenter, NULL);
-
-  // A fixed, readable footer. The text region above it has its own clip.
+  // The bottom status strip alone stays fixed, beyond the paper viewport.
   graphics_context_set_fill_color(ctx, prv_yellow());
   graphics_fill_rect(ctx, GRect(0, footer_y, width, 3), 0, GCornerNone);
   graphics_context_set_fill_color(ctx, prv_ink());
@@ -266,28 +285,38 @@ static void prv_draw_paper(Layer *layer, GContext *ctx) {
   const int height = bounds.size.h;
   graphics_context_set_fill_color(ctx, prv_paper());
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+  // Every ruled line travels WITH the note, staying phase-aligned to
+  // the writing. Only draw lines that exist in the source paper.
   graphics_context_set_stroke_color(ctx, GColorFromRGB(226, 216, 190));
   graphics_context_set_stroke_width(ctx, 1);
-  for (int y = READER_META_H + 18; y < height; y += 30) {
+  for (int y = jot_reader_page_first_rule(s_scroll); y < height; y += 30) {
     graphics_draw_line(ctx, GPoint(0, y), GPoint(width, y));
   }
-  graphics_context_set_text_color(ctx, GColorFromRGB(106, 95, 80));
-  graphics_draw_text(ctx, s_timestamp,
-                     fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                     GRect(12, 0, width - 24, 28),
-                     GTextOverflowModeTrailingEllipsis,
-                     GTextAlignmentLeft, NULL);
-  graphics_context_set_stroke_color(ctx, GColorFromRGB(181, 164, 137));
-  graphics_draw_line(ctx, GPoint(12, 29), GPoint(width - 12, 29));
+  const int meta_y = READER_HEADER_H - s_scroll;
+  if (meta_y > -30 && meta_y < height) {
+    graphics_context_set_text_color(ctx, GColorFromRGB(106, 95, 80));
+    graphics_draw_text(ctx, s_timestamp,
+                       fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                       GRect(12, meta_y, width - 24, 28),
+                       GTextOverflowModeTrailingEllipsis,
+                       GTextAlignmentLeft, NULL);
+  }
+  const int separator_y = meta_y + 29;
+  if (separator_y >= 0 && separator_y < height) {
+    graphics_context_set_stroke_color(ctx, GColorFromRGB(181, 164, 137));
+    graphics_draw_line(ctx, GPoint(12, separator_y),
+                       GPoint(width - 12, separator_y));
+  }
 }
 
 static void prv_update_scroll(void) {
   if (!s_text_layer || !s_viewport) return;
   const int width = layer_get_bounds(s_viewport).size.w;
   layer_set_frame(text_layer_get_layer(s_text_layer),
-                  GRect(READER_TEXT_PADDING, JOT_READER_TEXT_TOP_INSET - s_scroll,
+                  GRect(READER_TEXT_PADDING, jot_reader_page_text_top(s_scroll),
                         width - 2 * READER_TEXT_PADDING, s_text_height));
-  if (s_chrome) layer_mark_dirty(s_chrome);
+  if (s_paper) layer_mark_dirty(s_paper); // Timestamp + rules travel too.
+  if (s_chrome) layer_mark_dirty(s_chrome); // Header travels; footer stays.
 }
 
 static void prv_measure_text(void) {
@@ -303,8 +332,7 @@ static void prv_measure_text(void) {
       GTextOverflowModeWordWrap, GTextAlignmentLeft);
   s_text_height = size.h + 8;
   if (s_text_height < 34) s_text_height = 34;
-  s_scroll_max = s_text_height + 4 - area.size.h;
-  if (s_scroll_max < 0) s_scroll_max = 0;
+  s_scroll_max = jot_reader_page_scroll_limit(s_text_height, area.size.h);
   if (s_scroll > s_scroll_max) s_scroll = s_scroll_max;
   text_layer_set_text(s_text_layer, next.text);
   jot_tab_display_release(&s_tab_view);
@@ -320,12 +348,9 @@ static void prv_reflow_page(void) {
   // Only remeasure when opening or closing the action bar; navigation,
   // red Delete and armed confirmation all keep the same wrap width.
   if (layer_get_bounds(s_viewport).size.w == width) return;
-  const int paper_height =
-      screen.size.h - READER_HEADER_H - READER_FOOTER_H;
-  layer_set_frame(s_paper, GRect(0, READER_HEADER_H, width, paper_height));
-  layer_set_frame(s_viewport,
-                  GRect(0, READER_META_H, width,
-                        paper_height - READER_META_H));
+  const int page_height = jot_reader_page_view_height(screen.size.h);
+  layer_set_frame(s_paper, GRect(0, 0, width, page_height));
+  layer_set_frame(s_viewport, GRect(0, 0, width, page_height));
   layer_mark_dirty(s_paper);
   prv_measure_text(); // Re-wrap, recompute scroll limit, clamp scroll.
 }
@@ -555,7 +580,7 @@ static void prv_reader_select(ClickRecognizerRef ref, void *context) {
   prv_cancel_button_repeat();
   touch_cancel_kinetic();
   if (s_is_peek) {
-    jot_reader_back();
+    jot_reader_dismiss_peek();
     return;
   }
   if (!s_action_bar) { jot_reader_edit_current(); return; }
@@ -603,23 +628,19 @@ static void prv_reader_load(Window *window) {
   window_set_click_config_provider(window, prv_reader_clicks);
   const GRect bounds = layer_get_bounds(window_get_root_layer(window));
   const int width = bounds.size.w;
-  const int paper_h = bounds.size.h - READER_HEADER_H - READER_FOOTER_H;
-  const int view_h = paper_h - READER_META_H;
+  const int page_h = jot_reader_page_view_height(bounds.size.h);
 
-  s_chrome = layer_create(bounds);
-  if (s_chrome) {
-    layer_set_update_proc(s_chrome, prv_draw_chrome);
-    layer_add_child(window_get_root_layer(window), s_chrome);
-  }
-
-  s_paper = layer_create(GRect(0, READER_HEADER_H, width, paper_h));
+  // Continuous paper fills the screen right up to the fixed footer.
+  // Paint the chrome AFTER the paper, so a partially scrolling header
+  // remains solid over the note even though the rest is transparent.
+  s_paper = layer_create(GRect(0, 0, width, page_h));
   if (s_paper) {
     layer_set_update_proc(s_paper, prv_draw_paper);
     layer_add_child(window_get_root_layer(window), s_paper);
   }
 
   if (s_paper) {
-    s_viewport = layer_create(GRect(0, READER_META_H, width, view_h));
+    s_viewport = layer_create(GRect(0, 0, width, page_h));
     if (s_viewport) layer_add_child(s_paper, s_viewport);
   }
 
@@ -636,6 +657,12 @@ static void prv_reader_load(Window *window) {
       layer_add_child(s_viewport, text_layer_get_layer(s_text_layer));
       prv_measure_text();
     }
+  }
+
+  s_chrome = layer_create(bounds);
+  if (s_chrome) {
+    layer_set_update_proc(s_chrome, prv_draw_chrome);
+    layer_add_child(window_get_root_layer(window), s_chrome);
   }
 
   // The closed nub is opaque and unmarked. The expanded bar is native.
