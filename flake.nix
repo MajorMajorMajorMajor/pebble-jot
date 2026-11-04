@@ -19,6 +19,7 @@
           packages = [
             pkgs.llvmPackages.clang-tools
             pkgs.cloc
+            pkgs.unzip
           ];
         };
       }
