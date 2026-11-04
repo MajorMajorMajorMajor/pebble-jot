@@ -53,3 +53,24 @@ bool jot_store_export(int slot, char *out, size_t capacity, time_t *created);
 // Stable note-generation serial and revision for phone sync. Slot IDs are
 // recyclable and must never be used as phone-note identities.
 bool jot_store_identity(int slot, uint32_t *serial, uint32_t *revision);
+
+// The 64-bit phone transaction token is committed atomically with the note.
+// Retried transfers return the same serial/timestamp even across app restarts.
+typedef struct {
+  uint32_t serial;
+  uint32_t created;
+  uint32_t revision;
+} JotImportReceipt;
+typedef enum {
+  JOT_IMPORT_SAVED = 1,
+  JOT_IMPORT_ALREADY = 2,
+  JOT_IMPORT_BUSY = -1,
+  JOT_IMPORT_FULL = -2,
+  JOT_IMPORT_INVALID = -3,
+  JOT_IMPORT_FAILED = -4
+} JotImportResult;
+bool jot_store_import_lookup(uint32_t hi, uint32_t lo,
+                             JotImportReceipt *receipt);
+JotImportResult jot_store_import_new(const char *text, size_t length,
+                                     uint32_t hi, uint32_t lo,
+                                     JotImportReceipt *receipt);

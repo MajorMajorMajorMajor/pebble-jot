@@ -6,6 +6,7 @@
 // the inactive bank before its header is committed. No legacy migration:
 // this release intentionally resets the QA watch's JOT1 records.
 #define JOT_MAGIC 0x4A4F5432u
+#define JOT_IMPORT_MAGIC 0x4A4F5433u // v3 header: durable phone transfer ID
 #define JOT_FIRST_KEY 5000u
 #define JOT_LEGACY_FIRST_KEY 4100u
 // Small directory stored outside all JOT1/JOT2 note-key ranges.
@@ -27,6 +28,8 @@ typedef struct {
   uint32_t revision;
   uint16_t length;
   uint16_t checksum;
+  uint32_t import_hi;
+  uint32_t import_lo;
 } NoteHeader;
 
 // Put wide fields first: 16 bytes per index rather than 20 on ARM.
@@ -34,6 +37,8 @@ typedef struct {
   uint32_t serial;
   uint32_t timestamp;
   uint32_t revision;
+  uint32_t import_hi;
+  uint32_t import_lo;
   uint16_t length;
   int8_t bank;   // -1 until the first successful flush.
   bool used;
@@ -236,9 +241,14 @@ static void prv_directory_clear(int slot) {
 static bool prv_header(int slot, int bank, NoteHeader *header) {
   if (slot < 0 || slot >= JOT_NOTE_CAPACITY || bank < 0 || bank > 1)
     return false;
-  if (persist_read_data(prv_key(slot, bank, 0), header, sizeof *header) !=
-      (int)sizeof *header) return false;
-  return header->magic == JOT_MAGIC && header->serial != 0 &&
+  memset(header, 0, sizeof *header);
+  const int bytes = persist_read_data(prv_key(slot, bank, 0),
+                                      header, sizeof *header);
+  const bool v2 = bytes == (int)offsetof(NoteHeader, import_hi) &&
+                  header->magic == JOT_MAGIC;
+  const bool v3 = bytes == (int)sizeof *header &&
+                  header->magic == JOT_IMPORT_MAGIC;
+  return (v2 || v3) && header->serial != 0 &&
          header->revision != 0 && header->length < JOT_NOTE_TEXT_BYTES;
 }
 
@@ -341,6 +351,7 @@ void jot_store_init(void) {
     s_index[i] = (NoteIndex) {
       .used = true, .bank = (int8_t)bank, .serial = header->serial,
       .timestamp = header->timestamp, .revision = header->revision,
+      .import_hi = header->import_hi, .import_lo = header->import_lo,
       .length = header->length
     };
     prv_ranked_insert(i);
@@ -494,11 +505,12 @@ bool jot_store_flush(void) {
     offset += chunk;
   }
   NoteHeader header = {
-    .magic = JOT_MAGIC, .serial = index->serial,
+    .magic = JOT_IMPORT_MAGIC, .serial = index->serial,
     .timestamp = (uint32_t)s_active_time,
     .revision = index->revision + 1,
     .length = (uint16_t)s_length,
-    .checksum = prv_checksum(s_text, s_length)
+    .checksum = prv_checksum(s_text, s_length),
+    .import_hi = index->import_hi, .import_lo = index->import_lo
   };
   if (!header.revision) header.revision = 1;
   if (persist_write_data(prv_key(s_active_slot, target_bank, 0),
@@ -611,4 +623,94 @@ bool jot_store_export(int slot, char *out, size_t capacity, time_t *created) {
   else if (!prv_read(slot, out, capacity)) return false;
   if (created) *created = (time_t)s_index[slot].timestamp;
   return true;
+}
+
+// Full scalar validation: no overlong sequences, invalid continuation
+// bytes, surrogates, embedded NUL or >U+10FFFF.
+static bool prv_valid_import_utf8(const char *s, size_t n) {
+  if (!s || !n || n >= JOT_NOTE_TEXT_BYTES) return false;
+  for (size_t i = 0; i < n;) {
+    const uint8_t a = (uint8_t)s[i++];
+    if (a >= 1 && a < 0x80) continue;
+    if (a < 0xC2 || a > 0xF4) return false;
+    const int extras = a < 0xE0 ? 1 : a < 0xF0 ? 2 : 3;
+    if (n - i < (size_t)extras) return false;
+    for (int j = 0; j < extras; ++j) {
+      const uint8_t b = (uint8_t)s[i + (size_t)j];
+      if ((b & 0xC0) != 0x80) return false;
+      if (j == 0 &&
+          ((a == 0xE0 && b < 0xA0) ||
+           (a == 0xED && b >= 0xA0) ||
+           (a == 0xF0 && b < 0x90) ||
+           (a == 0xF4 && b > 0x8F))) return false;
+    }
+    i += (size_t)extras;
+  }
+  return true;
+}
+
+bool jot_store_import_lookup(uint32_t hi, uint32_t lo,
+                             JotImportReceipt *receipt) {
+  if ((!hi && !lo) || !receipt) return false;
+  for (int i = 0; i < JOT_NOTE_CAPACITY; ++i) {
+    const NoteIndex *n = &s_index[i];
+    if (!n->used || n->bank < 0 ||
+        n->import_hi != hi || n->import_lo != lo) continue;
+    *receipt = (JotImportReceipt){
+      .serial = n->serial, .created = n->timestamp, .revision = n->revision
+    };
+    return true;
+  }
+  return false;
+}
+
+// Write an independent new record without touching editor state. The final
+// bank header holds BOTH content checksum and import ID atomically.
+JotImportResult jot_store_import_new(const char *text, size_t length,
+                                     uint32_t hi, uint32_t lo,
+                                     JotImportReceipt *receipt) {
+  if (!receipt || (!hi && !lo) || !prv_valid_import_utf8(text, length) ||
+      text[length] != '\0') return JOT_IMPORT_INVALID;
+  if (jot_store_import_lookup(hi, lo, receipt)) return JOT_IMPORT_ALREADY;
+  if (s_dirty) return JOT_IMPORT_BUSY;
+  const int slot = prv_free_slot();
+  if (slot < 0 || !s_next_serial || s_next_serial == UINT32_MAX)
+    return JOT_IMPORT_FULL;
+  const uint32_t serial = s_next_serial;
+  if (persist_write_data(JOT_SERIAL_HIGH_WATER_KEY, &serial,
+                         sizeof serial) != (int)sizeof serial)
+    return JOT_IMPORT_FAILED;
+  ++s_next_serial; // Burn the serial even on an interrupted import.
+  if (!prv_directory_set(slot) ||
+      !prv_clear_bank(slot, 0) || !prv_clear_bank(slot, 1))
+    return JOT_IMPORT_FAILED;
+  for (size_t offset = 0, part = 1; offset < length + 1; ++part) {
+    const size_t remaining = length + 1 - offset;
+    const size_t chunk = remaining < JOT_PART_BYTES ?
+                         remaining : JOT_PART_BYTES;
+    if (persist_write_data(prv_key(slot, 0, (int)part),
+                           text + offset, chunk) != (int)chunk)
+      return JOT_IMPORT_FAILED;
+    offset += chunk;
+  }
+  const uint32_t created = (uint32_t)time(NULL);
+  const NoteHeader header = {
+    .magic = JOT_IMPORT_MAGIC, .serial = serial, .timestamp = created,
+    .revision = 1, .length = (uint16_t)length,
+    .checksum = prv_checksum(text, length),
+    .import_hi = hi, .import_lo = lo
+  };
+  if (persist_write_data(prv_key(slot, 0, 0), &header,
+                         sizeof header) != (int)sizeof header)
+    return JOT_IMPORT_FAILED;
+  s_index[slot] = (NoteIndex) {
+    .used = true, .bank = 0, .serial = serial,
+    .timestamp = created, .revision = 1, .length = (uint16_t)length,
+    .import_hi = hi, .import_lo = lo
+  };
+  prv_ranked_insert(slot);
+  *receipt = (JotImportReceipt){
+    .serial = serial, .created = created, .revision = 1
+  };
+  return JOT_IMPORT_SAVED;
 }
