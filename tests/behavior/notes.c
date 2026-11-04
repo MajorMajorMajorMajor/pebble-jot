@@ -528,7 +528,72 @@ static void test_serial_high_water_survives_delete_all(void) {
   assert(b > a);
 }
 
+// Imported phone notes are idempotent across restart, edit and lost receipts.
+static void test_import_receipts_and_isolation(void) {
+  fresh_store();
+  const char *text = "Phone to watch 📝\nsecond line";
+  JotImportReceipt a = {0}, b = {0};
+  assert(jot_store_import_new(text, strlen(text), 0xA1234567u,
+                              0x11223344u, &a) == JOT_IMPORT_SAVED);
+  assert(a.serial != 0 && a.revision == 1 && jot_store_count() == 1);
+  expect_note(jot_store_slot_at(0), text);
+  assert(jot_store_import_new(text, strlen(text), 0xA1234567u,
+                              0x11223344u, &b) == JOT_IMPORT_ALREADY);
+  assert(a.serial == b.serial && a.created == b.created);
+  assert(jot_store_count() == 1);
+  jot_store_init();
+  assert(jot_store_import_lookup(0xA1234567u, 0x11223344u, &b));
+  assert(b.serial == a.serial && b.created == a.created);
+  assert(jot_store_import_new(text, strlen(text), 0xA1234567u,
+                              0x11223344u, &b) == JOT_IMPORT_ALREADY);
+  assert(jot_store_count() == 1);
+
+  const int slot = jot_store_slot_at(0);
+  assert(jot_store_open(slot));
+  assert(jot_store_input("!"));
+  assert(jot_store_flush());
+  jot_store_init();
+  assert(jot_store_import_lookup(0xA1234567u, 0x11223344u, &b));
+  assert(b.serial == a.serial && b.revision == 2);
+  assert(jot_store_count() == 1);
+
+  assert(jot_store_new());
+  assert(jot_store_input("unsaved draft"));
+  assert(jot_store_dirty());
+  assert(jot_store_import_new("new", 3, 0x123u, 0x456u, &b) ==
+         JOT_IMPORT_BUSY);
+  assert(strcmp(jot_store_text(), "unsaved draft") == 0);
+  assert(jot_store_dirty());
+  assert(jot_store_flush());
+
+  const int prior = jot_store_count();
+  s_fail_after_writes = 4;
+  assert(jot_store_import_new("safely retried", strlen("safely retried"),
+                              0xB00u, 0xC00u, &b) == JOT_IMPORT_FAILED);
+  assert(jot_store_count() == prior);
+  jot_store_init();
+  assert(!jot_store_import_lookup(0xB00u, 0xC00u, &b));
+  assert(jot_store_import_new("safely retried", strlen("safely retried"),
+                              0xB00u, 0xC00u, &b) == JOT_IMPORT_SAVED);
+  assert(jot_store_count() == prior + 1);
+
+  assert(jot_store_import_new("", 0, 1, 2, &b) == JOT_IMPORT_INVALID);
+  assert(jot_store_import_new("\xC0\xAF", 2, 1, 2, &b) == JOT_IMPORT_INVALID);
+  assert(jot_store_import_new("\xED\xA0\x80", 3, 1, 2, &b) ==
+         JOT_IMPORT_INVALID);
+  assert(jot_store_import_new("\xF4\x90\x80\x80", 4, 1, 2, &b) ==
+         JOT_IMPORT_INVALID);
+  char full[JOT_NOTE_TEXT_BYTES];
+  memset(full, 'a', sizeof full - 1);
+  full[sizeof full - 1] = '\0';
+  assert(jot_store_import_new(full, sizeof full - 1, 33, 44, &b) ==
+         JOT_IMPORT_SAVED);
+  assert(jot_store_import_new(full, sizeof full, 66, 77, &b) ==
+         JOT_IMPORT_INVALID);
+}
+
 int main(void) {
+  test_import_receipts_and_isolation();
   test_serial_high_water_survives_delete_all();
   test_committed_round_trip();
   test_ranked_slot_lifecycle();
