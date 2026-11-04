@@ -1,7 +1,8 @@
-# Jot 1.19.8 — Independent phone notebook (#70)
+# Jot 1.20.0 — Independent two-device notebook (#70)
 
 Branch: feature/issue-70-phone-notebook
-Status: phase 1, pending real Pebble/Android QA, not on main.
+Status: phase 1 watch→phone has passed hardware QA; phase 2 phone→watch
+is built and awaiting real Pebble Time 2 QA. Not on main.
 
 ## Working foundation
 
