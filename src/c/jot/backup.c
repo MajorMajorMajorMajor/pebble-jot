@@ -222,7 +222,7 @@ static void prv_import_receive(DictionaryIterator *iter) {
   }
   if (which == IMPORT_CHUNK) {
     Tuple *text = dict_find(iter, MESSAGE_KEY_ImportText);
-    if (!text || !text->value || !text->length ||
+    if (!text || !text->length ||
         text->length > IMPORT_CHUNK_BYTES + 1 ||
         text->value->cstring[text->length - 1] != '\0') {
       prv_import_ack(hi, lo, seq, JOT_IMPORT_INVALID, NULL);
