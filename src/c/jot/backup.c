@@ -34,7 +34,7 @@ static int16_t s_part;
 static bool s_last_chunk;
 
 // Incoming phone-to-watch transfer. Never modifies s_text or the editor.
-static char s_import_text[JOT_NOTE_TEXT_BYTES];
+static char *s_import_text; // Heap-owned only during an active transfer.
 static uint32_t s_import_hi, s_import_lo;
 static uint16_t s_import_total, s_import_offset, s_import_previous_offset;
 static uint16_t s_import_previous_length;
@@ -204,6 +204,11 @@ static void prv_import_receive(DictionaryIterator *iter) {
       prv_import_ack(hi, lo, seq, JOT_IMPORT_FULL, NULL);
       return;
     }
+    if (!s_import_text) s_import_text = malloc(JOT_NOTE_TEXT_BYTES);
+    if (!s_import_text) {
+      prv_import_ack(hi, lo, seq, JOT_IMPORT_FAILED, NULL);
+      return;
+    }
     s_import_hi = hi;
     s_import_lo = lo;
     s_import_total = (uint16_t)len;
@@ -216,7 +221,8 @@ static void prv_import_receive(DictionaryIterator *iter) {
     prv_import_ack(hi, lo, seq, JOT_IMPORT_SAVED, NULL);
     return;
   }
-  if (!s_import_ready || hi != s_import_hi || lo != s_import_lo) {
+  if (!s_import_ready || !s_import_text ||
+      hi != s_import_hi || lo != s_import_lo) {
     prv_import_ack(hi, lo, seq, JOT_IMPORT_INVALID, NULL);
     return;
   }
@@ -263,6 +269,8 @@ static void prv_import_receive(DictionaryIterator *iter) {
         jot_store_import_new(s_import_text, s_import_offset, hi, lo, &receipt);
     if (status == JOT_IMPORT_SAVED || status == JOT_IMPORT_ALREADY) {
       s_import_ready = false;
+      free(s_import_text);
+      s_import_text = NULL;
       jot_backup_ui_changed();
       prv_import_ack(hi, lo, seq, status, &receipt);
     } else {
@@ -340,6 +348,9 @@ void jot_backup_init(void) {
 
 void jot_backup_deinit(void) {
   jot_backup_cancel();
+  free(s_import_text);
+  s_import_text = NULL;
+  s_import_ready = false;
   if (s_available) app_message_deregister_callbacks();
   s_available = false;
 }

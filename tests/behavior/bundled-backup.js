@@ -42,7 +42,7 @@ class Element {
 }
 const elements={};
 for(const id of ['status','backupText','notes','copy','select','download','json',
- 'newNote','saveNote','cancelEdit','editPanel','noteEditor','editTitle','editHint'])
+ 'newNote','saveNote','cancelEdit','editPanel','noteEditor','editTitle','editHint','watchBudget'])
  elements[id]=new Element();
 const document={
  getElementById(id){return elements[id];},

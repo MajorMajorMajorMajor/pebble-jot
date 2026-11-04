@@ -37,8 +37,6 @@ typedef struct {
   uint32_t serial;
   uint32_t timestamp;
   uint32_t revision;
-  uint32_t import_hi;
-  uint32_t import_lo;
   uint16_t length;
   int8_t bank;   // -1 until the first successful flush.
   bool used;
@@ -351,7 +349,6 @@ void jot_store_init(void) {
     s_index[i] = (NoteIndex) {
       .used = true, .bank = (int8_t)bank, .serial = header->serial,
       .timestamp = header->timestamp, .revision = header->revision,
-      .import_hi = header->import_hi, .import_lo = header->import_lo,
       .length = header->length
     };
     prv_ranked_insert(i);
@@ -489,6 +486,11 @@ bool jot_store_flush(void) {
       persist_write_data(JOT_SERIAL_HIGH_WATER_KEY, &index->serial,
                          sizeof index->serial) != (int)sizeof index->serial)
     return false;
+  // Editing must preserve a phone import receipt already committed in the
+  // active bank, without allocating 8 extra bytes in every note index.
+  NoteHeader old_header = {0};
+  if (previous_bank >= 0 &&
+      !prv_header(s_active_slot, previous_bank, &old_header)) return false;
   // Candidate-slot bit MUST be durable before the first bank header.
   // On failure, retain the entire dirty draft and do not publish a note.
   // Existing notes are already represented, so their next bank can
@@ -510,7 +512,7 @@ bool jot_store_flush(void) {
     .revision = index->revision + 1,
     .length = (uint16_t)s_length,
     .checksum = prv_checksum(s_text, s_length),
-    .import_hi = index->import_hi, .import_lo = index->import_lo
+    .import_hi = old_header.import_hi, .import_lo = old_header.import_lo
   };
   if (!header.revision) header.revision = 1;
   if (persist_write_data(prv_key(s_active_slot, target_bank, 0),
@@ -654,8 +656,11 @@ bool jot_store_import_lookup(uint32_t hi, uint32_t lo,
   if ((!hi && !lo) || !receipt) return false;
   for (int i = 0; i < JOT_NOTE_CAPACITY; ++i) {
     const NoteIndex *n = &s_index[i];
-    if (!n->used || n->bank < 0 ||
-        n->import_hi != hi || n->import_lo != lo) continue;
+    if (!n->used || n->bank < 0) continue;
+    NoteHeader header;
+    if (!prv_header(i, n->bank, &header) ||
+        header.serial != n->serial || header.revision != n->revision ||
+        header.import_hi != hi || header.import_lo != lo) continue;
     *receipt = (JotImportReceipt){
       .serial = n->serial, .created = n->timestamp, .revision = n->revision
     };
@@ -705,8 +710,7 @@ JotImportResult jot_store_import_new(const char *text, size_t length,
     return JOT_IMPORT_FAILED;
   s_index[slot] = (NoteIndex) {
     .used = true, .bank = 0, .serial = serial,
-    .timestamp = created, .revision = 1, .length = (uint16_t)length,
-    .import_hi = hi, .import_lo = lo
+    .timestamp = created, .revision = 1, .length = (uint16_t)length
   };
   prv_ranked_insert(slot);
   *receipt = (JotImportReceipt){
