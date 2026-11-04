@@ -82,6 +82,170 @@ function mergeWatchNotes(notes, session) {
   writeNotebook(db);
 }
 
+
+/* Phone -> watch: one explicit note at a time. Every transfer has a 64-bit
+ * token persisted on the PHONE before sending a single Bluetooth packet.
+ * The watch commits that same token in the note header before replying.
+ * A lost receipt/restarted companion resumes using the original token.
+ */
+var watchTx = null;
+var WATCH_PACKET_BYTES = 160;
+var WATCH_MAX_RETRIES = 4;
+function watchUtf8Bytes(s) {
+  var bytes = 0;
+  for (var i=0;i<s.length;i++) {
+    var ch=s.charCodeAt(i),point=ch;
+    if(ch>=0xD800&&ch<=0xDBFF){
+      if(i+1>=s.length)throw new Error('Unpaired UTF-16 surrogate');
+      var low=s.charCodeAt(++i);
+      if(low<0xDC00||low>0xDFFF)throw new Error('Unpaired UTF-16 surrogate');
+      point=0x10000+((ch-0xD800)<<10)+(low-0xDC00);
+    }else if(ch>=0xDC00&&ch<=0xDFFF)
+      throw new Error('Unpaired UTF-16 surrogate');
+    bytes+=point<0x80?1:point<0x800?2:point<0x10000?3:4;
+  }
+  return bytes;
+}
+function watchChunks(s){
+  var chunks=[],start=0;
+  while(start<s.length){
+    var end=start,bytes=0;
+    while(end<s.length){
+      var ch=s.charCodeAt(end),extra=1,nb;
+      if(ch>=0xD800&&ch<=0xDBFF){extra=2;nb=4;}
+      else nb=ch<0x80?1:ch<0x800?2:3;
+      if(bytes+nb>WATCH_PACKET_BYTES)break;
+      bytes+=nb;end+=extra;
+    }
+    if(end===start)throw new Error('Invalid send chunk');
+    chunks.push(s.slice(start,end));start=end;
+  }
+  return chunks;
+}
+function watchTxStop(){
+  if(watchTx&&watchTx.timer){clearTimeout(watchTx.timer);watchTx.timer=null;}
+}
+function watchTxFail(message){
+  if(!watchTx)return;
+  watchTxStop();
+  watchTx.state='failed';
+  watchTx.error=message;
+}
+function watchTxSaved(packet){
+  var tx=watchTx;
+  if(!tx||tx.state!=='sending')return;
+  watchTxStop();
+  try{
+    var serial=Number(packet.ImportSerial);
+    var created=Number(packet.ImportCreated);
+    var revision=Number(packet.ImportRevision);
+    if(!Number.isInteger(serial)||serial<1||serial>4294967295||
+       !Number.isInteger(created)||created<1||
+       !Number.isInteger(revision)||revision<1)
+      throw new Error('Watch did not provide a persistent receipt');
+    var db=readNotebook(),n=findPhoneNote(db,tx.id);
+    if(!n||n.importHi!==tx.hi||n.importLo!==tx.lo)
+      throw new Error('Phone note changed during transfer');
+    var id='w:'+serial+':'+created;
+    var existing=findPhoneNote(db,id);
+    if(existing&&existing!==n)
+      throw new Error('Watch identity already present on phone');
+    n.id=id;
+    n.watchSerial=serial;n.watchRevision=revision;
+    n.watchText=tx.text;n.onWatch=true;
+    n.phoneEdited=n.text!==tx.text;n.conflict=false;
+    delete n.importHi;delete n.importLo;delete n.importText;
+    db.savedAt=new Date().toISOString();
+    writeNotebook(db);
+    configBackup=null;
+    tx.state='saved';
+    tx.savedId=id;
+  }catch(e){watchTxFail('Watch saved it, but phone receipt failed: '+e.message+
+                             '. Retry Send to Watch.');}
+}
+function watchTxPacket(){
+  var tx=watchTx;
+  if(!tx||tx.state!=='sending')return;
+  var payload={ImportTokenHi:tx.hi,ImportTokenLo:tx.lo};
+  var part;
+  if(tx.step===0){
+    part=-1;payload.ImportKind=1;
+    payload.ImportPart=part;payload.ImportTotal=tx.bytes;
+  }else if(tx.step<=tx.chunks.length){
+    part=tx.step-1;payload.ImportKind=2;
+    payload.ImportPart=part;payload.ImportText=tx.chunks[part];
+  }else{
+    part=-2;payload.ImportKind=3;payload.ImportPart=part;
+  }
+  tx.currentPart=part;
+  tx.attempts++;
+  // Only a matching watch acknowledgment advances the transfer. The
+  // SDK's transport success callback does not mean the note was saved.
+  try{Pebble.sendAppMessage(payload,function(){},function(){
+    if(watchTx!==tx||tx.state!=='sending')return;
+    watchTxStop();
+    if(tx.attempts>=WATCH_MAX_RETRIES)watchTxFail('Cannot reach watch; retry');
+    else tx.timer=setTimeout(watchTxPacket,450);
+  });}catch(e){
+    watchTxFail('Watch message failed: '+e.message);
+    return;
+  }
+  if(watchTx!==tx||tx.state!=='sending')return;
+  watchTxStop();
+  tx.timer=setTimeout(function(){
+    if(watchTx!==tx||tx.state!=='sending')return;
+    if(tx.attempts>=WATCH_MAX_RETRIES)watchTxFail('Watch did not acknowledge; retry');
+    else watchTxPacket();
+  },3500);
+}
+function watchTxAck(p){
+  var tx=watchTx;
+  if(!tx||tx.state!=='sending'||
+     Number(p.ImportTokenHi)!==tx.hi||
+     Number(p.ImportTokenLo)!==tx.lo||
+     Number(p.ImportAck)!==tx.currentPart)return;
+  var code=Number(p.ImportStatus);
+  watchTxStop();
+  if(code===2){watchTxSaved(p);return;}
+  if(code===1){
+    if(tx.currentPart===-2){watchTxSaved(p);return;}
+    tx.step++;tx.attempts=0;
+    tx.timer=setTimeout(watchTxPacket,50);
+    return;
+  }
+  watchTxFail(code===-1?'Save the open watch draft first':
+              code===-2?'Watch notebook is full':
+              code===-3?'Watch rejected invalid note data':
+              'Watch could not save note; retry');
+}
+function watchTxBegin(id){
+  if(watchTx&&watchTx.state==='sending')
+    throw new Error('Another note is already sending');
+  var db=readNotebook(),n=findPhoneNote(db,id);
+  if(!n)throw new Error('Phone note not found');
+  if(n.watchSerial)throw new Error('Already linked to a watch note');
+  var original=typeof n.importText==='string'?n.importText:n.text;
+  var bytes=watchUtf8Bytes(original);
+  if(!bytes)throw new Error('Write something before sending');
+  if(bytes>4095)throw new Error('Too long for watch: '+bytes+'/4095 UTF-8 bytes');
+  if(!Number.isInteger(n.importHi)||!Number.isInteger(n.importLo)||
+     (!n.importHi&&!n.importLo)){
+    // Random 64-bit ID rather than a recyclable note index. Persist before
+    // transmission, and reuse unchanged across connection loss/restarts.
+    n.importHi=(Math.floor(Math.random()*4294967296)>>>0);
+    n.importLo=((Date.now() ^ Math.floor(Math.random()*4294967296))>>>0);
+    if(!n.importHi&&!n.importLo)n.importLo=1;
+    n.importText=original;
+    writeNotebook(db);
+  }
+  watchTxStop();
+  watchTx={id:id,hi:n.importHi,lo:n.importLo,text:original,
+           bytes:bytes,chunks:watchChunks(original),step:0,attempts:0,
+           currentPart:-1,state:'sending',error:'',timer:null,savedId:null};
+  watchTx.timer=setTimeout(watchTxPacket,20);
+  return {ok:true,state:'sending',bytes:bytes};
+}
+
 function reply(session,index,part,ok) {
   Pebble.sendAppMessage({
     BackupSession:session,BackupAck:index,BackupPart:part,BackupStatus:ok?1:0
@@ -94,6 +258,10 @@ Pebble.addEventListener('ready',function(){
 });
 Pebble.addEventListener('appmessage',function(event){
   var p=event.payload||{};
+  if(typeof p.ImportAck!=='undefined'&&
+     typeof p.ImportStatus!=='undefined'){
+    watchTxAck(p);return;
+  }
   if(typeof p.BackupKind==='undefined'||
      typeof p.BackupSession==='undefined'||
      typeof p.BackupIndex==='undefined')return;
@@ -201,6 +369,20 @@ function configReply(event,fn){
 
 Pebble.addEventListener('configmessage',function(event){
   var q=event.data||{};
+  if(q.type==='jotWatchBegin'){
+    configReply(event,function(){return watchTxBegin(q.id);});
+    return;
+  }
+  if(q.type==='jotWatchStatus'){
+    configReply(event,function(){
+      var t=watchTx;
+      if(!t||t.id!==q.id)return {ok:true,state:'idle'};
+      return {ok:true,state:t.state,bytes:t.bytes,
+        part:t.currentPart,total:t.chunks.length,
+        error:t.error,savedId:t.savedId};
+    });
+    return;
+  }
   if(q.type==='jotBackupInfo'){
     configReply(event,function(){
       var raw=localStorage.getItem(NOTEBOOK_KEY);
