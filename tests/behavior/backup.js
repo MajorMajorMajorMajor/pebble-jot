@@ -128,6 +128,7 @@ assert.equal(begin(8,1).BackupStatus,1);
 assert.equal(note(8,0,0,1,400,'bad').BackupStatus,0);
 assert.equal(note(8,0,10,1,400,'First ',0,0).BackupStatus,1);
 assert.equal(note(8,0,10,1,400,'First ',0,0).BackupStatus,1);
+assert.equal(note(8,0,10,1,400,'CORRUPTED',0,0).BackupStatus,0);
 assert.equal(note(8,0,10,2,400,'revised',1,1).BackupStatus,0);
 assert.equal(end(8,1).BackupStatus,0);
 assert.equal(note(8,0,10,1,400,'second',1,1).BackupStatus,1);

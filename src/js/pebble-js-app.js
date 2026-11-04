@@ -125,13 +125,17 @@ Pebble.addEventListener('appmessage',function(event){
     var note=pending.notes[index];
     if(!note&&part===0){
       note={created:created,serial:serial,revision:revision,text:'',
-            nextPart:0,complete:false};
+            nextPart:0,complete:false,lastChunk:null,lastFinal:null};
       pending.notes[index]=note;
     }
     if(!note){reply(session,index,part,false);return;}
     if(part===note.nextPart-1){
-      // Lost acknowledgment: return success WITHOUT appending a duplicate.
-      reply(session,index,part,true);return;
+      // A retry must contain the EXACT previously accepted chunk.
+      reply(session,index,part,
+        created===note.created && serial===note.serial &&
+        revision===note.revision && p.BackupText===note.lastChunk &&
+        finalPart===note.lastFinal);
+      return;
     }
     if(note.complete||part!==note.nextPart||
        note.created!==created||note.serial!==serial||
@@ -139,6 +143,8 @@ Pebble.addEventListener('appmessage',function(event){
       reply(session,index,part,false);return;
     }
     note.text+=p.BackupText;
+    note.lastChunk=p.BackupText;
+    note.lastFinal=finalPart;
     note.nextPart++;
     if(finalPart===1)note.complete=true;
     reply(session,index,part,true);
@@ -176,8 +182,8 @@ function configChunkEnd(s,start){
   return end;
 }
 function publicNoteStatus(n) {
-  return n.conflict?'conflict':n.phoneEdited?'needs-sync':
-    n.onWatch?'on-watch':'phone-only';
+  return !n.onWatch?'phone-only':n.conflict?'conflict':
+    n.phoneEdited?'needs-sync':'on-watch';
 }
 function findPhoneNote(db,id) {
   for(var i=0;i<db.notes.length;i++)
