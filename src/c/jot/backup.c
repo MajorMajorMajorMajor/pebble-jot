@@ -181,7 +181,12 @@ static void prv_import_receive(DictionaryIterator *iter) {
   JotImportReceipt receipt;
   // An already-persisted transfer is acknowledged before any buffer check.
   // This includes retries after a lost commit acknowledgment or app restart.
-  if (jot_store_import_lookup(hi, lo, &receipt)) {
+  // Only look up the persisted receipt at boundaries or for a stale
+  // packet. Normal sequential chunks already belong to this RAM session;
+  // avoid hundreds of flash-header reads for every 160-byte packet.
+  if ((which != IMPORT_CHUNK || !s_import_ready ||
+       hi != s_import_hi || lo != s_import_lo) &&
+      jot_store_import_lookup(hi, lo, &receipt)) {
     prv_import_ack(hi, lo, seq, JOT_IMPORT_ALREADY, &receipt);
     return;
   }
