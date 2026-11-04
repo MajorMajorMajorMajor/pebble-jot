@@ -2,7 +2,7 @@ name: Jot behavior tests
 
 on:
   push:
-    branches: [main, "experiments/issue-39-bundled-backup-viewer"]
+    branches: [main, "feature/issue-39-bundled-backup-viewer"]
   pull_request:
 
 permissions:

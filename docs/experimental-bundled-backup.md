@@ -1,6 +1,6 @@
 # Jot #39 experimental bundled phone viewer
 
-Branch: experiments/issue-39-bundled-backup-viewer
+Branch: feature/issue-39-bundled-backup-viewer
 Status: prototype for Pebble mobile 1.16.0.5; not for public release.
 
 ## Goal
@@ -24,7 +24,7 @@ unchanged for compatibility with older mobile applications.
 Requires Pebble Tool 5.1.0+ and the project's pinned SDK toolchain.
 
     git fetch origin
-    git switch experiments/issue-39-bundled-backup-viewer
+    git switch feature/issue-39-bundled-backup-viewer
     pebble build
     python3 scripts/pack-bundled-config.py
     pebble install --cloudpebble
