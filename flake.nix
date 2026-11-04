@@ -2,7 +2,7 @@
   description = "messagease-test for Pebble";
 
   inputs = {
-    pebble.url = "github:pebble-dev/pebble.nix";
+    pebble.url = "github:MajorMajorMajorMajor/pebble.nix";
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.follows = "pebble/nixpkgs";
   };
