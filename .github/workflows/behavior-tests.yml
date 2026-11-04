@@ -2,7 +2,7 @@ name: Jot behavior tests
 
 on:
   push:
-    branches: [main, "feature/issue-39-bundled-backup-viewer"]
+    branches: [main, "feature/issue-39-bundled-backup-viewer", "feature/issue-70-phone-notebook"]
   pull_request:
 
 permissions:
@@ -73,9 +73,9 @@ jobs:
             tests/behavior/label_geometry.c src/c/ui/legend_geometry.c \
             -o /tmp/jot-label-geometry
           /tmp/jot-label-geometry
-      - name: Back up notes (atomicity, retransmission and export)
+      - name: Independent phone notebook (atomic watch imports and phone edits)
         run: node tests/behavior/backup.js
-      - name: Bundled local phone backup viewer
+      - name: Bundled phone notebook viewer and editor
         run: |
           node tests/behavior/bundled-backup.js
           python3 scripts/pack-bundled-config.py --self-test
