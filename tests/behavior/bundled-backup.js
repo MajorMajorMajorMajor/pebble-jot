@@ -67,6 +67,9 @@ for(const request of [
 ]) assert.equal(ask(request).ok,false);
 saved['jot.backup.v1']='{"format":"bad"}';
 assert.equal(ask({type:'jotBackupInfo'}).ok,false);
+const companion=fs.readFileSync('src/js/pebble-js-app.js','utf8');
+assert.ok(!/Pebble\.openURL|github\.io|toBase64Utf8|showConfiguration/.test(companion),
+  'shipping phone companion does not depend on remote hosting or URL payloads');
 const page=fs.readFileSync('config.html','utf8');
 assert.ok(!/https?:\/\/|<script[^>]+src=|<link[^>]+href=|fetch\(/.test(page));
 assert.ok(!/location.hash|window.location.hash/.test(page));
