@@ -36,10 +36,17 @@ The bundled configPage API remains preview-only in mobile 1.16.0.5.
 
     git fetch origin
     git switch --track origin/feature/issue-70-phone-notebook
-    pebble clean
-    pebble build
-    python3 scripts/pack-bundled-config.py
-    pebble install --cloudpebble
+    sh scripts/build-jot.sh --clean
+
+The wrapper builds Jot, bundles config.html into the PBW, verifies
+its manifest and HTML contents, then installs it. This deliberately
+prevents a common false success: after "pebble clean" and "pebble
+build", the watch installs but Settings does nothing because the
+separate PBW packaging step was accidentally omitted.
+
+For SDK build-only verification (e.g. CI), use:
+
+    sh scripts/build-jot.sh --build-only
 
 The clean step matters when switching from #39 to #70 in the same worktree.
 Pebble's cached build/include/message_keys.auto.h may still describe

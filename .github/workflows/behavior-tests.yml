@@ -97,8 +97,7 @@ jobs:
           skipPush: true
       - name: Compile, link and package Emery app
         run: |
-          nix develop --command pebble build
-          python3 scripts/pack-bundled-config.py
+          nix develop --command sh scripts/build-jot.sh --build-only
       - name: Verify packaged PBW exists
         run: |
           pbw="$(find build -type f -name '*.pbw' -print -quit)"
