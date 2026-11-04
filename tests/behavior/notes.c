@@ -567,7 +567,7 @@ static void test_import_receipts_and_isolation(void) {
   assert(jot_store_flush());
 
   const int prior = jot_store_count();
-  s_fail_after_writes = 4;
+  s_fail_after_writes = 3; // Fail the final header after preflight/data.
   assert(jot_store_import_new("safely retried", strlen("safely retried"),
                               0xB00u, 0xC00u, &b) == JOT_IMPORT_FAILED);
   assert(jot_store_count() == prior);
