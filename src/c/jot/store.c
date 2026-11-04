@@ -576,6 +576,14 @@ bool jot_store_preview(int slot, char *out, size_t capacity, time_t *created) {
   return true;
 }
 
+bool jot_store_identity(int slot, uint32_t *serial, uint32_t *revision) {
+  if (slot < 0 || slot >= JOT_NOTE_CAPACITY || !s_index[slot].used)
+    return false;
+  if (serial) *serial = s_index[slot].serial;
+  if (revision) *revision = s_index[slot].revision;
+  return true;
+}
+
 bool jot_store_export(int slot, char *out, size_t capacity, time_t *created) {
   if (!out || capacity == 0 || slot < 0 || slot >= JOT_NOTE_CAPACITY ||
       !s_index[slot].used) return false;

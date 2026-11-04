@@ -30,7 +30,9 @@
       "BackupAck",
       "BackupStatus",
       "BackupPart",
-      "BackupFinal"
+      "BackupFinal",
+      "BackupSerial",
+      "BackupRevision"
     ],
     "resources": {
       "media": [

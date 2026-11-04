@@ -49,3 +49,7 @@ bool jot_store_preview(int slot, char *out, size_t capacity, time_t *created);
 // Reads full note text and its timestamp, including the active buffer.
 // Call jot_store_flush() before starting a consistent export.
 bool jot_store_export(int slot, char *out, size_t capacity, time_t *created);
+
+// Stable note-generation serial and revision for phone sync. Slot IDs are
+// recyclable and must never be used as phone-note identities.
+bool jot_store_identity(int slot, uint32_t *serial, uint32_t *revision);

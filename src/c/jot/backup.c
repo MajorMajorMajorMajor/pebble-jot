@@ -23,6 +23,8 @@ static char s_status[36];
 static char *s_note; // Allocated for the duration of a backup only.
 static size_t s_note_length;
 static time_t s_created;
+static uint32_t s_serial;
+static uint32_t s_revision;
 static size_t s_offset;
 static size_t s_chunk_length;
 static int16_t s_part;
@@ -58,7 +60,8 @@ static void prv_schedule(uint32_t delay_ms) {
 
 static bool prv_load_note(void) {
   const int slot = jot_store_slot_at(s_phase - 1);
-  if (slot < 0 || !jot_store_export(slot, s_note, JOT_NOTE_TEXT_BYTES, &s_created))
+  if (slot < 0 || !jot_store_export(slot, s_note, JOT_NOTE_TEXT_BYTES, &s_created) ||
+      !jot_store_identity(slot, &s_serial, &s_revision))
     return false;
   s_note_length = strlen(s_note);
   return true;
@@ -112,6 +115,10 @@ static void prv_send_current(void *context) {
     chunk[s_chunk_length] = '\0';
     written = dict_write_uint32(iter, MESSAGE_KEY_BackupTimestamp,
                                 (uint32_t)s_created);
+    if (written == DICT_OK)
+      written = dict_write_uint32(iter, MESSAGE_KEY_BackupSerial, s_serial);
+    if (written == DICT_OK)
+      written = dict_write_uint32(iter, MESSAGE_KEY_BackupRevision, s_revision);
     if (written == DICT_OK)
       written = dict_write_int8(iter, MESSAGE_KEY_BackupFinal,
                                 s_last_chunk ? 1 : 0);
