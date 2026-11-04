@@ -4,11 +4,11 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const listeners={},storage={},acks=[];
-let failNextWrite=false;
+let failNextWrite=false, openedUrl=null;
 const phone={
   addEventListener(n,fn){listeners[n]=fn;},
   sendAppMessage(p,ok){acks.push(p);if(ok)ok();},
-  openURL(){throw Error('Remote fallback must not be called');}
+  openURL(value){openedUrl=value;}
 };
 vm.runInNewContext(fs.readFileSync('src/js/pebble-js-app.js','utf8'),{
   Pebble:phone,localStorage:{
@@ -17,6 +17,14 @@ vm.runInNewContext(fs.readFileSync('src/js/pebble-js-app.js','utf8'),{
                        storage[key]=value;}
   },console,Date,Number
 });
+// Missing locker configPage can still load the same offline page without
+// exposing any note content or visiting a hosted site.
+assert.equal(typeof listeners.showConfiguration, 'function');
+listeners.showConfiguration();
+assert.ok(openedUrl.startsWith('data:text/html;charset=utf-8,'));
+assert.equal(decodeURIComponent(openedUrl.split(',').slice(1).join(',')),
+  fs.readFileSync('config.html','utf8'));
+assert.ok(!/https:\/\/majormajormajormajor\.github\.io/.test(openedUrl));
 function packet(kind,session,index,extra={}){
   listeners.appmessage({payload:{
     BackupKind:kind,BackupSession:session,BackupIndex:index,...extra

@@ -75,6 +75,8 @@ jobs:
           /tmp/jot-label-geometry
       - name: Check watch message keys against Pebble package metadata
         run: node tests/behavior/message-keys.js
+      - name: Embedded Settings fallback matches bundled page
+        run: python3 scripts/sync-settings-fallback.py --check
       - name: Independent phone notebook (atomic watch imports and phone edits)
         run: node tests/behavior/backup.js
       - name: Bundled phone notebook viewer and editor

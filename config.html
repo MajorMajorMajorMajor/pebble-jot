@@ -240,7 +240,12 @@ font-size:12px;margin-left:8px;padding:3px 7px;border-radius:5px;background:#f8e
     if(snapshot)saveFile('jot-notes.json',JSON.stringify(snapshot,null,2),
       'application/json;charset=utf-8');
   };
-  Pebble.addEventListener('ready',function(event){if(event.target==='pkjs')load();});
+  if(typeof Pebble==='undefined'||!Pebble.addEventListener){
+    mark('Enable Settings → Plugins → Plugins / permissions preview in the Pebble phone app.');
+    newButton.disabled=true;
+  } else {
+    Pebble.addEventListener('ready',function(event){if(event.target==='pkjs')load();});
+  }
 })();
 </script>
 </body>

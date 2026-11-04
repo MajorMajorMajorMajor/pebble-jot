@@ -32,6 +32,14 @@ No migration of previous fake jot.backup.v1 snapshot data is done,
 per the tester's approval to discard development notes.
 The bundled configPage API remains preview-only in mobile 1.16.0.5.
 
+There is now a local Settings fallback: if the phone does not recognize
+the PBW's configPage metadata (e.g. stale locker entry), the old
+showConfiguration event opens the **same static bundled HTML** as a
+`data:text/html` URL. This carries NO note contents in the URL and uses
+no web hosting. The fallback and bundled file are kept byte-for-byte
+identical by scripts/sync-settings-fallback.py. The page still requires
+Plugins Preview for its real-time message bridge.
+
 ## Build on Emery
 
 **Important:** Pebble's Plugins Preview bundling and sideloading guide

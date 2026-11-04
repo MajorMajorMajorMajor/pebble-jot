@@ -19,6 +19,7 @@ if [ "$#" -ne 0 ]; then
   exit 2
 fi
 
+python3 scripts/sync-settings-fallback.py
 pebble build
 python3 scripts/pack-bundled-config.py
 python3 - <<'PY'
