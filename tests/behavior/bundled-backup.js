@@ -97,14 +97,14 @@ function spin(){return new Promise(resolve=>setImmediate(resolve));}
  assert.equal(JSON.parse(storage['jot.phone.v1']).notes.length,257);
  assert.equal(JSON.parse(storage['jot.phone.v1']).notes[0].onWatch,false);
 
- // Deletion requires two explicit taps; watch copy is only tombstoned on phone.
+ // Phone deletion requires two explicit taps; it never tombstones watch data.
  const target=elements.notes.children[1].children[2].children[1];
  target.onclick();
  assert.equal(target.textContent,'Confirm delete');
  assert.equal(JSON.parse(storage['jot.phone.v1']).notes.length,257);
  target.onclick();await spin();await spin();
  assert.equal(JSON.parse(storage['jot.phone.v1']).notes.length,256);
- assert.equal(JSON.parse(storage['jot.phone.v1']).tombstones.length,1);
+ assert.equal(Object.hasOwn(JSON.parse(storage['jot.phone.v1']),'tombstones'),false);
 
  delete storage['jot.phone.v1'];
  pageEvents.ready({target:'pkjs'});await spin();

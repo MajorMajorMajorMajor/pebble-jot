@@ -55,7 +55,7 @@ font-size:12px;margin-left:8px;padding:3px 7px;border-radius:5px;background:#f8e
 </section>
 <h2>Phone notes</h2>
 <div id="notes"></div>
-<footer>On your watch, open the notes list and hold Up to transfer notes to the phone. Your phone preserves notes even after they are deleted from the watch. Deleting on the phone requires confirmation and does not delete a watch copy.</footer>
+<footer>On your watch, open the notes list and hold Up to transfer notes to the phone. Your phone preserves notes even after they are deleted from the watch. Deleting on the phone removes only that copy; the next watch backup brings it back if it is still on the watch.</footer>
 </main>
 <script>
 (function() {
@@ -150,7 +150,7 @@ font-size:12px;margin-left:8px;padding:3px 7px;border-radius:5px;background:#f8e
       var result=await send({type:'jotNotebookDelete',id:note.id});
       if(!result||!result.ok)throw Error(result&&result.error||'Deletion failed');
       await load();
-      mark('Note deleted on phone. Watch copy was not deleted.');
+      mark('Deleted on phone. A future watch backup can restore it.');
     }catch(e){mark('Delete failed: '+e.message);}
     finally{busy=false;button.disabled=false;}
   }

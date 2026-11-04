@@ -119,17 +119,34 @@ assert.equal(get('w:1:100').text,'My phone version');
 assert.equal(get('w:1:100').conflict,true);
 assert.equal(get('w:1:100').watchText,'new edit on watch');
 
-// Explicit phone-side delete is durable across later watch backups.
+// User acceptance: author watch -> export -> delete on PHONE -> export
+// again. The watch is still authoritative for its own live records.
 assert.equal(ask({type:'jotNotebookDelete',id:'w:1:100'}).ok,true);
 assert.equal(get('w:1:100'),undefined);
-assert.ok(db().tombstones.includes('w:1:100'));
+assert.equal(Object.hasOwn(db(),'tombstones'),false);
+assert.ok(get(own.id),'unrelated phone-only note persists');
+
+// Simulate a phone DB written by the previous #70 prototype: old deletion
+// tombstones must NOT prevent the next watch backup from restoring the note.
+var oldDb=db();
+oldDb.tombstones=['w:1:100'];
+storage['jot.phone.v1']=JSON.stringify(oldDb);
 assert.equal(begin(7,1).BackupStatus,1);
 assert.equal(note(7,0,1,3,100,'watch still has it').BackupStatus,1);
 assert.equal(end(7,1).BackupStatus,1);
-assert.equal(get('w:1:100'),undefined);
-assert.ok(get(own.id),'phone-only note persists');
+assert.equal(get('w:1:100').text,'watch still has it');
+assert.equal(get('w:1:100').onWatch,true);
+assert.equal(get('w:1:100').phoneEdited,false);
+assert.equal(Object.hasOwn(db(),'tombstones'),false,'obsolete tombstones removed');
+
+// A repeat watch backup must update, not duplicate, the reappeared note.
+assert.equal(begin(71,1).BackupStatus,1);
+assert.equal(note(71,0,1,3,100,'watch still has it').BackupStatus,1);
+assert.equal(end(71,1).BackupStatus,1);
+assert.equal(db().notes.filter(n=>n.id==='w:1:100').length,1);
 assert.equal(ask({type:'jotNotebookDelete',id:own.id}).ok,true);
 assert.equal(get(own.id),undefined);
+assert.ok(get('w:1:100'),'phone-only deletion does not affect watch imports');
 
 // Reject malformed metadata, incomplete parts and repeated corrupted segments.
 assert.equal(begin(8,1).BackupStatus,1);

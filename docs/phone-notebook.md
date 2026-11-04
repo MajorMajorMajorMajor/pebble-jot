@@ -13,8 +13,9 @@ conflicting edits are flagged rather than silently overwritten.
 
 The bundled page now offers New, Edit, Save, Cancel, two-step Delete,
 browsing, Copy and TXT/JSON export. Phone deletion is an explicit
-operation and never deletes from the watch. Tombstones prevent a
-phone-deleted watch record from being reimported inadvertently.
+operation and never deletes from the watch. If that note remains on
+the watch, the next explicit watch backup restores its phone copy.
+Earlier development tombstones are ignored and removed automatically.
 Local edits are committed in Unicode-safe chunks with one atomic write.
 No remote hosting or note-bearing URL is involved.
 
@@ -90,8 +91,9 @@ Open Jot Settings in the Pebble Android app with Plugins Preview enabled.
 4. Edit an on-watch note on phone, back up from watch again; phone edits
    survive, labelled "Phone changes not on watch".
 5. Edit same note on watch too and backup: see "Conflicting edits".
-6. Delete a note on PHONE (two taps), repeat watch backup:
-   deleted phone entry does not reappear; watch copy stays intact.
+6. Delete a note on PHONE (two taps): it disappears from the phone,
+   but the watch copy remains. Back up from WATCH again: the deleted
+   phone entry reappears. Repeat backup: no duplicate is created.
 7. Verify Copy, TXT, and JSON with newlines, accents and emojis.
 8. Restart the mobile companion, then reopen Settings and recheck.
 
