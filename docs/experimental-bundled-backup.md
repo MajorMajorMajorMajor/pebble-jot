@@ -1,7 +1,9 @@
-# Jot #39 experimental bundled phone viewer
+# Jot #39 self-contained bundled phone viewer
 
 Branch: feature/issue-39-bundled-backup-viewer
-Status: prototype for Pebble mobile 1.16.0.5; not for public release.
+Status: hardware-tested feature for Pebble mobile 1.16.0.5;
+Pebble's bundled config-page API is still in preview, so not yet
+approved for public appstore release.
 
 ## Goal
 
@@ -15,9 +17,11 @@ produce an extremely long URL. This experiment bundles config.html
 inside the PBW and requests small Unicode-safe note chunks directly
 from the PebbleKit JS localStorage snapshot via configmessage.
 
-No note text is sent in a URL. No network access is needed for the
-bundled page. The legacy hosted showConfiguration handler remains
-unchanged for compatibility with older mobile applications.
+No note text is sent in a URL. The phone companion no longer has a
+GitHub Pages URL or URL-fragment backup transport: the hosted fallback
+has deliberately been removed. The bundled configuration page requires
+Pebble mobile 1.16.0.5 with the Plugins/permissions preview enabled.
+Older companion versions are not supported by this feature branch.
 
 ## Build and install on Emery
 
@@ -35,9 +39,10 @@ before installing this branch. The packer selects the only .pbw in build/
 (e.g. build/jot.pbw); it no longer assumes a package-name-based filename.
 If you have multiple PBWs, specify the exact one as an argument:
 
-    python3 scripts/pack-bundled-config.py build/jot.pbw It patches appinfo.json to preview
-manifestVersion 2 and inserts the bundled page while preserving the
-existing Pebble binary and resources.
+    python3 scripts/pack-bundled-config.py build/jot.pbw
+
+The packer sets the preview appinfo.json manifestVersion to 2 and inserts
+the bundled page while preserving the watch binary and resources.
 
 On the Android Pebble app 1.16.0.5, enable the Plugins/permissions
 preview at Settings > Plugins before opening Jot Settings.

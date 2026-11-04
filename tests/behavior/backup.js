@@ -91,15 +91,17 @@ function invalid_transfer_preserves_previous_backup() {
   assert.equal(snapshot().session, 44); // Can't replace saved backup.
 }
 
-function exported_snapshot_is_readable() {
-  listeners.showConfiguration();
-  assert.ok(openedUrl.startsWith('https://majormajormajormajor.github.io/pebble-jot/export.html#'));
-  const restored = JSON.parse(Buffer.from(openedUrl.split('#')[1], 'base64').toString('utf8'));
-  assert.equal(restored.notes[0].text, 'First 📝 second\tcafé third');
+function backup_is_local_and_settings_are_bundled() {
+  assert.equal(listeners.showConfiguration, undefined);
+  assert.equal(openedUrl, null, 'no hosted Settings page opened');
+  assert.ok(listeners.configmessage, 'local configuration bridge registered');
+  assert.equal(JSON.parse(fs.readFileSync(
+    path.join(__dirname, '../../package.json'), 'utf8'
+  )).pebble.configPage, 'config.html');
 }
 
 complete_snapshot_is_atomic();
 multipart_retransmission_is_idempotent();
 invalid_transfer_preserves_previous_backup();
-exported_snapshot_is_readable();
-console.log('Backup behavior: transactions, retransmissions, and export passed');
+backup_is_local_and_settings_are_bundled();
+console.log('Backup behavior: transactions, retransmissions, and bundled page passed');

@@ -172,34 +172,3 @@ Pebble.addEventListener('configmessage', function (event) {
   }
   event.respond({ok: false, error: 'Unknown configuration request'});
 });
-
-// Base64-encode UTF-8 without requiring btoa/TextEncoder in PebbleKit JS.
-function toBase64Utf8(text) {
-  var binary = encodeURIComponent(text).replace(/%([0-9A-F]{2})/g,
-    function (match, hex) { return String.fromCharCode(parseInt(hex, 16)); });
-  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  var result = '';
-  for (var i = 0; i < binary.length; i += 3) {
-    var a = binary.charCodeAt(i);
-    var hasB = i + 1 < binary.length;
-    var hasC = i + 2 < binary.length;
-    var b = hasB ? binary.charCodeAt(i + 1) : 0;
-    var c = hasC ? binary.charCodeAt(i + 2) : 0;
-    result += chars.charAt(a >> 2);
-    result += chars.charAt(((a & 3) << 4) | (b >> 4));
-    result += hasB ? chars.charAt(((b & 15) << 2) | (c >> 6)) : '=';
-    result += hasC ? chars.charAt(c & 63) : '=';
-  }
-  return result;
-}
-
-Pebble.addEventListener('showConfiguration', function () {
-  var url = 'https://majormajormajormajor.github.io/pebble-jot/export.html';
-  try {
-    var snapshot = localStorage.getItem(STORAGE_KEY);
-    if (snapshot) url += '#' + toBase64Utf8(snapshot);
-  } catch (e) {
-    console.log('Cannot load Jot backup for viewing: ' + e);
-  }
-  Pebble.openURL(url);
-});
