@@ -85,8 +85,16 @@ function ask(q){
 function phoneNote(text){
   const b=ask({type:'jotNotebookBegin',id:''});
   assert.equal(b.ok,true);
-  const p=ask({type:'jotNotebookPart',token:b.token,part:0,text});
-  assert.equal(p.ok,true);
+  let at=0,part=0;
+  while(at<text.length){
+    let end=Math.min(text.length,at+1024);
+    if(end<text.length && text.charCodeAt(end-1)>=0xD800 &&
+       text.charCodeAt(end-1)<=0xDBFF)end--;
+    const p=ask({type:'jotNotebookPart',token:b.token,
+                 part:part++,text:text.slice(at,end)});
+    assert.equal(p.ok,true);
+    at=end;
+  }
   const c=ask({type:'jotNotebookCommit',token:b.token});
   assert.equal(c.ok,true);
   return c.id;
