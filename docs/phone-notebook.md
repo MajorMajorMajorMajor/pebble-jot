@@ -34,6 +34,22 @@ The bundled configPage API remains preview-only in mobile 1.16.0.5.
 
 ## Build on Emery
 
+**Important:** Pebble's Plugins Preview bundling and sideloading guide
+requires **pebble-tool 5.1.0 or later**. A local tool at 5.0.40 can
+build/install the watch app but does not meet that documented
+requirement for bundled configuration pages. Upgrade it before
+troubleshooting a Settings button that does nothing:
+
+    uv tool upgrade pebble-tool
+    pebble --version
+
+Run the version command from the actual shell/environment used for
+installing (including `nix develop`). Confirm that it resolves to
+5.1.0 or newer; if Nix shadows the upgraded executable, fix your
+shell PATH before continuing. Make sure Pebble mobile app 1.16.0.5 has
+Settings → Plugins → Plugins / permissions preview enabled.
+
+
     git fetch origin
     git switch --track origin/feature/issue-70-phone-notebook
     sh scripts/build-jot.sh --clean
@@ -70,5 +86,14 @@ Open Jot Settings in the Pebble Android app with Plugins Preview enabled.
    deleted phone entry does not reappear; watch copy stays intact.
 7. Verify Copy, TXT, and JSON with newlines, accents and emojis.
 8. Restart the mobile companion, then reopen Settings and recheck.
+
+If the PBW definitely contains `config.html` but Settings is inert,
+verify the `pebble-tool` version as above, then fully restart the
+Pebble phone app and try Settings. To collect evidence after retrying:
+
+    pebble logs --cloudpebble
+
+The preview API normally opens `configPage` without a legacy
+`showConfiguration` handler; do not restore the GitHub Pages URL.
 
 This phase is deliberately isolated from main until physical testing.
