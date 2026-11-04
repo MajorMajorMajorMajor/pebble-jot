@@ -14,6 +14,7 @@ enum {
   RECORD_KEYS = 2 * (JOT_NOTE_TEXT_BYTES / SLOT_CAPACITY + 1),
   LEGACY_KEY_FIRST = 4100,
   DIRECTORY_KEY = 4999,
+  SERIAL_HIGH_WATER_KEY = 4998,
   FAKE_STORAGE_LIMIT = 1024 * 1024
 };
 
@@ -26,6 +27,7 @@ typedef struct {
 static FakeEntry s_entries[JOT_NOTE_CAPACITY * RECORD_KEYS];
 static FakeEntry s_legacy[16];
 static FakeEntry s_directory;
+static FakeEntry s_serial_high_water;
 static bool s_fail_next_write;
 static bool s_fail_next_delete;
 static int s_fail_after_writes = -1;
@@ -34,6 +36,7 @@ static size_t s_bytes_used;
 
 static FakeEntry *entry_at(uint32_t key) {
   if (key == DIRECTORY_KEY) return &s_directory;
+  if (key == SERIAL_HIGH_WATER_KEY) return &s_serial_high_water;
   if (key >= LEGACY_KEY_FIRST && key < LEGACY_KEY_FIRST + 16)
     return &s_legacy[key - LEGACY_KEY_FIRST];
   if (key < STORAGE_KEY_FIRST ||
@@ -98,6 +101,7 @@ static void fresh_store(void) {
   memset(s_entries, 0, sizeof s_entries);
   memset(s_legacy, 0, sizeof s_legacy);
   memset(&s_directory, 0, sizeof s_directory);
+  memset(&s_serial_high_water, 0, sizeof s_serial_high_water);
   s_bytes_used = 0;
   s_fail_next_write = false;
   s_fail_next_delete = false;
@@ -506,7 +510,26 @@ static void test_compose_undo_and_capacity(void) {
   assert(!jot_store_dirty());
 }
 
+// Every phone-visible note identity must survive delete-all and restart.
+static void test_serial_high_water_survives_delete_all(void) {
+  fresh_store();
+  assert(jot_store_input("first"));
+  assert(jot_store_flush());
+  const int first = jot_store_active_slot();
+  uint32_t a = 0, rev = 0;
+  assert(jot_store_identity(first, &a, &rev) && a > 0 && rev == 1);
+  assert(jot_store_delete(first));
+  jot_store_init();
+  assert(jot_store_count() == 0);
+  assert(jot_store_input("second"));
+  assert(jot_store_flush());
+  uint32_t b = 0;
+  assert(jot_store_identity(jot_store_active_slot(), &b, NULL));
+  assert(b > a);
+}
+
 int main(void) {
+  test_serial_high_water_survives_delete_all();
   test_committed_round_trip();
   test_ranked_slot_lifecycle();
   test_directory_recovery();
@@ -520,6 +543,6 @@ int main(void) {
   test_compose_undo_and_capacity();
   test_capacity_and_quota();
   jot_store_deinit();
-  puts("Twelve independent storage safety scenarios (including Tab) passed");
+  puts("Storage safety scenarios (including durable sync identity) passed");
   return 0;
 }

@@ -11,6 +11,9 @@
 // Small directory stored outside all JOT1/JOT2 note-key ranges.
 // It is a CONSERVATIVE candidate-slot hint, never authoritative note data.
 #define JOT_DIRECTORY_KEY 4999u
+// Keep serial generations monotonic even after the LAST note is deleted.
+// This key lies outside both JOT1/JOT2 note banks and the directory.
+#define JOT_SERIAL_HIGH_WATER_KEY 4998u
 #define JOT_DIRECTORY_MAGIC 0x4A4F5449u // 'JOTI' v1
 
 enum { JOT_LEGACY_CAPACITY = 16, JOT_PART_BYTES = 256,
@@ -351,6 +354,14 @@ void jot_store_init(void) {
     // the next launch. Never treat an uncommitted bitmap as trustworthy.
     (void)prv_directory_save(&rebuilt);
   }
+  // A clean restart with zero notes must not recycle an identity that the
+  // phone has already seen. A failed read is conservative: use scanned
+  // committed notes; write failure on a new note prevents its commit.
+  uint32_t high_water = 0;
+  if (persist_read_data(JOT_SERIAL_HIGH_WATER_KEY, &high_water,
+                        sizeof high_water) == (int)sizeof high_water &&
+      high_water < UINT32_MAX && high_water >= s_next_serial)
+    s_next_serial = high_water + 1;
   if (!s_next_serial) s_next_serial = 1;
 }
 
@@ -460,6 +471,13 @@ bool jot_store_flush(void) {
   NoteIndex *index = &s_index[s_active_slot];
   const int previous_bank = index->bank;
   const int target_bank = previous_bank == 0 ? 1 : 0;
+  // The serial high-water mark MUST be durable before the first header.
+  // Otherwise deletion of the last note followed by restart can recycle a
+  // serial already synced to the independent phone notebook.
+  if (previous_bank < 0 &&
+      persist_write_data(JOT_SERIAL_HIGH_WATER_KEY, &index->serial,
+                         sizeof index->serial) != (int)sizeof index->serial)
+    return false;
   // Candidate-slot bit MUST be durable before the first bank header.
   // On failure, retain the entire dirty draft and do not publish a note.
   // Existing notes are already represented, so their next bank can
