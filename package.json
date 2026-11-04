@@ -32,7 +32,18 @@
       "BackupPart",
       "BackupFinal",
       "BackupSerial",
-      "BackupRevision"
+      "BackupRevision",
+      "ImportKind",
+      "ImportTokenHi",
+      "ImportTokenLo",
+      "ImportPart",
+      "ImportTotal",
+      "ImportText",
+      "ImportAck",
+      "ImportStatus",
+      "ImportSerial",
+      "ImportCreated",
+      "ImportRevision"
     ],
     "resources": {
       "media": [

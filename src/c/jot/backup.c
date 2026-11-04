@@ -9,7 +9,10 @@ enum {
   BACKUP_BEGIN = 1, BACKUP_NOTE = 2, BACKUP_END = 3,
   BACKUP_MAX_ATTEMPTS = 4, BACKUP_ACK_TIMEOUT_MS = 4000,
   // 240 bytes leaves room for AppMessage dictionary headers in a 384B outbox.
-  BACKUP_CHUNK_BYTES = 240
+  BACKUP_CHUNK_BYTES = 240,
+  IMPORT_BEGIN = 1, IMPORT_CHUNK = 2, IMPORT_COMMIT = 3,
+  IMPORT_CHUNK_BYTES = 160,
+  IMPORT_COMMIT_ACK = -2
 };
 
 static bool s_available;
@@ -29,6 +32,14 @@ static size_t s_offset;
 static size_t s_chunk_length;
 static int16_t s_part;
 static bool s_last_chunk;
+
+// Incoming phone-to-watch transfer. Never modifies s_text or the editor.
+static char s_import_text[JOT_NOTE_TEXT_BYTES];
+static uint32_t s_import_hi, s_import_lo;
+static uint16_t s_import_total, s_import_offset, s_import_previous_offset;
+static uint16_t s_import_previous_length;
+static int16_t s_import_part;
+static bool s_import_ready;
 
 static void prv_cancel_timer(void) {
   if (s_retry_timer) {
@@ -138,8 +149,136 @@ static void prv_send_current(void *context) {
   prv_schedule(BACKUP_ACK_TIMEOUT_MS);
 }
 
+
+static void prv_import_ack(uint32_t hi, uint32_t lo, int16_t part,
+                           int8_t status, const JotImportReceipt *saved) {
+  DictionaryIterator *iter = NULL;
+  if (app_message_outbox_begin(&iter) != APP_MSG_OK || !iter) return;
+  DictionaryResult d = dict_write_uint32(iter, MESSAGE_KEY_ImportTokenHi, hi);
+  if (d == DICT_OK) d = dict_write_uint32(iter, MESSAGE_KEY_ImportTokenLo, lo);
+  if (d == DICT_OK) d = dict_write_int16(iter, MESSAGE_KEY_ImportAck, part);
+  if (d == DICT_OK) d = dict_write_int8(iter, MESSAGE_KEY_ImportStatus, status);
+  if (d == DICT_OK && saved) {
+    d = dict_write_uint32(iter, MESSAGE_KEY_ImportSerial, saved->serial);
+    if (d == DICT_OK)
+      d = dict_write_uint32(iter, MESSAGE_KEY_ImportCreated, saved->created);
+    if (d == DICT_OK)
+      d = dict_write_uint32(iter, MESSAGE_KEY_ImportRevision, saved->revision);
+  }
+  if (d == DICT_OK) (void)app_message_outbox_send();
+}
+
+static void prv_import_receive(DictionaryIterator *iter) {
+  Tuple *kind = dict_find(iter, MESSAGE_KEY_ImportKind);
+  Tuple *high = dict_find(iter, MESSAGE_KEY_ImportTokenHi);
+  Tuple *low = dict_find(iter, MESSAGE_KEY_ImportTokenLo);
+  Tuple *part = dict_find(iter, MESSAGE_KEY_ImportPart);
+  if (!kind || !high || !low || !part) return;
+  const uint32_t hi = high->value->uint32, lo = low->value->uint32;
+  const int16_t seq = (int16_t)part->value->int32;
+  const int which = kind->value->int32;
+  if (!hi && !lo) return;
+  JotImportReceipt receipt;
+  // An already-persisted transfer is acknowledged before any buffer check.
+  // This includes retries after a lost commit acknowledgment or app restart.
+  if (jot_store_import_lookup(hi, lo, &receipt)) {
+    prv_import_ack(hi, lo, seq, JOT_IMPORT_ALREADY, &receipt);
+    return;
+  }
+  if (s_active) {
+    prv_import_ack(hi, lo, seq, JOT_IMPORT_BUSY, NULL);
+    return;
+  }
+  if (which == IMPORT_BEGIN) {
+    Tuple *total = dict_find(iter, MESSAGE_KEY_ImportTotal);
+    const int len = total ? total->value->int32 : -1;
+    if (seq != -1 || len <= 0 || len >= JOT_NOTE_TEXT_BYTES) {
+      prv_import_ack(hi, lo, seq, JOT_IMPORT_INVALID, NULL);
+      return;
+    }
+    if (jot_store_dirty()) {
+      prv_import_ack(hi, lo, seq, JOT_IMPORT_BUSY, NULL);
+      return;
+    }
+    if (jot_store_count() >= JOT_NOTE_CAPACITY) {
+      prv_import_ack(hi, lo, seq, JOT_IMPORT_FULL, NULL);
+      return;
+    }
+    s_import_hi = hi;
+    s_import_lo = lo;
+    s_import_total = (uint16_t)len;
+    s_import_offset = 0;
+    s_import_part = 0;
+    s_import_previous_offset = 0;
+    s_import_previous_length = 0;
+    s_import_text[0] = '\0';
+    s_import_ready = true;
+    prv_import_ack(hi, lo, seq, JOT_IMPORT_SAVED, NULL);
+    return;
+  }
+  if (!s_import_ready || hi != s_import_hi || lo != s_import_lo) {
+    prv_import_ack(hi, lo, seq, JOT_IMPORT_INVALID, NULL);
+    return;
+  }
+  if (which == IMPORT_CHUNK) {
+    Tuple *text = dict_find(iter, MESSAGE_KEY_ImportText);
+    if (!text || !text->value || !text->length ||
+        text->length > IMPORT_CHUNK_BYTES + 1 ||
+        text->value->cstring[text->length - 1] != '\0') {
+      prv_import_ack(hi, lo, seq, JOT_IMPORT_INVALID, NULL);
+      return;
+    }
+    const size_t len = strlen(text->value->cstring);
+    if (len == 0 || len + 1 != text->length) {
+      prv_import_ack(hi, lo, seq, JOT_IMPORT_INVALID, NULL);
+      return;
+    }
+    if (seq == s_import_part - 1 &&
+        len == s_import_previous_length &&
+        memcmp(s_import_text + s_import_previous_offset,
+               text->value->cstring, len) == 0) {
+      prv_import_ack(hi, lo, seq, JOT_IMPORT_SAVED, NULL);
+      return;
+    }
+    if (seq != s_import_part || s_import_offset + len > s_import_total) {
+      prv_import_ack(hi, lo, seq, JOT_IMPORT_INVALID, NULL);
+      return;
+    }
+    s_import_previous_offset = s_import_offset;
+    s_import_previous_length = (uint16_t)len;
+    memcpy(s_import_text + s_import_offset, text->value->cstring, len);
+    s_import_offset += (uint16_t)len;
+    s_import_text[s_import_offset] = '\0';
+    ++s_import_part;
+    prv_import_ack(hi, lo, seq, JOT_IMPORT_SAVED, NULL);
+    return;
+  }
+  if (which == IMPORT_COMMIT && seq == IMPORT_COMMIT_ACK) {
+    if (s_import_offset != s_import_total) {
+      prv_import_ack(hi, lo, seq, JOT_IMPORT_INVALID, NULL);
+      return;
+    }
+    // This is a persistent write, not a Bluetooth transport acknowledgment.
+    const JotImportResult status =
+        jot_store_import_new(s_import_text, s_import_offset, hi, lo, &receipt);
+    if (status == JOT_IMPORT_SAVED || status == JOT_IMPORT_ALREADY) {
+      s_import_ready = false;
+      jot_backup_ui_changed();
+      prv_import_ack(hi, lo, seq, status, &receipt);
+    } else {
+      prv_import_ack(hi, lo, seq, status, NULL);
+    }
+    return;
+  }
+  prv_import_ack(hi, lo, seq, JOT_IMPORT_INVALID, NULL);
+}
+
 static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   (void)context;
+  if (dict_find(iter, MESSAGE_KEY_ImportKind)) {
+    prv_import_receive(iter);
+    return;
+  }
   if (!s_active) return;
   Tuple *session = dict_find(iter, MESSAGE_KEY_BackupSession);
   Tuple *ack = dict_find(iter, MESSAGE_KEY_BackupAck);
@@ -191,10 +330,11 @@ static void prv_outbox_failed(DictionaryIterator *iter,
 void jot_backup_init(void) {
   s_status[0] = '\0';
   s_active = false;
+  s_import_ready = false;
   s_session = (uint32_t)time(NULL);
   app_message_register_inbox_received(prv_inbox_received);
   app_message_register_outbox_failed(prv_outbox_failed);
-  s_available = app_message_open(128, 384) == APP_MSG_OK;
+  s_available = app_message_open(256, 384) == APP_MSG_OK;
   if (!s_available) prv_status("Phone link unavailable");
 }
 
