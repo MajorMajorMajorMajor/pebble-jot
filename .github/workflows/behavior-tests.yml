@@ -73,6 +73,8 @@ jobs:
             tests/behavior/label_geometry.c src/c/ui/legend_geometry.c \
             -o /tmp/jot-label-geometry
           /tmp/jot-label-geometry
+      - name: Check watch message keys against Pebble package metadata
+        run: node tests/behavior/message-keys.js
       - name: Independent phone notebook (atomic watch imports and phone edits)
         run: node tests/behavior/backup.js
       - name: Bundled phone notebook viewer and editor

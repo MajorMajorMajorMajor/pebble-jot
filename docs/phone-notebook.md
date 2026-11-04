@@ -36,9 +36,17 @@ The bundled configPage API remains preview-only in mobile 1.16.0.5.
 
     git fetch origin
     git switch --track origin/feature/issue-70-phone-notebook
+    pebble clean
     pebble build
     python3 scripts/pack-bundled-config.py
     pebble install --cloudpebble
+
+The clean step matters when switching from #39 to #70 in the same worktree.
+Pebble's cached build/include/message_keys.auto.h may still describe
+#39's message keys even though package.json already defines
+BackupSerial and BackupRevision. A clean build regenerates the SDK's
+message-key header. The enableMultiJS warning is unrelated to the C
+header and does not require changing Jot's JavaScript module style.
 
 Open Jot Settings in the Pebble Android app with Plugins Preview enabled.
 
