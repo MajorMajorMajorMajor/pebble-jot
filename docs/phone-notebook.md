@@ -22,6 +22,31 @@ No remote hosting or note-bearing URL is involved.
 Watch note generation serials retain a persistent high-water mark,
 even if every note is deleted before a reboot.
 
+## Phone-to-watch phase 2 — hardware acceptance pending
+
+For phone-only notes, the Settings page offers Send to Watch and shows a
+4095-byte UTF-8 watch budget. Pressing the button is the sole confirmation.
+The companion transmits bounded 160-byte Unicode-safe AppMessage chunks and
+retries unacknowledged packets. The watch validates the entire note,
+rejects a dirty editor or a full notebook, writes to an actually vacant
+persistence slot, and acknowledges **only after a committed header**.
+
+A randomly generated 64-bit transfer token is saved with the phone note
+before sending. The watch commits it in the same persistent header as
+the note. Lost acknowledgments/reboots therefore cannot create duplicate
+notes on re-sending. Earlier v2 watch headers remain readable. If the
+watch saved the note but phone localStorage failed, the next Send to Watch
+recovers the original watch receipt.
+
+This release does not send phone edits to existing watch notes. A phone
+note that was edited while a send was unresolved resumes the ORIGINAL
+snapshot on retry; the later phone edit is preserved as an unsynced change.
+
+Hardware QA: create a short multiline/emoji phone note, Send to Watch,
+verify it in watch list, repeat backup to check single identity. Try a
+near-limit note, disconnect/reconnect after sending and retry, and test
+sending when the watch editor is dirty. Use disposable notes.
+
 ## Still ahead in #70
 
 Safe phone-to-watch note creation, propagation of phone edits to

@@ -48,6 +48,7 @@ font-size:12px;margin-left:8px;padding:3px 7px;border-radius:5px;background:#f8e
   <h2 id="editTitle">Edit note</h2>
   <p class="muted" id="editHint">Changes are saved on your phone.</p>
   <textarea id="noteEditor" aria-label="Note text" spellcheck="false"></textarea>
+  <p id="watchBudget" class="muted">Watch capacity: 4,095 UTF-8 bytes.</p>
   <div class="row">
     <button id="saveNote">Save on phone</button>
     <button id="cancelEdit" class="secondary">Cancel</button>
@@ -67,6 +68,7 @@ font-size:12px;margin-left:8px;padding:3px 7px;border-radius:5px;background:#f8e
   var editor=document.getElementById('noteEditor');
   var newButton=document.getElementById('newNote');
   var saveButton=document.getElementById('saveNote');
+  var watchBudget=document.getElementById('watchBudget');
   var controls=['copy','select','download','json'];
   var snapshot=null, text='', editingId='', busy=false;
   function mark(s){status.textContent=s;}
@@ -80,6 +82,29 @@ font-size:12px;margin-left:8px;padding:3px 7px;border-radius:5px;background:#f8e
        s.charCodeAt(end)<=0xDFFF)end--;
     return end;
   }
+  function countWatchBytes(s) {
+    var count=0;
+    for(var i=0;i<s.length;i++){
+      var ch=s.charCodeAt(i);
+      if(ch>=0xD800&&ch<=0xDBFF) {
+        if(i+1>=s.length||s.charCodeAt(i+1)<0xDC00||
+           s.charCodeAt(i+1)>0xDFFF)
+          throw Error('Invalid Unicode surrogate');
+        i++;count+=4;
+      }else if(ch>=0xDC00&&ch<=0xDFFF)
+        throw Error('Invalid Unicode surrogate');
+      else count+=ch<128?1:ch<2048?2:3;
+    }
+    return count;
+  }
+  function updateBudget(){
+    try{
+      var bytes=countWatchBytes(editor.value);
+      watchBudget.textContent='Watch: '+bytes+' / 4,095 UTF-8 bytes'+
+        (bytes>4095?' — too long to send':'');
+    }catch(e){watchBudget.textContent='Invalid Unicode: cannot send to watch';}
+  }
+  editor.oninput=updateBudget;
   function labelFor(v){
     return v==='conflict'?'Conflicting edits':
       v==='needs-sync'?'Phone changes not on watch':
@@ -105,8 +130,9 @@ font-size:12px;margin-left:8px;padding:3px 7px;border-radius:5px;background:#f8e
     document.getElementById('editHint').textContent=
       note&&note.status==='conflict'?
       'Both devices were edited. Saving here preserves the phone version; the watch is not overwritten.':
-      'Changes stay on your phone until watch sync is implemented.';
+      'Your phone saves edits locally. Use Send to Watch on a phone-only note; shared-note edit sync comes later.';
     editor.value=note?note.text:'';
+    updateBudget();
     panel.hidden=false;
     editor.focus();
   }
@@ -154,6 +180,31 @@ font-size:12px;margin-left:8px;padding:3px 7px;border-radius:5px;background:#f8e
     }catch(e){mark('Delete failed: '+e.message);}
     finally{busy=false;button.disabled=false;}
   }
+  async function sendToWatch(note,button){
+    if(busy)return;
+    busy=true;button.disabled=true;
+    try{
+      mark('Preparing note for watch…');
+      var begin=await send({type:'jotWatchBegin',id:note.id});
+      if(!begin||!begin.ok)throw Error(begin&&begin.error||'Cannot start send');
+      mark('Sending '+begin.bytes+' UTF-8 bytes to watch…');
+      var result=null;
+      for(var attempt=0;attempt<140;attempt++){
+        await new Promise(function(resolve){setTimeout(resolve,400);});
+        result=await send({type:'jotWatchStatus',id:note.id});
+        if(!result||!result.ok)throw Error('Lost watch send status');
+        if(result.state==='saved')break;
+        if(result.state==='failed')throw Error(result.error||'Watch transfer failed');
+        if(result.state!=='sending')throw Error('Transfer interrupted; retry');
+      }
+      if(!result||result.state!=='saved')
+        throw Error('Watch response timed out; retry to check receipt');
+      await load();
+      mark('Saved on watch ✓');
+    }catch(e){
+      mark('Not confirmed on watch: '+e.message);
+    }finally{busy=false;button.disabled=false;}
+  }
   function appendNote(note){
     var article=document.createElement('article');
     var heading=document.createElement('div');
@@ -173,7 +224,14 @@ font-size:12px;margin-left:8px;padding:3px 7px;border-radius:5px;background:#f8e
     var del=document.createElement('button');
     del.className='secondary';del.textContent='Delete';
     del.onclick=function(){deleteNote(note,del);};
-    actions.appendChild(edit);actions.appendChild(del);article.appendChild(actions);
+    actions.appendChild(edit);
+    if(note.status==='phone-only'&&note.id.slice(0,2)==='p:'){
+      var sendButton=document.createElement('button');
+      sendButton.textContent='Send to Watch';
+      sendButton.onclick=function(){sendToWatch(note,sendButton);};
+      actions.appendChild(sendButton);
+    }
+    actions.appendChild(del);article.appendChild(actions);
     notesRoot.appendChild(article);
   }
   async function load() {
