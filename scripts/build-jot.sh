@@ -19,6 +19,14 @@ if [ "$#" -ne 0 ]; then
   exit 2
 fi
 
+# A branch update can add AppMessage keys without invalidating the SDK's
+# generated C header. Automatically refresh only when its contents are stale.
+if [ -f build/include/message_keys.auto.h ] && \
+   ! python3 scripts/check-generated-message-keys.py; then
+  echo "Refreshing stale Pebble message keys with a clean build..."
+  pebble clean
+fi
+
 python3 scripts/sync-settings-fallback.py
 pebble build
 python3 scripts/pack-bundled-config.py

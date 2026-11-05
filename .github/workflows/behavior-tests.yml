@@ -75,6 +75,8 @@ jobs:
           /tmp/jot-label-geometry
       - name: Check watch message keys against Pebble package metadata
         run: node tests/behavior/message-keys.js
+      - name: Detect stale incremental Pebble-generated message keys
+        run: python3 scripts/check-generated-message-keys.py --self-test
       - name: Embedded Settings fallback matches bundled page
         run: python3 scripts/sync-settings-fallback.py --check
       - name: Phone-to-watch upload with durable receipts and retry

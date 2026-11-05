@@ -99,12 +99,13 @@ For SDK build-only verification (e.g. CI), use:
 
     sh scripts/build-jot.sh --build-only
 
-The clean step matters when switching from #39 to #70 in the same worktree.
-Pebble's cached build/include/message_keys.auto.h may still describe
-#39's message keys even though package.json already defines
-BackupSerial and BackupRevision. A clean build regenerates the SDK's
-message-key header. The enableMultiJS warning is unrelated to the C
-header and does not require changing Jot's JavaScript module style.
+The wrapper now checks the SDK's cached generated message-key header
+against the current package.json. If switching branches introduced new
+message keys (such as the Import* family for phone→watch), an ordinary
+build automatically cleans and regenerates the header first. You can
+still force a clean build with --clean. The enableMultiJS warning is
+unrelated to the C header and does not require changing Jot's JavaScript
+module style.
 
 Open Jot Settings in the Pebble Android app with Plugins Preview enabled.
 
