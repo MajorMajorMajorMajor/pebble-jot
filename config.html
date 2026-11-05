@@ -130,7 +130,7 @@ font-size:12px;margin-left:8px;padding:3px 7px;border-radius:5px;background:#f8e
     document.getElementById('editHint').textContent=
       note&&note.status==='conflict'?
       'Both devices were edited. Saving here preserves the phone version; the watch is not overwritten.':
-      'Your phone saves edits locally. Use Send to Watch on a phone-only note; shared-note edit sync comes later.';
+      'Your phone saves edits locally. Send any phone-only note to the watch; shared-note edit sync comes later.';
     editor.value=note?note.text:'';
     updateBudget();
     panel.hidden=false;
@@ -225,7 +225,7 @@ font-size:12px;margin-left:8px;padding:3px 7px;border-radius:5px;background:#f8e
     del.className='secondary';del.textContent='Delete';
     del.onclick=function(){deleteNote(note,del);};
     actions.appendChild(edit);
-    if(note.status==='phone-only'&&note.id.slice(0,2)==='p:'){
+    if(note.status==='phone-only'){
       var sendButton=document.createElement('button');
       sendButton.textContent='Send to Watch';
       sendButton.onclick=function(){sendToWatch(note,sendButton);};

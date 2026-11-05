@@ -25,8 +25,11 @@ even if every note is deleted before a reboot.
 
 ## Phone-to-watch phase 2 — hardware acceptance pending
 
-For phone-only notes, the Settings page offers Send to Watch and shows a
-4095-byte UTF-8 watch budget. Pressing the button is the sole confirmation.
+For every phone-only note, including an old watch note retained on the
+phone after deletion from the watch, Settings offers Send to Watch and
+shows a 4095-byte UTF-8 watch budget. Restoring such an orphan creates
+a new watch generation and relinks the phone record after the durable
+watch receipt (not before). Pressing the button is the sole confirmation.
 The companion transmits bounded 160-byte Unicode-safe AppMessage chunks and
 retries unacknowledged packets. The watch validates the entire note,
 rejects a dirty editor or a full notebook, writes to an actually vacant

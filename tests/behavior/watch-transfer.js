@@ -167,5 +167,36 @@ async function until(id,expected){
                                   p.ImportTokenLo===tokenBefore[1]);
   assert.ok(firstToken);
 
+  // A watch note deleted from watch remains on phone with a w: ID.
+  // Sending it back should create a NEW watch generation and move the
+  // phone record to its new identity, never suppress the Send action.
+  const orphanId='w:5:1700000005';
+  const oldNotebook=JSON.parse(storage['jot.phone.v1']);
+  oldNotebook.notes.push({
+    id:orphanId,created:1700000005,text:'Restored from phone 📝',
+    watchSerial:5,watchRevision:4,watchText:'Earlier watch text',
+    onWatch:false,phoneEdited:true,conflict:false
+  });
+  storage['jot.phone.v1']=JSON.stringify(oldNotebook);
+  const beforeOrphanFlash=flash.size;
+  assert.equal(ask({type:'jotWatchBegin',id:orphanId}).ok,true,
+    'watch-origin phone-only note is sendable');
+  const restored=await until(orphanId,'saved');
+  assert.equal(flash.size,beforeOrphanFlash+1);
+  assert.notEqual(restored.savedId,orphanId,'new watch generation');
+  const current=JSON.parse(storage['jot.phone.v1']).notes;
+  assert.equal(current.some(n=>n.id===orphanId),false);
+  const moved=current.find(n=>n.id===restored.savedId);
+  assert.ok(moved);
+  assert.equal(moved.text,'Restored from phone 📝');
+  assert.equal(moved.onWatch,true);
+  assert.equal(moved.phoneEdited,false);
+  assert.equal(moved.watchRevision,1);
+  assert.equal(current.filter(n=>n.id===restored.savedId).length,1);
+  startPhone();
+  assert.equal(ask({type:'jotWatchBegin',id:restored.savedId}).ok,false,
+    'linked note cannot be sent as another duplicate');
+  assert.equal(flash.size,beforeOrphanFlash+1);
+
   console.log('Phone to watch: Unicode chunks, watch persistence receipt, lost ACK, retry/restart, 4095-byte limit and dirty-editor refusal passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -28,6 +28,9 @@ storage['jot.phone.v1']=JSON.stringify({
  format:'jot-phone-v1',nextId:1,notes,tombstones:[],
  lastSession:8,savedAt:'2026-11-03T15:00:00.000Z'
 });
+const orphanDb=JSON.parse(storage['jot.phone.v1']);
+orphanDb.notes[2].onWatch=false; // Deleted on watch, retained on phone.
+storage['jot.phone.v1']=JSON.stringify(orphanDb);
 assert.ok(Buffer.byteLength(storage['jot.phone.v1'],'utf8')>950000);
 class Element {
  constructor(){this.children=[];this.value='';this.disabled=false;
@@ -77,6 +80,12 @@ function spin(){return new Promise(resolve=>setImmediate(resolve));}
  assert.equal(elements.notes.children[0].children[0].children[0].textContent,
    'On watch and phone');
 
+ // Watch-origin phone-only notes must also expose the Send control.
+ assert.equal(elements.notes.children[2].children[0].children[0].textContent,
+   'Phone only');
+ assert.equal(elements.notes.children[2].children[2].children[1].textContent,
+   'Send to Watch');
+
  // Edit an on-watch note, confirming it becomes a pending phone edit.
  elements.notes.children[1].children[2].children[0].onclick();
  assert.equal(elements.noteEditor.value,long);
@@ -96,6 +105,8 @@ function spin(){return new Promise(resolve=>setImmediate(resolve));}
  await spin();await spin();
  assert.equal(JSON.parse(storage['jot.phone.v1']).notes.length,257);
  assert.equal(JSON.parse(storage['jot.phone.v1']).notes[0].onWatch,false);
+ assert.equal(elements.notes.children[0].children[2].children[1].textContent,
+   'Send to Watch');
 
  // Phone deletion requires two explicit taps; it never tombstones watch data.
  const target=elements.notes.children[1].children[2].children[1];
