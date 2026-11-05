@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def missing_keys(manifest: Path, header: Path):
     declared = json.loads(manifest.read_text(encoding="utf-8"))["pebble"]["messageKeys"]
     generated = set(re.findall(
-        r"\\bMESSAGE_KEY_([A-Za-z0-9_]+)\\b",
+        r"\bMESSAGE_KEY_([A-Za-z0-9_]+)\b",
         header.read_text(encoding="utf-8"),
     ))
     return [name for name in declared if name not in generated]
