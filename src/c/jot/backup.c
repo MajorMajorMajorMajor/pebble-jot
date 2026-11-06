@@ -364,7 +364,8 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     s_active = false;
     free(s_note);
     s_note = NULL;
-    prv_status("Phone copy saved");
+    if (s_user_started) prv_status("Phone copy saved");
+    prv_auto_schedule(350); // Process changes queued during the transfer.
     return;
   }
   if (s_phase > 0 && !s_last_chunk) {
@@ -376,13 +377,15 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     s_part = 0;
   }
   s_attempts = 0;
-  if (s_phase <= s_total) {
-    snprintf(s_status, sizeof s_status, "Exporting %d/%d",
-             s_phase, s_total);
-  } else {
-    snprintf(s_status, sizeof s_status, "Saving on phone...");
+  if (s_user_started) {
+    if (s_phase <= s_total) {
+      snprintf(s_status, sizeof s_status, "Exporting %d/%d",
+               s_phase, s_total);
+    } else {
+      snprintf(s_status, sizeof s_status, "Saving on phone...");
+    }
+    jot_backup_ui_changed();
   }
-  jot_backup_ui_changed();
   prv_schedule(40);
 }
 
@@ -498,7 +501,8 @@ void jot_backup_start(void) {
   prv_begin(true, BACKUP_FULL, -1, 0);
 }
 
-bool jot_backup_active(void) { return s_active; }
+// Background synchronization must never disable list navigation or Back.
+bool jot_backup_active(void) { return s_active && s_user_started; }
 const char *jot_backup_status(void) { return s_status; }
 
 void jot_backup_cancel(void) {
@@ -507,5 +511,8 @@ void jot_backup_cancel(void) {
   s_active = false;
   free(s_note);
   s_note = NULL;
-  if (was_active) prv_status("Export canceled");
+  if (was_active) {
+    s_auto_full = true;
+    if (s_user_started) prv_status("Export canceled");
+  }
 }
