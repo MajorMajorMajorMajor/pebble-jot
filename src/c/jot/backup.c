@@ -12,11 +12,22 @@ enum {
   BACKUP_CHUNK_BYTES = 240,
   IMPORT_BEGIN = 1, IMPORT_CHUNK = 2, IMPORT_COMMIT = 3,
   IMPORT_CHUNK_BYTES = 160,
-  IMPORT_COMMIT_ACK = -2
+  IMPORT_COMMIT_ACK = -2,
+  BACKUP_FULL = 0, BACKUP_ONE = 1, BACKUP_DELETED = 2
 };
 
 static bool s_available;
 static bool s_active;
+static bool s_connected;
+static bool s_user_started;
+static bool s_auto_full;
+static uint8_t s_auto_queued_kind; // NONE=0, ONE=1, DELETED=2.
+static int s_auto_queued_slot;
+static uint32_t s_auto_queued_serial;
+static AppTimer *s_auto_timer;
+static uint8_t s_mode;
+static int s_auto_slot;
+static uint32_t s_deleted_serial;
 static uint32_t s_session;
 static int s_total;
 static int s_phase;  // 0=BEGIN, 1..total=NOTE, total+1=END.
@@ -58,10 +69,46 @@ static void prv_fail(const char *reason) {
   s_active = false;
   free(s_note);
   s_note = NULL;
-  prv_status(reason);
+  s_auto_full = true; // Ambiguous outcome requires a complete reconciliation.
+  s_auto_queued_kind = 0;
+  if (s_user_started) prv_status(reason);
 }
 
 static void prv_send_current(void *context);
+static void prv_auto_kick(void *context);
+
+static void prv_auto_schedule(uint32_t delay_ms) {
+  if (!s_available || !s_connected || s_active ||
+      (!s_auto_full && !s_auto_queued_kind)) return;
+  if (s_auto_timer) app_timer_cancel(s_auto_timer);
+  s_auto_timer = app_timer_register(delay_ms, prv_auto_kick, NULL);
+}
+
+void jot_backup_note_committed(int slot) {
+  if (slot < 0 || slot >= JOT_NOTE_CAPACITY) return;
+  if (!s_available || !s_connected || s_active ||
+      s_auto_queued_kind == BACKUP_DELETED)
+    s_auto_full = true;
+  else if (s_auto_queued_kind == BACKUP_ONE &&
+           s_auto_queued_slot != slot)
+    s_auto_full = true;
+  else if (!s_auto_full) {
+    s_auto_queued_kind = BACKUP_ONE;
+    s_auto_queued_slot = slot;
+  }
+  prv_auto_schedule(850); // Coalesce saves off the editor hot path.
+}
+
+void jot_backup_note_deleted(uint32_t serial) {
+  if (!serial) return;
+  if (!s_available || !s_connected || s_active || s_auto_queued_kind)
+    s_auto_full = true;
+  else if (!s_auto_full) {
+    s_auto_queued_kind = BACKUP_DELETED;
+    s_auto_queued_serial = serial;
+  }
+  prv_auto_schedule(850);
+}
 
 static void prv_schedule(uint32_t delay_ms) {
   prv_cancel_timer();
@@ -70,7 +117,8 @@ static void prv_schedule(uint32_t delay_ms) {
 }
 
 static bool prv_load_note(void) {
-  const int slot = jot_store_slot_at(s_phase - 1);
+  const int slot = s_mode == BACKUP_ONE ?
+      s_auto_slot : jot_store_slot_at(s_phase - 1);
   if (slot < 0 || !jot_store_export(slot, s_note, JOT_NOTE_TEXT_BYTES, &s_created) ||
       !jot_store_identity(slot, &s_serial, &s_revision))
     return false;
@@ -108,6 +156,11 @@ static void prv_send_current(void *context) {
 
   if (kind == BACKUP_BEGIN && written == DICT_OK) {
     written = dict_write_int16(iter, MESSAGE_KEY_BackupTotal, (int16_t)s_total);
+    if (written == DICT_OK)
+      written = dict_write_uint8(iter, MESSAGE_KEY_BackupMode, s_mode);
+    if (written == DICT_OK && s_mode == BACKUP_DELETED)
+      written = dict_write_uint32(iter, MESSAGE_KEY_BackupSerial,
+                                  s_deleted_serial);
   } else if (kind == BACKUP_NOTE && written == DICT_OK) {
     if (s_part == 0 && s_offset == 0 && !prv_load_note()) {
       prv_fail("Cannot read note");
