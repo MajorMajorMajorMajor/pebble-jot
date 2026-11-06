@@ -64,8 +64,7 @@ function mergeWatchNotes(notes, session, mode, deletedSerial) {
         current.phoneEdited=false;current.conflict=false;
         current.watchRevision=incoming.revision;
         current.watchText=incoming.text;
-      } else if(incoming.revision>current.watchRevision ||
-                incoming.text!==current.watchText) {
+      } else if(incoming.text!==current.watchText) {
         // Both devices departed from their last agreed version.
         // In ONE durable write, preserve the phone copy as an independent
         // p: note, then refresh the original watch-associated note.
@@ -77,6 +76,9 @@ function mergeWatchNotes(notes, session, mode, deletedSerial) {
         current.watchRevision=incoming.revision;
         current.phoneEdited=false;
         current.conflict=false;
+      } else {
+        // A revision-only change without differing text isn't a conflict.
+        current.watchRevision=incoming.revision;
       }
     } else if(incoming.revision>=current.watchRevision) {
       current.text=incoming.text;current.watchText=incoming.text;
@@ -281,13 +283,21 @@ Pebble.addEventListener('appmessage',function(event){
      index!==Math.floor(index)||part<0||part!==Math.floor(part))return;
   if(kind===1){
     var total=Number(p.BackupTotal);
-    if(!isFinite(total)||total<0||total>256||
-       total!==Math.floor(total)||index!==-1||part!==0){
+    var mode=typeof p.BackupMode==='undefined'?0:Number(p.BackupMode);
+    var deletedSerial=mode===2?Number(p.BackupSerial):0;
+    if(!Number.isInteger(total)||total<0||total>256||
+       !Number.isInteger(mode)||mode<0||mode>2||
+       (mode===1&&total!==1)||(mode===2&&(total!==0||
+        !Number.isInteger(deletedSerial)||deletedSerial<1))||
+       index!==-1||part!==0){
       reply(session,index,part,false);return;
     }
     if(!pending||pending.session!==session)
-      pending={session:session,total:total,notes:new Array(total)};
-    reply(session,index,part,true);
+      pending={session:session,total:total,mode:mode,
+        deletedSerial:deletedSerial,notes:new Array(total)};
+    // Retries must not change the meaning of an in-flight session.
+    reply(session,index,part,pending.total===total&&pending.mode===mode&&
+      pending.deletedSerial===deletedSerial);
   }else if(kind===2){
     var finalPart=Number(typeof p.BackupFinal==='undefined'?1:p.BackupFinal);
     var serial=Number(p.BackupSerial),revision=Number(p.BackupRevision);
@@ -340,7 +350,7 @@ Pebble.addEventListener('appmessage',function(event){
         reply(session,index,part,false);return;
       }
     try{
-      mergeWatchNotes(pending.notes,session);
+      mergeWatchNotes(pending.notes,session,pending.mode,pending.deletedSerial);
       pending=null;
       reply(session,index,part,true);
     }catch(e){
