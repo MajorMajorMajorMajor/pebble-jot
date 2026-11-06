@@ -36,52 +36,58 @@ function watchNoteId(note) {
   // guards against collisions if the serial space is ever restarted.
   return 'w:'+note.serial+':'+note.created;
 }
-function mergeWatchNotes(notes, session) {
-  var db=readNotebook();
-  var seen={};
-  db.notes.forEach(function(note){ if (note.watchSerial) note.onWatch=false; });
-  for (var i=0;i<notes.length;i++) {
+// #76: complete snapshots update presence; incremental updates only
+// touch one identity; deletion deltas preserve all phone text.
+function mergeWatchNotes(notes, session, mode, deletedSerial) {
+  var db=readNotebook(), seen={};
+  mode=mode||0;
+  if(mode===0) db.notes.forEach(function(n) {
+    if(n.watchSerial) n.onWatch=false;
+  });
+  if(mode===2) db.notes.forEach(function(n) {
+    if(n.watchSerial===deletedSerial) n.onWatch=false;
+  });
+  for(var i=0;i<notes.length;i++) {
     var incoming=notes[i], id=watchNoteId(incoming);
-    if (seen[id]) throw new Error('Duplicate watch note identity');
+    if(seen[id]) throw new Error('Duplicate watch note identity');
     seen[id]=true;
-    var current=null;
-    for(var j=0;j<db.notes.length;j++)
-      if(db.notes[j].id===id){current=db.notes[j];break;}
-    if(!current){
-      db.notes.push({
-        id:id,created:incoming.created,text:incoming.text,
+    var current=findPhoneNote(db,id);
+    if(!current) {
+      db.notes.push({id:id,created:incoming.created,text:incoming.text,
         watchSerial:incoming.serial,watchRevision:incoming.revision,
-        watchText:incoming.text,onWatch:true,phoneEdited:false,conflict:false
-      });
+        watchText:incoming.text,onWatch:true,phoneEdited:false,conflict:false});
       continue;
     }
     current.onWatch=true;
-    // A watch edit cannot overwrite an un-synchronized phone edit.
-    if(current.phoneEdited){
-      if(incoming.text===current.text){
+    if(current.phoneEdited) {
+      if(incoming.text===current.text) {
+        current.phoneEdited=false;current.conflict=false;
+        current.watchRevision=incoming.revision;
+        current.watchText=incoming.text;
+      } else if(incoming.revision>current.watchRevision ||
+                incoming.text!==current.watchText) {
+        // Both devices departed from their last agreed version.
+        // In ONE durable write, preserve the phone copy as an independent
+        // p: note, then refresh the original watch-associated note.
+        db.notes.push({id:'p:'+db.nextId++,created:current.created,
+          text:current.text,onWatch:false,phoneEdited:false,conflict:false,
+          forkedFrom:id});
+        current.text=incoming.text;
+        current.watchText=incoming.text;
+        current.watchRevision=incoming.revision;
         current.phoneEdited=false;
         current.conflict=false;
-        current.watchRevision=incoming.revision;
-        current.watchText=incoming.text;
-      } else if (incoming.revision > current.watchRevision ||
-                 incoming.text!==current.watchText) {
-        current.conflict=true;
-        current.watchRevision=incoming.revision;
-        current.watchText=incoming.text;
       }
-    } else if (incoming.revision >= current.watchRevision) {
-      current.text=incoming.text;
-      current.watchText=incoming.text;
+    } else if(incoming.revision>=current.watchRevision) {
+      current.text=incoming.text;current.watchText=incoming.text;
       current.watchRevision=incoming.revision;
       current.conflict=false;
     }
   }
   db.lastSession=session;
   db.savedAt=new Date().toISOString();
-  // One atomic write. On failure all prior phone notes remain durable.
   writeNotebook(db);
 }
-
 
 /* Phone -> watch: one explicit note at a time. Every transfer has a 64-bit
  * token persisted on the PHONE before sending a single Bluetooth packet.
