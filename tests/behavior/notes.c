@@ -603,7 +603,28 @@ static void test_import_receipts_and_isolation(void) {
          JOT_IMPORT_INVALID);
 }
 
+static void test_sync_notifications_follow_durable_commits(void) {
+  fresh_store();
+  s_sync_commits = s_sync_deletions = 0;
+  assert(jot_store_input("sync"));
+  assert(jot_store_flush());
+  assert(s_sync_commits == 1 && s_sync_deletions == 0);
+  assert(jot_store_input("!"));
+  s_fail_next_write = true;
+  assert(!jot_store_flush());
+  assert(s_sync_commits == 1); // Not published on failed flash write.
+  assert(jot_store_flush());
+  assert(s_sync_commits == 2);
+  const int slot = jot_store_active_slot();
+  s_fail_next_delete = true;
+  assert(!jot_store_delete(slot));
+  assert(s_sync_deletions == 0);
+  assert(jot_store_delete(slot));
+  assert(s_sync_deletions == 1);
+}
+
 int main(void) {
+  test_sync_notifications_follow_durable_commits();
   test_import_receipts_and_isolation();
   test_serial_high_water_survives_delete_all();
   test_committed_round_trip();
