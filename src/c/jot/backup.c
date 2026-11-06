@@ -393,18 +393,85 @@ static void prv_outbox_failed(DictionaryIterator *iter,
   prv_schedule(500);
 }
 
+// Watch events never directly send a packet. Start after the connection
+// has stabilized, so a reconnect first permits PebbleKit JS to resume.
+static void prv_connection_changed(bool connected) {
+  s_connected = connected;
+  if (!connected) {
+    if (s_auto_timer) { app_timer_cancel(s_auto_timer); s_auto_timer = NULL; }
+    s_auto_full = true;
+    if (s_active) prv_fail("Phone disconnected");
+  } else {
+    prv_auto_schedule(1200);
+  }
+}
+
+static void prv_begin(bool manual, uint8_t mode, int slot,
+                      uint32_t deleted_serial) {
+  if (s_active || !s_available) return;
+  if (!manual && (!s_connected || jot_store_dirty())) return;
+  s_total = mode == BACKUP_ONE ? 1 :
+            mode == BACKUP_DELETED ? 0 : jot_store_count();
+  s_note = s_total ? malloc(JOT_NOTE_TEXT_BYTES) : NULL;
+  if (s_total && !s_note) {
+    s_auto_full = true;
+    if (manual) prv_status("Not enough memory");
+    return;
+  }
+  ++s_session;
+  if (!s_session) ++s_session;
+  s_mode = mode;
+  s_auto_slot = slot;
+  s_deleted_serial = deleted_serial;
+  s_phase = 0;
+  s_part = 0;
+  s_offset = 0;
+  s_attempts = 0;
+  s_user_started = manual;
+  s_active = true;
+  if (manual) prv_status("Connecting to phone...");
+  prv_schedule(manual ? 80 : 120);
+}
+
+static void prv_auto_kick(void *context) {
+  (void)context;
+  s_auto_timer = NULL;
+  if (!s_connected || !s_available || s_active || jot_store_dirty()) return;
+  if (s_auto_full) {
+    s_auto_full = false;
+    s_auto_queued_kind = 0;
+    prv_begin(false, BACKUP_FULL, -1, 0);
+  } else if (s_auto_queued_kind) {
+    const int mode = s_auto_queued_kind;
+    const int slot = s_auto_queued_slot;
+    const uint32_t serial = s_auto_queued_serial;
+    s_auto_queued_kind = 0;
+    prv_begin(false, (uint8_t)mode, slot, serial);
+  }
+}
+
 void jot_backup_init(void) {
   s_status[0] = '\0';
   s_active = false;
   s_import_ready = false;
   s_session = (uint32_t)time(NULL);
+  s_auto_full = true; // Never trust a previous app lifetime's presence.
+  s_auto_queued_kind = 0;
+  s_auto_timer = NULL;
   app_message_register_inbox_received(prv_inbox_received);
   app_message_register_outbox_failed(prv_outbox_failed);
   s_available = app_message_open(256, 384) == APP_MSG_OK;
+  s_connected = connection_service_peek_pebble_app_connection();
+  connection_service_subscribe((ConnectionHandlers) {
+    .pebble_app_connection_handler = prv_connection_changed
+  });
   if (!s_available) prv_status("Phone link unavailable");
+  else prv_auto_schedule(1600);
 }
 
 void jot_backup_deinit(void) {
+  connection_service_unsubscribe();
+  if (s_auto_timer) { app_timer_cancel(s_auto_timer); s_auto_timer = NULL; }
   jot_backup_cancel();
   free(s_import_text);
   s_import_text = NULL;
@@ -414,22 +481,21 @@ void jot_backup_deinit(void) {
 }
 
 void jot_backup_start(void) {
-  if (s_active) return;
   if (!s_available) { prv_status("Phone link unavailable"); return; }
   if (!jot_store_flush()) { prv_status("Save note before backup"); return; }
-  s_total = jot_store_count();
-  if (s_total == 0) { prv_status("No notes to export"); return; }
-  s_note = malloc(JOT_NOTE_TEXT_BYTES);
-  if (!s_note) { prv_status("Not enough memory"); return; }
-  ++s_session;
-  if (!s_session) ++s_session;
-  s_phase = 0;
-  s_part = 0;
-  s_offset = 0;
-  s_attempts = 0;
-  s_active = true;
-  prv_status("Connecting to phone...");
-  prv_schedule(80);
+  // The hold-Up gesture ALWAYS forces a full reconciliation, even if
+  // zero notes are left on the watch. Preempt any background delta.
+  if (s_active) {
+    if (s_user_started) return;
+    prv_cancel_timer();
+    free(s_note);
+    s_note = NULL;
+    s_active = false;
+  }
+  if (s_auto_timer) { app_timer_cancel(s_auto_timer); s_auto_timer = NULL; }
+  s_auto_full = false;
+  s_auto_queued_kind = 0;
+  prv_begin(true, BACKUP_FULL, -1, 0);
 }
 
 bool jot_backup_active(void) { return s_active; }
