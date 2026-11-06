@@ -115,9 +115,19 @@ assert.equal(get('w:1:100').conflict,false);
 assert.equal(begin(6,1).BackupStatus,1);
 assert.equal(note(6,0,1,2,100,'new edit on watch').BackupStatus,1);
 assert.equal(end(6,1).BackupStatus,1);
-assert.equal(get('w:1:100').text,'My phone version');
-assert.equal(get('w:1:100').conflict,true);
+assert.equal(get('w:1:100').text,'new edit on watch');
+assert.equal(get('w:1:100').conflict,false);
 assert.equal(get('w:1:100').watchText,'new edit on watch');
+const fork=db().notes.find(n=>n.forkedFrom==='w:1:100');
+assert.ok(fork,'offline divergent phone edit is retained as independent note');
+assert.equal(fork.text,'My phone version');
+assert.equal(fork.onWatch,false);
+assert.ok(fork.id.startsWith('p:'));
+// Replaying an identical backup cannot spawn a second fork.
+assert.equal(begin(61,1).BackupStatus,1);
+assert.equal(note(61,0,1,2,100,'new edit on watch').BackupStatus,1);
+assert.equal(end(61,1).BackupStatus,1);
+assert.equal(db().notes.filter(n=>n.forkedFrom==='w:1:100').length,1);
 
 // User acceptance: author watch -> export -> delete on PHONE -> export
 // again. The watch is still authoritative for its own live records.
