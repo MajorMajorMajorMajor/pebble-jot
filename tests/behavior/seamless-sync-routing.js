@@ -30,5 +30,6 @@ assert.ok(store.indexOf('jot_backup_note_committed(s_active_slot)') >
 assert.match(pkjs,/mergeWatchNotes\(pending.notes,session,pending.mode,pending.deletedSerial\)/);
 assert.match(pkjs,/mode===2/);
 assert.match(pkjs,/forkedFrom:id/);
-assert.match(pkjs,/writeNotebook\(db\); \/\/ Atomic/);
+assert.match(pkjs,/writeNotebook\(db\);/);
+// The backup behavior test checks atomic phone storage and no duplicate forks.
 console.log('Seamless sync: event/connection/transport/UI guards passed');
