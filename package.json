@@ -33,6 +33,7 @@
       "BackupFinal",
       "BackupSerial",
       "BackupRevision",
+      "BackupMode",
       "ImportKind",
       "ImportTokenHi",
       "ImportTokenLo",

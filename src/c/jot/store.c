@@ -1,6 +1,7 @@
 #include <pebble.h>
 #include <stdlib.h>
 #include "jot/store.h"
+#include "jot/backup.h"
 
 // JOT2 uses two banks per slot: a complete new version is written into
 // the inactive bank before its header is committed. No legacy migration:
@@ -524,6 +525,7 @@ bool jot_store_flush(void) {
   s_dirty = false;
   if (previous_bank >= 0)
     prv_clear_bank(s_active_slot, previous_bank); // Best-effort GC.
+  jot_backup_note_committed(s_active_slot); // AFTER durable commit.
   return true;
 }
 
@@ -562,6 +564,7 @@ bool jot_store_delete(int slot) {
   // persistent record: a successfully deleted slot has no valid headers.
   const int bank = s_index[slot].bank;
   if (bank < 0) return false;
+  const uint32_t deleted_serial = s_index[slot].serial;
   const int other_bank = 1 - bank;
   const status_t stale_status = persist_delete(prv_key(slot, other_bank, 0));
   if (stale_status != S_TRUE && stale_status != E_DOES_NOT_EXIST)
@@ -583,6 +586,7 @@ bool jot_store_delete(int slot) {
     s_text[0] = '\0';
     s_dirty = false;
   }
+  jot_backup_note_deleted(deleted_serial); // AFTER committed deletion.
   return true;
 }
 
