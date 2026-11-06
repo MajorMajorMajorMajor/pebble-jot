@@ -2,7 +2,7 @@ name: Jot behavior tests
 
 on:
   push:
-    branches: [main, "feature/issue-39-bundled-backup-viewer", "feature/issue-70-phone-notebook"]
+    branches: [main, "feature/issue-39-bundled-backup-viewer", "feature/issue-70-phone-notebook", "feature/issue-76-seamless-sync"]
   pull_request:
 
 permissions:

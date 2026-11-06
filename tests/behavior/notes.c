@@ -6,6 +6,17 @@
 #include <string.h>
 #include <pebble.h>
 #include "jot/store.h"
+#include "jot/backup.h"
+// The pure storage harness observes notifications without a Bluetooth stack.
+static int s_sync_commits, s_sync_deletions;
+void jot_backup_note_committed(int slot) {
+  assert(slot >= 0 && slot < JOT_NOTE_CAPACITY);
+  ++s_sync_commits;
+}
+void jot_backup_note_deleted(uint32_t serial) {
+  assert(serial > 0);
+  ++s_sync_deletions;
+}
 #include "keyboard/compose.h"
 
 enum {

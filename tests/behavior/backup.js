@@ -31,8 +31,10 @@ function packet(kind,session,index,extra={}){
   }});
   return acks.at(-1);
 }
-function begin(session,total){
-  return packet(1,session,-1,{BackupTotal:total});
+function begin(session,total,mode=0,deletedSerial=0){
+  const fields={BackupTotal:total,BackupMode:mode};
+  if(mode===2)fields.BackupSerial=deletedSerial;
+  return packet(1,session,-1,fields);
 }
 function note(session,index,serial,revision,created,txt,part=0,final=1){
   return packet(2,session,index,{
@@ -169,6 +171,34 @@ assert.equal(end(8,1).BackupStatus,0);
 assert.equal(note(8,0,10,1,400,'second',1,1).BackupStatus,1);
 assert.equal(end(8,1).BackupStatus,1);
 assert.equal(get('w:10:400').text,'First second');
+// #76: one-note incremental transfer cannot mark other live notes absent.
+assert.equal(begin(90,2).BackupStatus,1);
+assert.equal(note(90,0,1,3,100,'watch still has it').BackupStatus,1);
+assert.equal(note(90,1,10,1,400,'First second').BackupStatus,1);
+assert.equal(end(90,2).BackupStatus,1);
+assert.equal(get('w:1:100').onWatch,true);
+assert.equal(get('w:10:400').onWatch,true);
+assert.equal(begin(91,1,1).BackupStatus,1);
+assert.equal(note(91,0,10,2,400,'First second (updated)').BackupStatus,1);
+const beforeDelta=storage['jot.phone.v1'];
+failNextWrite=true;
+assert.equal(end(91,1).BackupStatus,0);
+assert.equal(storage['jot.phone.v1'],beforeDelta,'delta commit atomic');
+assert.equal(end(91,1).BackupStatus,1);
+assert.equal(get('w:10:400').text,'First second (updated)');
+assert.equal(get('w:1:100').onWatch,true,'unrelated note stays on watch');
+// Presence-only deletion changes no text and no other note's status.
+assert.equal(begin(92,0,2,1).BackupStatus,1);
+assert.equal(end(92,0).BackupStatus,1);
+assert.equal(get('w:1:100').onWatch,false);
+assert.equal(get('w:1:100').text,'watch still has it');
+assert.equal(get('w:10:400').onWatch,true);
+assert.equal(begin(93,0).BackupStatus,1);
+assert.equal(end(93,0).BackupStatus,1);
+assert.equal(get('w:10:400').onWatch,false,'empty full sync clears presence');
+assert.equal(get('w:10:400').text,'First second (updated)');
+assert.equal(begin(94,2,1).BackupStatus,0,'one-note delta requires exactly one note');
+assert.equal(begin(95,1,2,0).BackupStatus,0,'deletion must specify serial');
 assert.equal(begin(9,257).BackupStatus,0);
 
 // A failure to save edited notes never mutates the durable phone DB.
