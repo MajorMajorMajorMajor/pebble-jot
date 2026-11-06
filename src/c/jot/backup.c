@@ -243,6 +243,16 @@ static void prv_import_receive(DictionaryIterator *iter) {
     prv_import_ack(hi, lo, seq, JOT_IMPORT_ALREADY, &receipt);
     return;
   }
+  // A user-requested phone→watch send takes priority over automatic
+  // watch→phone work. Aborting an incomplete backup is safe: no phone
+  // records are committed before its END transaction.
+  if (s_active && !s_user_started) {
+    prv_cancel_timer();
+    s_active = false;
+    free(s_note);
+    s_note = NULL;
+    s_auto_full = true;
+  }
   if (s_active) {
     prv_import_ack(hi, lo, seq, JOT_IMPORT_BUSY, NULL);
     return;
@@ -331,6 +341,7 @@ static void prv_import_receive(DictionaryIterator *iter) {
       s_import_text = NULL;
       jot_backup_ui_changed();
       prv_import_ack(hi, lo, seq, status, &receipt);
+      prv_auto_schedule(1200);
     } else {
       prv_import_ack(hi, lo, seq, status, NULL);
     }
@@ -439,7 +450,8 @@ static void prv_begin(bool manual, uint8_t mode, int slot,
 static void prv_auto_kick(void *context) {
   (void)context;
   s_auto_timer = NULL;
-  if (!s_connected || !s_available || s_active || jot_store_dirty()) return;
+  if (!s_connected || !s_available || s_active || s_import_ready ||
+      jot_store_dirty()) return;
   if (s_auto_full) {
     s_auto_full = false;
     s_auto_queued_kind = 0;
